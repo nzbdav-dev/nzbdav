@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NzbWebDAV.Config;
@@ -14,6 +14,11 @@ public class GetHistoryController(
 {
     private async Task<GetHistoryResponse> GetHistoryAsync(GetHistoryRequest request)
     {
+        // get total count
+        var totalCount = await dbClient.Ctx.HistoryItems
+            .Where(q => q.Category == request.Category || request.Category == null)
+            .CountAsync(request.CancellationToken);
+
         // get history items
         var historyItems = await dbClient.Ctx.HistoryItems
             .Where(q => q.Category == request.Category || request.Category == null)
@@ -33,6 +38,7 @@ public class GetHistoryController(
             History = new GetHistoryResponse.HistoryObject()
             {
                 Slots = slots,
+                TotalCount = totalCount,
             }
         };
     }

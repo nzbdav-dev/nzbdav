@@ -1,4 +1,4 @@
-﻿using System.Text.Json.Serialization;
+using System.Text.Json.Serialization;
 using NzbWebDAV.Database.Models;
 
 namespace NzbWebDAV.Api.SabControllers.GetHistory;
@@ -12,6 +12,9 @@ public class GetHistoryResponse : SabBaseResponse
     {
         [JsonPropertyName("slots")]
         public List<HistorySlot> Slots { get; set; }
+
+        [JsonPropertyName("noofslots")]
+        public int TotalCount { get; set; }
     }
 
     public class HistorySlot
