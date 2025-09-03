@@ -37,18 +37,25 @@ public class QueueManager : IDisposable
         return (_inProgressQueueItem?.QueueItem, _inProgressQueueItem?.ProgressPercentage);
     }
 
-    public async Task RemoveQueueItemAsync(string queueItemId, DavDatabaseClient dbClient)
+    public async Task RemoveQueueItemsAsync
+    (
+        List<Guid> queueItemIds,
+        DavDatabaseClient dbClient,
+        CancellationToken ct = default
+    )
     {
         await LockAsync(async () =>
         {
-            if (_inProgressQueueItem?.QueueItem?.Id.ToString() == queueItemId)
+            var inProgressId = _inProgressQueueItem?.QueueItem?.Id;
+            if (inProgressId is not null && queueItemIds.Contains(inProgressId.Value))
             {
-                await _inProgressQueueItem.CancellationTokenSource.CancelAsync();
+                await _inProgressQueueItem!.CancellationTokenSource.CancelAsync();
                 await _inProgressQueueItem.ProcessingTask;
                 _inProgressQueueItem = null;
             }
 
-            await dbClient.RemoveQueueItemAsync(queueItemId);
+            await dbClient.RemoveQueueItemsAsync(queueItemIds, ct);
+            await dbClient.Ctx.SaveChangesAsync(ct);
         });
     }
 
@@ -61,7 +68,7 @@ public class QueueManager : IDisposable
                 // get the next queue-item from the database
                 await using var dbContext = new DavDatabaseContext();
                 var dbClient = new DavDatabaseClient(dbContext);
-                var queueItem = await dbClient.GetTopQueueItem(ct);
+                var queueItem = await LockAsync(() => dbClient.GetTopQueueItem(ct));
                 if (queueItem is null)
                 {
                     // if we're done with the queue, wait
@@ -125,6 +132,19 @@ public class QueueManager : IDisposable
         try
         {
             await actionAsync();
+        }
+        finally
+        {
+            _semaphore.Release();
+        }
+    }
+
+    private async Task<T> LockAsync<T>(Func<Task<T>> actionAsync)
+    {
+        await _semaphore.WaitAsync();
+        try
+        {
+            return await actionAsync();
         }
         finally
         {

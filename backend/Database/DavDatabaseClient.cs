@@ -115,18 +115,11 @@ public sealed class DavDatabaseClient(DavDatabaseContext ctx)
             .ToArrayAsync(cancellationToken: ct);
     }
 
-    public async Task RemoveQueueItemAsync(string id)
+    public async Task RemoveQueueItemsAsync(List<Guid> ids, CancellationToken ct = default)
     {
-        try
-        {
-            Ctx.QueueItems.Remove(new QueueItem() { Id = Guid.Parse(id) });
-            await Ctx.SaveChangesAsync();
-        }
-        catch (DbUpdateConcurrencyException e)
-        {
-            var ignoredErrorMessage = "expected to affect 1 row(s), but actually affected 0 row(s)";
-            if (!e.Message.Contains(ignoredErrorMessage)) throw;
-        }
+        await Ctx.QueueItems
+            .Where(x => ids.Contains(x.Id))
+            .ExecuteDeleteAsync(ct);
     }
 
     // history
@@ -158,7 +151,8 @@ public sealed class DavDatabaseClient(DavDatabaseContext ctx)
     }
 
     // completed-symlinks
-    public async Task<List<DavItem>> GetCompletedSymlinkCategoryChildren(string category, CancellationToken ct = default)
+    public async Task<List<DavItem>> GetCompletedSymlinkCategoryChildren(string category,
+        CancellationToken ct = default)
     {
         var query = from historyItem in Ctx.HistoryItems
             where historyItem.Category == category

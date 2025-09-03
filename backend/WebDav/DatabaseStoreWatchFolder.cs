@@ -90,7 +90,7 @@ public class DatabaseStoreWatchFolder(
         dbClient.Ctx.ChangeTracker.Clear();
         await controller.RemoveFromQueue(new RemoveFromQueueRequest()
         {
-            NzoId = item.Id.ToString(),
+            NzoIds = [item.Id],
             CancellationToken = request.CancellationToken
         });
         return DavStatusCode.NoContent;

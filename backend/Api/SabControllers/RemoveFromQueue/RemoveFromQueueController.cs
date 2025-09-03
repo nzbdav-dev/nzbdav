@@ -17,14 +17,14 @@ public class RemoveFromQueueController(
 {
     public async Task<RemoveFromQueueResponse> RemoveFromQueue(RemoveFromQueueRequest request)
     {
-        await queueManager.RemoveQueueItemAsync(request.NzoId, dbClient);
-        _ = websocketManager.SendMessage(WebsocketTopic.QueueItemRemoved, request.NzoId);
+        await queueManager.RemoveQueueItemsAsync(request.NzoIds, dbClient, request.CancellationToken);
+        _ = websocketManager.SendMessage(WebsocketTopic.QueueItemRemoved, string.Join(",", request.NzoIds));
         return new RemoveFromQueueResponse() { Status = true };
     }
 
     protected override async Task<IActionResult> Handle()
     {
-        var request = new RemoveFromQueueRequest(httpContext);
+        var request = await RemoveFromQueueRequest.New(httpContext);
         return Ok(await RemoveFromQueue(request));
     }
 }
