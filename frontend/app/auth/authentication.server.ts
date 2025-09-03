@@ -25,3 +25,9 @@ export async function authenticate(request: Request): Promise<User> {
   if (await backendClient.authenticate(username, password)) return { username: username };
   throw new Error("Invalid credentials");
 }
+
+export async function isAuthenticated(cookieHeader: string | null | undefined): Promise<boolean> {
+  const session = await sessionStorage.getSession(cookieHeader);
+  const user = session.get("user");
+  return !!user;
+}
