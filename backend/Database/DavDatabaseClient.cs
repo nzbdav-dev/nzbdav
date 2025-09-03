@@ -135,18 +135,21 @@ public sealed class DavDatabaseClient(DavDatabaseContext ctx)
         return await Ctx.HistoryItems.FirstOrDefaultAsync(x => x.Id == Guid.Parse(id));
     }
 
-    public async Task RemoveHistoryItemAsync(string id)
+    public async Task RemoveHistoryItemsAsync(List<Guid> ids, bool deleteFiles, CancellationToken ct = default)
     {
-        try
+        if (deleteFiles)
         {
-            Ctx.HistoryItems.Remove(new HistoryItem() { Id = Guid.Parse(id) });
-            await Ctx.SaveChangesAsync();
+            await Ctx.Items
+                .Where(d => Ctx.HistoryItems
+                    .Where(h => ids.Contains(h.Id) && h.DownloadDirId != null)
+                    .Select(h => h.DownloadDirId!)
+                    .Contains(d.Id))
+                .ExecuteDeleteAsync(ct);
         }
-        catch (DbUpdateConcurrencyException e)
-        {
-            var ignoredErrorMessage = "expected to affect 1 row(s), but actually affected 0 row(s)";
-            if (!e.Message.Contains(ignoredErrorMessage)) throw;
-        }
+
+        await Ctx.HistoryItems
+            .Where(x => ids.Contains(x.Id))
+            .ExecuteDeleteAsync(ct);
     }
 
     private class FileSizeResult
