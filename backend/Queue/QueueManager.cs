@@ -45,6 +45,7 @@ public class QueueManager : IDisposable
             {
                 await _inProgressQueueItem.CancellationTokenSource.CancelAsync();
                 await _inProgressQueueItem.ProcessingTask;
+                _inProgressQueueItem = null;
             }
 
             await dbClient.RemoveQueueItemAsync(queueItemId);
@@ -78,17 +79,14 @@ public class QueueManager : IDisposable
                     );
                 });
                 await (_inProgressQueueItem?.ProcessingTask ?? Task.CompletedTask);
-                await LockAsync(() => { _inProgressQueueItem = null; });
-            }
-            catch (OperationCanceledException)
-            {
-                // When the DeleteQueueItemAsync is called and the queue-item is currently
-                // being processed, we explicitly cancel the processing of the queue-item.
-                // Since this is expected API behavior, we can ignore this exception.
             }
             catch (Exception e)
             {
                 Log.Error($"An unexpected error occured while processing the queue: {e.Message}");
+            }
+            finally
+            {
+                await LockAsync(() => { _inProgressQueueItem = null; });
             }
         }
     }

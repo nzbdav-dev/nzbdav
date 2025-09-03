@@ -30,13 +30,14 @@ public class RarProcessor(
         try
         {
             await using var stream = await GetNzbFileStream();
+            await using var cancellableStream = new CancellableStream(stream, ct);
             return new Result()
             {
                 NzbFile = nzbFile,
-                PartSize = stream.Length,
+                PartSize = cancellableStream.Length,
                 ArchiveName = GetArchiveName(),
                 PartNumber = GetPartNumber(),
-                StoredFileSegments = GetRarHeaders(stream)
+                StoredFileSegments = (await Task.Run(() => GetRarHeaders(cancellableStream)))
                     .Select(x => new StoredFileSegment()
                     {
                         PathWithinArchive = x.GetFileName(),
@@ -75,10 +76,13 @@ public class RarProcessor(
 
     private List<IRarHeader> GetRarHeaders(Stream stream)
     {
+        ct.ThrowIfCancellationRequested();
         var headerFactory = new RarHeaderFactory(StreamingMode.Seekable, new ReaderOptions());
         var headers = new List<IRarHeader>();
         foreach (var header in headerFactory.ReadHeaders(stream))
         {
+            ct.ThrowIfCancellationRequested();
+
             // we only care about file headers
             if (header.HeaderType != HeaderType.File || header.IsDirectory() || header.GetFileName() == "QO") continue;
 

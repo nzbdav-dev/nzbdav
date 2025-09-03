@@ -42,6 +42,14 @@ public class QueueItemProcessor(
             await ProcessQueueItemAsync(startTime);
         }
 
+        // When a queue-item is removed while processing,
+        // then we need to clear any db changes and finish early.
+        catch (Exception e) when (e.GetBaseException() is OperationCanceledException or TaskCanceledException)
+        {
+            Log.Information($"Processing of queue item `{queueItem.JobName}` was cancelled.");
+            dbClient.Ctx.ChangeTracker.Clear();
+        }
+
         // when non-retryable errors are encountered
         // we must still remove the queue-item and add
         // it to the history as a failed job.
