@@ -43,7 +43,7 @@ export function UsenetSettings({ config, setNewConfig, onReadyToSave }: UsenetSe
 
     const onTestButtonClicked = useCallback(async () => {
         setIsFetching(true);
-        const response = await fetch("/settings/test-usenet-connection", {
+        const response = await fetch("/api/test-usenet-connection", {
             method: "POST",
             body: (() => {
                 const form = new FormData();
@@ -55,7 +55,7 @@ export function UsenetSettings({ config, setNewConfig, onReadyToSave }: UsenetSe
                 return form;
             })()
         });
-        const isConnectionSuccessful = response.ok && ((await response.json()) === true);
+        const isConnectionSuccessful = response.ok && ((await response.json())?.connected === true);
         setIsFetching(false);
         setTestedConfig(config);
         setIsConnectionSuccessful(isConnectionSuccessful);

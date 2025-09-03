@@ -59,8 +59,8 @@ export function HistoryRow({ slot }: HistoryRowProps) {
         setIsConfirmingDelete(false);
         setIsDeleting(true);
         try {
-            const url = '/queue/remove-from-history'
-                + `?nzo_id=${slot.nzo_id}`
+            const url = '/api?mode=history&name=delete'
+                + `&value=${encodeURIComponent(slot.nzo_id)}`
                 + `&del_completed_files=${deleteCompletedFiles ? 1 : 0}`;
             const response = await fetch(url);
             if (response.ok) {

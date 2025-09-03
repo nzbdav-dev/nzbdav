@@ -47,7 +47,7 @@ export function Maintenance({ savedConfig }: MaintenanceProps) {
     // events
     const onRun = useCallback(async () => {
         setIsFetching(true);
-        await fetch("/tasks/migrate-library-symlinks");
+        await fetch("/api/migrate-library-symlinks");
         setIsFetching(false);
     }, [setIsFetching]);
 

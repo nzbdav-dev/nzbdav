@@ -57,7 +57,9 @@ export function QueueRow({ slot }: QueueRowProps) {
         setIsConfirmingDelete(false);
         setIsDeleting(true);
         try {
-            const response = await fetch(`/queue/remove-from-queue?nzo_id=${slot.nzo_id}`);
+            const url = '/api?mode=queue&name=delete'
+                + `&value=${encodeURIComponent(slot.nzo_id)}`;
+            const response = await fetch(url);
             if (response.ok) {
                 const data = await response.json();
                 if (data.status === true) {

@@ -183,69 +183,6 @@ class BackendClient {
         const data = await response.json();
         return data.status;
     }
-
-    public async testUsenetConnection(request: TestUsenetConnectionRequest): Promise<boolean> {
-        const url = process.env.BACKEND_URL + "/api/test-usenet-connection";
-
-        const apiKey = process.env.FRONTEND_BACKEND_API_KEY || "";
-        const response = await fetch(url, {
-            method: "POST",
-            headers: { "x-api-key": apiKey },
-            body: (() => {
-                const form = new FormData();
-                form.append("host", request.host);
-                form.append("port", request.port);
-                form.append("use-ssl", request.useSsl);
-                form.append("user", request.user);
-                form.append("pass", request.pass);
-                return form;
-            })()
-        });
-
-        if (!response.ok) {
-            throw new Error(`Failed to test-usenet-connection: ${(await response.json()).error}`);
-        }
-        const data = await response.json();
-        return data.connected || false;
-    }
-
-    public async removeFromQueue(nzo_id: string): Promise<any> {
-        const url = process.env.BACKEND_URL
-            + '/api?mode=queue&name=delete'
-            + `&value=${encodeURIComponent(nzo_id)}`;
-        const apiKey = process.env.FRONTEND_BACKEND_API_KEY || "";
-        const response = await fetch(url, { headers: { "x-api-key": apiKey } });
-        if (!response.ok) {
-            throw new Error(`Failed to remove from queue: ${(await response.json()).error}`);
-        }
-
-        return await response.json();
-    }
-
-    public async removeFromHistory(nzo_id: string, del_completed_files: boolean): Promise<any> {
-        let url = process.env.BACKEND_URL
-            + '/api?mode=history&name=delete'
-            + `&value=${encodeURIComponent(nzo_id)}`
-            + `&del_completed_files=${del_completed_files ? 1 : 0}`;
-        const apiKey = process.env.FRONTEND_BACKEND_API_KEY || "";
-        const response = await fetch(url, { headers: { "x-api-key": apiKey } });
-        if (!response.ok) {
-            throw new Error(`Failed to remove from history: ${(await response.json()).error}`);
-        }
-
-        return await response.json();
-    }
-
-    public async migrateLibrarySymlinks(): Promise<boolean> {
-        let url = process.env.BACKEND_URL + '/api/migrate-library-symlinks';
-        const apiKey = process.env.FRONTEND_BACKEND_API_KEY || "";
-        const response = await fetch(url, { headers: { "x-api-key": apiKey } });
-        if (!response.ok) {
-            throw new Error(`Failed to begin migrating library symlinks.`);
-        }
-
-        return true;
-    }
 }
 
 export const backendClient = new BackendClient();
