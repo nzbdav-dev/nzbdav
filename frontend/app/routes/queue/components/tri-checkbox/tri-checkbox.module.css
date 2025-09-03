@@ -1,0 +1,12 @@
+.container {
+    display: flex;
+    flex-direction: row;
+    /* justify-content: center; */
+    align-items: center;
+}
+
+.checkbox {
+    width: 45px;
+    min-width: 45px;
+    text-align: center;
+}

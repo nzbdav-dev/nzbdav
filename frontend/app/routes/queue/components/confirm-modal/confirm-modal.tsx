@@ -1,6 +1,6 @@
 import { Button, Form, Modal } from "react-bootstrap";
 import { WordWrap } from "../word-wrap/word-wrap";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
 export type ConfirmModalProps = {
     show: boolean,
@@ -16,8 +16,18 @@ export type ConfirmModalProps = {
 export function ConfirmModal(props: ConfirmModalProps) {
     const [isCheckboxChecked, setIsCheckboxChecked] = useState(false);
 
+    const onConfirm = useCallback((isChecked?: boolean) => {
+        props.onConfirm(isChecked);
+        setIsCheckboxChecked(false);
+    }, [props.onConfirm, setIsCheckboxChecked]);
+
+    const onCancel = useCallback(() => {
+        props.onCancel();
+        setIsCheckboxChecked(false);
+    }, [props.onCancel, setIsCheckboxChecked]);
+
     return (
-        <Modal show={props.show} onHide={props.onCancel} centered scrollable>
+        <Modal show={props.show} onHide={onCancel} centered scrollable>
             <Modal.Header closeButton>
                 <Modal.Title>{props.title}</Modal.Title>
             </Modal.Header>
@@ -38,10 +48,10 @@ export function ConfirmModal(props: ConfirmModalProps) {
                 </div>
             </Modal.Body>
             <Modal.Footer>
-                <Button variant="secondary" onClick={props.onCancel}>
+                <Button variant="secondary" onClick={onCancel}>
                     {props.cancelText || "Close"}
                 </Button>
-                <Button variant="danger" onClick={() => props.onConfirm(isCheckboxChecked)}>
+                <Button variant="danger" onClick={() => onConfirm(isCheckboxChecked)}>
                     {props.confirmText || "Confirm Removal"}
                 </Button>
             </Modal.Footer>

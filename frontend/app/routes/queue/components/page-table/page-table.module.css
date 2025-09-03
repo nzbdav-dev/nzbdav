@@ -2,80 +2,124 @@
     container-type: inline-size;
 }
 
-.page-table thead tr th {
-    background-color: hsl(192, 100%, 11%) !important;
-    text-align: center;
-    width: 100px;
+.page-table {
+
+    /* header column */
+    th {
+        padding: 0;
+        padding-top: 8px;
+        padding-bottom: 8px;
+        background-color: hsl(192, 100%, 11%) !important;
+        text-align: center;
+        width: 100px;
+
+        /* first header column */
+        &:first-child {
+            border-radius: 10px 0 0 0;
+            text-align: left;
+            width: 50%;
+        }
+
+        /* last header column */
+        &:last-child {
+            border-radius: 0 10px 0 0;
+        }
+    }
+
+    /* body column */
+    td {
+        padding: 0;
+        padding-top: 11px;
+        padding-bottom: 11px;
+        max-width: 200px;
+        color: hsl(180, 7%, 70%) !important;
+        --bs-table-bg: hsl(192, 90%, 6%);
+        text-align: center;
+        vertical-align: middle;
+        white-space: nowrap;
+        border-bottom: 1px solid rgba(255, 255, 255, .05);
+
+        /* first body column */
+        &:first-child {
+            text-align: left;
+        }
+    }
+
+    /* last row */
+    tr:last-child {
+
+        /* cell on the last row */
+        td {
+            border-bottom: none;
+
+            /* first cell on the last row */
+            &:first-child {
+                border-radius: 0 0 0 10px;
+            }
+
+            /* last cell on the last row */
+            &:last-child {
+                border-radius: 0 0 10px 0;
+            }
+        }
+    }
+
+    /* when a row is being removed, set opacity to 50% */
+    .removing {
+        opacity: 20%;
+    }
 }
 
-.page-table thead tr th:first-child {
-    border-radius: 10px 0 0 0;
-    padding-left: 15px !important;
-    text-align: left;
-    width: 50%;
-}
-
-.page-table thead tr th:last-child {
-    border-radius: 0 10px 0 0;
-}
-
-.page-table tbody tr td {
-    max-width: 200px;
-    color: hsl(180, 7%, 70%) !important;
-    --bs-table-bg: hsl(192, 90%, 6%);
-    text-align: center;
-    vertical-align: middle;
-    white-space: nowrap;
-    border-bottom: 1px solid rgba(255, 255, 255, .05);
-}
-
-.page-table tbody tr td:first-child {
-    text-align: left;
-    padding: 15px 0 !important;
-    padding-left: 15px !important;
-}
-
-.page-table tbody tr:last-child td {
-    border-bottom: none;
-}
-
-.page-table tbody tr:last-child td:first-child {
-    border-radius: 0 0 0 10px;
-}
-
-.page-table tbody tr:last-child td:last-child {
-    border-radius: 0 0 10px 0;
-}
-
-.deleting {
-    opacity: 20%;
-}
-
-.reappear {
-    display: none;
-}
-
-.reappear *:has(+*) {
-    margin-right: 10px;
+.badges {
+    display: flex;
+    margin-top: 3px;
     margin-bottom: 5px;
+    gap: 10px;
 }
 
-.reappear > div {
-    margin-left: 5px;
+.actions {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
 }
 
-/* mobile */
-@media not (min-width: 900px)  {
-    .disappear {
+/* desktop */
+@media (min-width: 900px) {
+    .mobile {
         display: none;
     }
 
-    .reappear {
+    .skinny {
+        display: none;
+    }
+}
+
+/* mobile */
+@media not (min-width: 900px) {
+    .desktop {
+        display: none;
+    }
+
+    .skinny {
+        display: none;
+    }
+
+    .mobile {
         display: block;
-        margin-top: 2px;
     }
 
     .page-table thead tr th:first-child {
         width: unset;
+    }
+}
+
+/* really skinny devices */
+@media not (min-width: 410px) {
+    .actions {
+        flex-direction: column;
+        align-items: end;
+        margin-right: 20px;
     }
 }

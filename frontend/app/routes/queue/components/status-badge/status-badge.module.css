@@ -1,3 +1,7 @@
+.container {
+    display: inline-block;
+}
+
 .badge {
     display: inline-block;
     line-height: 1;
@@ -19,6 +23,7 @@
 }
 
 .progress {
+    display: block;
     position: absolute;
     top: 0;
     left: 0;
@@ -26,6 +31,12 @@
     height: 100%;
     background-color: rgba(var(--bs-primary-rgb));
     transition: width 500ms ease-in-out;
+}
+
+@media not (min-width: 900px) {
+    .container {
+        display: flex;
+    }
 }
 
 @media not (pointer: coarse),

@@ -1,61 +1,114 @@
-import type { QueueSlot } from "~/clients/backend-client.server"
-import tableStyles from "../page-table/page-table.module.css"
-import { Badge } from "react-bootstrap"
+import pageStyles from "../../route.module.css"
 import { ActionButton } from "../action-button/action-button"
-import { PageTable } from "../page-table/page-table"
-import { Truncate } from "../truncate/truncate"
+import { PageRow, PageTable } from "../page-table/page-table"
 import { useCallback, useState } from "react"
 import { ConfirmModal } from "../confirm-modal/confirm-modal"
-import { StatusBadge } from "../status-badge/status-badge"
+import type { PresentationQueueSlot } from "../../route"
+import type { TriCheckboxState } from "../tri-checkbox/tri-checkbox"
 
 export type QueueTableProps = {
-    queueSlots: QueueSlot[]
+    queueSlots: PresentationQueueSlot[],
+    onIsSelectedChanged: (nzo_ids: Set<string>, isSelected: boolean) => void,
+    onIsRemovingChanged: (nzo_ids: Set<string>, isRemoving: boolean) => void,
+    onRemoved: (nzo_ids: Set<string>) => void,
 }
 
-export function QueueTable({ queueSlots }: QueueTableProps) {
+export function QueueTable({ queueSlots, onIsSelectedChanged, onIsRemovingChanged, onRemoved }: QueueTableProps) {
+    const [isConfirmingRemoval, setIsConfirmingRemoval] = useState(false);
+    var selectedCount = queueSlots.filter(x => !!x.isSelected).length;
+    var headerCheckboxState: TriCheckboxState = selectedCount === 0 ? 'none' : selectedCount === queueSlots.length ? 'all' : 'some';
+
+    const onSelectAll = useCallback((isSelected: boolean) => {
+        onIsSelectedChanged(new Set<string>(queueSlots.map(x => x.nzo_id)), isSelected);
+    }, [queueSlots, onIsSelectedChanged]);
+
+    const onRemove = useCallback(() => {
+        setIsConfirmingRemoval(true);
+    }, [setIsConfirmingRemoval]);
+
+    const onCancelRemoval = useCallback(() => {
+        setIsConfirmingRemoval(false);
+    }, [setIsConfirmingRemoval]);
+
+    const onConfirmRemoval = useCallback(async () => {
+        var nzo_ids = new Set<string>(queueSlots.filter(x => !!x.isSelected).map(x => x.nzo_id));
+        setIsConfirmingRemoval(false);
+        onIsRemovingChanged(nzo_ids, true);
+        try {
+            const url = `/api?mode=queue&name=delete`;
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json;charset=UTF-8',
+                },
+                body: JSON.stringify({ nzo_ids: Array.from(nzo_ids) }),
+            });
+            if (response.ok) {
+                const data = await response.json();
+                if (data.status === true) {
+                    onRemoved(nzo_ids);
+                    return;
+                }
+            }
+        } catch { }
+        onIsRemovingChanged(nzo_ids, false);
+    }, [queueSlots, setIsConfirmingRemoval, onIsRemovingChanged, onRemoved]);
+
     return (
-        <PageTable responsive striped>
-            <thead>
-                <tr>
-                    <th>Name</th>
-                    <th className={tableStyles.disappear}>Category</th>
-                    <th className={tableStyles.disappear}>Status</th>
-                    <th className={tableStyles.disappear}>Size</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {queueSlots.map(slot =>
-                    <QueueRow slot={slot} key={slot.nzo_id} />
-                )}
-            </tbody>
-        </PageTable>
+        <>
+            <div className={pageStyles["section-title"]}>
+                <h3>Queue</h3>
+                {headerCheckboxState !== 'none' &&
+                    <ActionButton type="delete" onClick={onRemove} />
+                }
+            </div>
+            <div style={{ minHeight: "300px" }}>
+                <PageTable headerCheckboxState={headerCheckboxState} onHeaderCheckboxChange={onSelectAll} striped>
+                    {queueSlots.map(slot =>
+                        <QueueRow
+                            key={slot.nzo_id}
+                            slot={slot}
+                            onIsSelectedChanged={(id, isSelected) => onIsSelectedChanged(new Set<string>([id]), isSelected)}
+                            onIsRemovingChanged={(id, isRemoving) => onIsRemovingChanged(new Set<string>([id]), isRemoving)}
+                            onRemoved={(id) => onRemoved(new Set([id]))}
+                        />
+                    )}
+                </PageTable>
+            </div>
+
+            <ConfirmModal
+                show={isConfirmingRemoval}
+                title="Remove From Queue?"
+                message={`${selectedCount} item(s) will be removed`}
+                onConfirm={onConfirmRemoval}
+                onCancel={onCancelRemoval} />
+        </>
     );
 }
 
 type QueueRowProps = {
-    slot: QueueSlot
+    slot: PresentationQueueSlot
+    onIsSelectedChanged: (nzo_id: string, isSelected: boolean) => void,
+    onIsRemovingChanged: (nzo_id: string, isRemoving: boolean) => void,
+    onRemoved: (nzo_id: string) => void
 }
 
-export function QueueRow({ slot }: QueueRowProps) {
+export function QueueRow({ slot, onIsSelectedChanged, onIsRemovingChanged, onRemoved }: QueueRowProps) {
     // state
-    const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
-    const [isDeleting, setIsDeleting] = useState(false);
-    const [isDeleted, setIsDeleted] = useState(false);
-    const className = isDeleting ? tableStyles.deleting : undefined;
+    const [isConfirmingRemoval, setIsConfirmingRemoval] = useState(false);
 
     // events
-    const onDelete = useCallback(() => {
-        setIsConfirmingDelete(true);
-    }, [setIsConfirmingDelete]);
+    const onRemove = useCallback(() => {
+        setIsConfirmingRemoval(true);
+    }, [setIsConfirmingRemoval]);
 
-    const onCancelDelete = useCallback(() => {
-        setIsConfirmingDelete(false);
-    }, [setIsConfirmingDelete]);
+    const onCancelRemoval = useCallback(() => {
+        setIsConfirmingRemoval(false);
+    }, [setIsConfirmingRemoval]);
 
-    const onConfirmDelete = useCallback(async () => {
-        setIsConfirmingDelete(false);
-        setIsDeleting(true);
+    const onConfirmRemoval = useCallback(async () => {
+        setIsConfirmingRemoval(false);
+        onIsRemovingChanged(slot.nzo_id, true);
         try {
             const url = '/api?mode=queue&name=delete'
                 + `&value=${encodeURIComponent(slot.nzo_id)}`;
@@ -63,64 +116,34 @@ export function QueueRow({ slot }: QueueRowProps) {
             if (response.ok) {
                 const data = await response.json();
                 if (data.status === true) {
-                    setIsDeleted(true);
+                    onRemoved(slot.nzo_id);
                     return;
                 }
             }
         } catch { }
-        setIsDeleting(false);
-    }, [slot.nzo_id, setIsConfirmingDelete, setIsDeleting, setIsDeleted]);
+        onIsRemovingChanged(slot.nzo_id, false);
+    }, [slot.nzo_id, setIsConfirmingRemoval, onIsRemovingChanged, onRemoved]);
 
     // view
-    return isDeleted ? null : (
+    return (
         <>
-            <tr key={slot.nzo_id} className={className}>
-                <td>
-                    <Truncate>{slot.filename}</Truncate>
-                    <div className={tableStyles.reappear}>
-                        <StatusBadge status={slot.status} percentage={slot.percentage} />
-                        <CategoryBadge category={slot.cat} />
-                        <div>{formatFileSize(Number(slot.mb) * 1024 * 1024)}</div>
-                    </div>
-                </td>
-                <td className={tableStyles.disappear}>
-                    <CategoryBadge category={slot.cat} />
-                </td>
-                <td className={tableStyles.disappear}>
-                    <StatusBadge status={slot.status} percentage={slot.percentage} />
-                </td>
-                <td className={tableStyles.disappear}>
-                    {formatFileSize(Number(slot.mb) * 1024 * 1024)}
-                </td>
-                <td>
-                    <ActionButton type="delete" disabled={isDeleting} onClick={onDelete} />
-                </td>
-            </tr>
+            <PageRow
+                isSelected={!!slot.isSelected}
+                isRemoving={!!slot.isRemoving}
+                name={slot.filename}
+                category={slot.cat}
+                status={slot.status}
+                percentage={slot.percentage}
+                fileSizeBytes={Number(slot.mb) * 1024 * 1024}
+                actions={<ActionButton type="delete" disabled={!!slot.isRemoving} onClick={onRemove} />}
+                onRowSelectionChanged={isSelected => onIsSelectedChanged(slot.nzo_id, isSelected)}
+            />
             <ConfirmModal
-                show={isConfirmingDelete}
+                show={isConfirmingRemoval}
                 title="Remove From Queue?"
                 message={slot.filename}
-                onConfirm={onConfirmDelete}
-                onCancel={onCancelDelete} />
+                onConfirm={onConfirmRemoval}
+                onCancel={onCancelRemoval} />
         </>
     )
-}
-
-export function CategoryBadge({ category }: { category: string }) {
-    const categoryLower = category?.toLowerCase();
-    let variant = 'secondary';
-    if (categoryLower === 'movies') variant = 'primary';
-    if (categoryLower === 'tv') variant = 'info';
-    return <Badge bg={variant} style={{ width: '85px' }}>{categoryLower}</Badge>
-}
-
-
-export function formatFileSize(bytes: number) {
-    var suffix = "B";
-    if (bytes >= 1024) { bytes /= 1024; suffix = "KB"; }
-    if (bytes >= 1024) { bytes /= 1024; suffix = "MB"; }
-    if (bytes >= 1024) { bytes /= 1024; suffix = "GB"; }
-    if (bytes >= 1024) { bytes /= 1024; suffix = "TB"; }
-    if (bytes >= 1024) { bytes /= 1024; suffix = "PB"; }
-    return `${bytes.toFixed(2)} ${suffix}`;
 }

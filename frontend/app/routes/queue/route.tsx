@@ -7,7 +7,7 @@ import { backendClient, type HistorySlot, type QueueSlot } from "~/clients/backe
 import { EmptyQueue } from "./components/empty-queue/empty-queue";
 import { HistoryTable } from "./components/history-table/history-table";
 import { QueueTable } from "./components/queue-table/queue-table";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { receiveMessage } from "~/utils/websocket-util";
 
 const topicNames = {
@@ -27,12 +27,6 @@ const topicSubscriptions = {
     [topicNames.historyItemRemoved]: 'event',
 }
 
-type BodyProps = {
-    queueSlots: QueueSlot[],
-    historySlots: HistorySlot[],
-    error?: string,
-};
-
 export async function loader({ request }: Route.LoaderArgs) {
     var queuePromise = backendClient.getQueue();
     var historyPromise = backendClient.getHistory();
@@ -45,100 +39,121 @@ export async function loader({ request }: Route.LoaderArgs) {
 }
 
 export default function Queue(props: Route.ComponentProps) {
-    const [queueSlots, setQueueSlots] = useState(props.loaderData.queueSlots);
-    const [historySlots, setHistorySlots] = useState(props.loaderData.historySlots);
+    const [queueSlots, setQueueSlots] = useState<PresentationQueueSlot[]>(props.loaderData.queueSlots);
+    const [historySlots, setHistorySlots] = useState<PresentationHistorySlot[]>(props.loaderData.historySlots);
     const error = props.actionData?.error;
 
+    // queue events
+    const onAddQueueSlot = useCallback((queueSlot: QueueSlot) => {
+        setQueueSlots(slots => [...slots, queueSlot]);
+    }, [setQueueSlots]);
+
+    const onSelectQueueSlots = useCallback((ids: Set<string>, isSelected: boolean) => {
+        setQueueSlots(slots => slots.map(x => ids.has(x.nzo_id) ? { ...x, isSelected } : x));
+    }, [setQueueSlots]);
+
+    const onRemovingQueueSlots = useCallback((ids: Set<string>, isRemoving: boolean) => {
+        setQueueSlots(slots => slots.map(x => ids.has(x.nzo_id) ? { ...x, isRemoving } : x));
+    }, [setQueueSlots]);
+
+    const onRemoveQueueSlots = useCallback((ids: Set<string>) => {
+        setQueueSlots(slots => slots.filter(x => !ids.has(x.nzo_id)));
+    }, [setQueueSlots]);
+
+    const onChangeQueueSlotStatus = useCallback((message: string) => {
+        const [nzo_id, status] = message.split('|');
+        setQueueSlots(slots => slots.map(x => x.nzo_id === nzo_id ? { ...x, status } : x));
+    }, [setQueueSlots]);
+
+    const onChangeQueueSlotPercentage = useCallback((message: string) => {
+        const [nzo_id, percentage] = message.split('|');
+        setQueueSlots(slots => slots.map(x => x.nzo_id === nzo_id ? { ...x, percentage } : x));
+    }, [setQueueSlots]);
+
+    // history events
+    const onAddHistorySlot = useCallback((historySlot: HistorySlot) => {
+        setHistorySlots(slots => [historySlot, ...slots]);
+    }, [setHistorySlots]);
+
+    const onSelectHistorySlots = useCallback((ids: Set<string>, isSelected: boolean) => {
+        setHistorySlots(slots => slots.map(x => ids.has(x.nzo_id) ? { ...x, isSelected } : x));
+    }, [setHistorySlots]);
+
+    const onRemovingHistorySlots = useCallback((ids: Set<string>, isRemoving: boolean) => {
+        setHistorySlots(slots => slots.map(x => ids.has(x.nzo_id) ? { ...x, isRemoving } : x));
+    }, [setHistorySlots]);
+
+    const onRemoveHistorySlots = useCallback((ids: Set<string>) => {
+        setHistorySlots(slots => slots.filter(x => !ids.has(x.nzo_id)));
+    }, [setHistorySlots]);
+
+    // websocket
+    const onWebsocketMessage = useCallback((topic: string, message: string) => {
+        if (topic == topicNames.queueItemAdded)
+            onAddQueueSlot(JSON.parse(message));
+        else if (topic == topicNames.queueItemRemoved)
+            onRemoveQueueSlots(new Set<string>(message.split(',')));
+        else if (topic == topicNames.queueItemStatus)
+            onChangeQueueSlotStatus(message);
+        else if (topic == topicNames.queueItemPercentage)
+            onChangeQueueSlotPercentage(message);
+        else if (topic == topicNames.historyItemAdded)
+            onAddHistorySlot(JSON.parse(message));
+        else if (topic == topicNames.historyItemRemoved)
+            onRemoveHistorySlots(new Set<string>(message.split(',')));
+    }, [
+        onAddQueueSlot,
+        onRemoveQueueSlots,
+        onChangeQueueSlotStatus,
+        onChangeQueueSlotPercentage,
+        onAddHistorySlot,
+        onRemoveHistorySlots,
+    ]);
 
     useEffect(() => {
         let ws: WebSocket;
         let disposed = false;
         function connect() {
             ws = new WebSocket(window.location.origin.replace(/^http/, 'ws'));
-            ws.onmessage = receiveMessage(onMessage);
+            ws.onmessage = receiveMessage(onWebsocketMessage);
             ws.onopen = () => { ws.send(JSON.stringify(topicSubscriptions)); }
             ws.onclose = () => { !disposed && setTimeout(() => connect(), 1000); };
             ws.onerror = () => { ws.close() };
             return () => { disposed = true; ws.close(); }
         }
 
-        function onMessage(topic: string, message: string) {
-            if (topic == topicNames.queueItemStatus)
-                onChangeQueueSlotStatus(message);
-            if (topic == topicNames.queueItemPercentage)
-                onChangeQueueSlotPercentage(message);
-            else if (topic == topicNames.queueItemAdded)
-                onAddQueueSlot(JSON.parse(message));
-            else if (topic == topicNames.queueItemRemoved)
-                onRemoveQueueSlot(message);
-            else if (topic == topicNames.historyItemAdded)
-                onAddHistorySlot(JSON.parse(message));
-            else if (topic == topicNames.historyItemRemoved)
-                onRemoveHistorySlot(message);
-        }
-
-        function onChangeQueueSlotStatus(message: string) {
-            const [nzo_id, status] = message.split('|');
-            setQueueSlots(slots => slots.map(x => x.nzo_id === nzo_id ? { ...x, status } : x))
-        }
-
-        function onChangeQueueSlotPercentage(message: string) {
-            const [nzo_id, percentage] = message.split('|');
-            setQueueSlots(slots => slots.map(x => x.nzo_id === nzo_id ? { ...x, percentage } : x))
-        }
-
-        function onAddQueueSlot(queueSlot: QueueSlot) {
-            setQueueSlots(slots => [...slots, queueSlot])
-        }
-
-        function onRemoveQueueSlot(id: string) {
-            setQueueSlots(slots => slots.filter(x => x.nzo_id !== id));
-        }
-
-        function onAddHistorySlot(historySlot: HistorySlot) {
-            setHistorySlots(slots => [historySlot, ...slots])
-        }
-
-        function onRemoveHistorySlot(id: string) {
-            setHistorySlots(slots => slots.filter(x => x.nzo_id !== id));
-        }
-
         return connect();
-    }, [setQueueSlots, setHistorySlots]);
+    }, [onWebsocketMessage]);
 
-    return (
-        <Body queueSlots={queueSlots} historySlots={historySlots} error={error} />
-    );
-}
-
-function Body({ queueSlots, historySlots, error }: BodyProps) {
     return (
         <div className={styles.container}>
+            {/* error message */}
+            {error &&
+                <Alert variant="danger">
+                    {error}
+                </Alert>
+            }
+
             {/* queue */}
             <div className={styles.section}>
-                <h3 className={styles["section-title"]}>
-                    Queue
-                </h3>
-                <div className={styles["section-body"]}>
-                    {/* error message */}
-                    {error &&
-                        <Alert variant="danger">
-                            {error}
-                        </Alert>
-                    }
-                    {queueSlots.length > 0 ? <QueueTable queueSlots={queueSlots} /> : <EmptyQueue />}
-                </div>
+                {queueSlots.length > 0 ?
+                    <QueueTable queueSlots={queueSlots}
+                        onIsSelectedChanged={onSelectQueueSlots}
+                        onIsRemovingChanged={onRemovingQueueSlots}
+                        onRemoved={onRemoveQueueSlots}
+                    /> :
+                    <EmptyQueue />}
             </div>
 
             {/* history */}
             {historySlots.length > 0 &&
                 <div className={styles.section}>
-                    <h3 className={styles["section-title"]}>
-                        History
-                    </h3>
-                    <div className={styles["section-body"]}>
-                        <HistoryTable historySlots={historySlots} />
-                    </div>
+                    <HistoryTable
+                        historySlots={historySlots}
+                        onIsSelectedChanged={onSelectHistorySlots}
+                        onIsRemovingChanged={onRemovingHistorySlots}
+                        onRemoved={onRemoveHistorySlots}
+                    />
                 </div>
             }
         </div>
@@ -165,4 +180,14 @@ export async function action({ request }: Route.ActionArgs) {
         }
         throw error;
     }
+}
+
+export type PresentationHistorySlot = HistorySlot & {
+    isSelected?: boolean,
+    isRemoving?: boolean,
+}
+
+export type PresentationQueueSlot = QueueSlot & {
+    isSelected?: boolean,
+    isRemoving?: boolean,
 }
