@@ -47,11 +47,7 @@ public class RarAggregator(DavDatabaseClient dbClient, DavItem mountDirectory) :
             // If there is only one file in the archive and the file-name is obfuscated,
             // then rename the file to the same name as the containing mount directory.
             if (archiveFiles.Count == 1 && ObfuscationUtil.IsProbablyObfuscated(name))
-            {
-                var extension = Path.GetExtension(name);
-                var mountDirName = Path.GetFileNameWithoutExtension(mountDirectory.Name);
-                name = mountDirName + extension;
-            }
+                name = mountDirectory.Name + Path.GetExtension(name);
 
             var davItem = DavItem.New(
                 id: Guid.NewGuid(),
