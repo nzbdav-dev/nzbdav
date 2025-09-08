@@ -1,3 +1,8 @@
+> **Note:**
+> 
+> I have paused development on Nzb DAV in anticipation of switching to [Alt-Mount](https://github.com/javi11/altmount) within the coming weeks/months. If you like this project, be sure to check out Alt-Mount as well! ❤️
+
+------
 
 <p align="center">
   <img width="1101" height="238" alt="image" src="https://github.com/user-attachments/assets/b14165f4-24ff-4abe-8af6-3ca852e781d4" />
