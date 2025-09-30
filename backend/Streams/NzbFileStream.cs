@@ -1,5 +1,6 @@
 ﻿using NzbWebDAV.Clients;
 using NzbWebDAV.Extensions;
+using NzbWebDAV.Models;
 using NzbWebDAV.Utils;
 
 namespace NzbWebDAV.Streams;
@@ -71,12 +72,12 @@ public class NzbFileStream(
     {
         return await InterpolationSearch.Find(
             byteOffset,
-            new InterpolationSearch.Range(0, fileSegmentIds.Length),
-            new InterpolationSearch.Range(0, fileSize),
+            new LongRange(0, fileSegmentIds.Length),
+            new LongRange(0, fileSize),
             async (guess) =>
             {
                 var header = await client.GetSegmentYencHeaderAsync(fileSegmentIds[guess], ct);
-                return new InterpolationSearch.Range(header.PartOffset, header.PartOffset + header.PartSize);
+                return new LongRange(header.PartOffset, header.PartOffset + header.PartSize);
             },
             ct
         );

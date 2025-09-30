@@ -1,4 +1,5 @@
 ﻿using NzbWebDAV.Exceptions;
+using NzbWebDAV.Models;
 
 namespace NzbWebDAV.Utils;
 
@@ -7,9 +8,9 @@ public static class InterpolationSearch
     public static async Task<Result> Find
     (
         long searchByte,
-        Range indexRangeToSearch,
-        Range byteRangeToSearch,
-        Func<int, Task<Range>> getByteRangeOfGuessedIndex,
+        LongRange indexRangeToSearch,
+        LongRange byteRangeToSearch,
+        Func<int, Task<LongRange>> getByteRangeOfGuessedIndex,
         CancellationToken cancellationToken
     )
     {
@@ -52,19 +53,5 @@ public static class InterpolationSearch
         }
     }
 
-    public record Range(long StartInclusive, long EndExclusive)
-    {
-        public long Count => EndExclusive - StartInclusive;
-
-        public bool Contains(long value) =>
-            value >= StartInclusive && value < EndExclusive;
-
-        public bool Contains(Range range) =>
-            range.StartInclusive >= StartInclusive && range.EndExclusive <= EndExclusive;
-
-        public bool IsContainedWithin(Range range) =>
-            range.Contains(this);
-    }
-
-    public record Result(int FoundIndex, Range FoundByteRange);
+    public record Result(int FoundIndex, LongRange FoundByteRange);
 }
