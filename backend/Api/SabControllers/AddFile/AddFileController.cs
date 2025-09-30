@@ -5,7 +5,7 @@ using NzbWebDAV.Api.SabControllers.GetQueue;
 using NzbWebDAV.Config;
 using NzbWebDAV.Database;
 using NzbWebDAV.Database.Models;
-using NzbWebDAV.Exceptions;
+using NzbWebDAV.Extensions;
 using NzbWebDAV.Queue;
 using NzbWebDAV.Websocket;
 using Usenet.Nzb;

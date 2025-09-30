@@ -1,7 +1,7 @@
 ﻿using System.Net.WebSockets;
 using System.Text;
 using Microsoft.AspNetCore.Http;
-using NzbWebDAV.Exceptions;
+using NzbWebDAV.Extensions;
 using NzbWebDAV.Utils;
 using Serilog;
 
