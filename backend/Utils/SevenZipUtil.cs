@@ -1,4 +1,5 @@
-﻿using NzbWebDAV.Extensions;
+﻿using NzbWebDAV.Exceptions;
+using NzbWebDAV.Extensions;
 using NzbWebDAV.Models;
 using NzbWebDAV.Streams;
 using SharpCompress.Archives.SevenZip;
@@ -16,11 +17,18 @@ public static class SevenZipUtil
 
     public static List<SevenZipEntry> GetSevenZipEntries(Stream stream)
     {
-        using var archive = SevenZipArchive.Open(stream);
-        return archive.Entries
-            .Where(x => !x.IsDirectory)
-            .Select((entry, index) => new SevenZipEntry(entry, archive, index))
-            .ToList();
+        try
+        {
+            using var archive = SevenZipArchive.Open(stream);
+            return archive.Entries
+                .Where(x => !x.IsDirectory)
+                .Select((entry, index) => new SevenZipEntry(entry, archive, index))
+                .ToList();
+        }
+        catch (CryptographicException e)
+        {
+            throw new PasswordProtected7zException("Password-protected 7z archives are not supported");
+        }
     }
 
     public class SevenZipEntry(SevenZipArchiveEntry entry, SevenZipArchive archive, int index)
