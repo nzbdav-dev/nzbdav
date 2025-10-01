@@ -33,6 +33,10 @@
     transition: width 500ms ease-in-out;
 }
 
+.healthcheck-progress {
+    background-color: #60aa4a;
+}
+
 @media not (min-width: 900px) {
     .container {
         display: flex;

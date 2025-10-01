@@ -197,6 +197,7 @@ export type QueueSlot = {
     filename: string,
     cat: string,
     percentage: string,
+    true_percentage: string,
     status: string,
     mb: string,
     mbleft: string,

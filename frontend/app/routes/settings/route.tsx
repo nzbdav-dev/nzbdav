@@ -14,6 +14,7 @@ const defaultConfig = {
     "api.categories": "",
     "api.max-queue-connections": "",
     "api.ensure-importable-video": "true",
+    "api.ensure-article-existence": "false",
     "usenet.host": "",
     "usenet.port": "",
     "usenet.use-ssl": "false",

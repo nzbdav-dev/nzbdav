@@ -22,7 +22,7 @@ export function StatusBadge({ status, percentage, error }: StatusBadgeProps) {
 
     // determine badge text
     let badgeText = statusLower;
-    if (statusLower === "downloading" || percentNum > 0) badgeText = `${percentNum}%`;
+    if (statusLower === "downloading" || percentNum > 0) badgeText = `${percentNum % 100}%`;
 
     // determine class name
     if (error?.startsWith("Article with message-id")) error = "Missing articles";
@@ -48,13 +48,19 @@ type BadgeProps = {
 }
 
 function Badge(props: BadgeProps) {
-    let style = (props.percentNum >= 0)
-        ? { width: `${props.percentNum}%` }
+    const isHealthCheck = props.percentNum > 100;
+
+    const progressClassName = isHealthCheck
+        ? styles.progress + " " + styles["healthcheck-progress"]
+        : styles.progress;
+
+    const style = (props.percentNum >= 0)
+        ? { width: `${props.percentNum % 100}%` }
         : undefined;
 
     return (
         <div {...className([styles.badge, props.className])} style={{ backgroundColor: props.color }}>
-            <div className={styles.progress} style={style} />
+            <div className={progressClassName} style={style} />
             <div className={styles["badge-text"]}>{props.children}</div>
         </div>
     );

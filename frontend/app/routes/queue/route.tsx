@@ -66,8 +66,8 @@ export default function Queue(props: Route.ComponentProps) {
     }, [setQueueSlots]);
 
     const onChangeQueueSlotPercentage = useCallback((message: string) => {
-        const [nzo_id, percentage] = message.split('|');
-        setQueueSlots(slots => slots.map(x => x.nzo_id === nzo_id ? { ...x, percentage } : x));
+        const [nzo_id, true_percentage] = message.split('|');
+        setQueueSlots(slots => slots.map(x => x.nzo_id === nzo_id ? { ...x, true_percentage } : x));
     }, [setQueueSlots]);
 
     // history events

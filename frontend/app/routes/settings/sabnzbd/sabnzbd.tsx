@@ -92,6 +92,19 @@ export function SabnzbdSettings({ config, setNewConfig }: SabnzbdSettingsProps) 
                     Whether to mark downloads as `failed` when no single video file is found inside the nzb. This will force Radarr / Sonarr to automatically look for a new nzb.
                 </Form.Text>
             </Form.Group>
+            <hr />
+            <Form.Group>
+                <Form.Check
+                    className={styles.input}
+                    type="checkbox"
+                    aria-describedby="ensure-article-existence-help"
+                    label={`Perform article health check during downloads`}
+                    checked={config["api.ensure-article-existence"] === "true"}
+                    onChange={e => setNewConfig({ ...config, "api.ensure-article-existence": "" + e.target.checked })} />
+                <Form.Text id="ensure-article-existence-help" muted>
+                    Whether to check for the existence of all articles within an NZB during queue processing. This process may be slow.
+                </Form.Text>
+            </Form.Group>
         </div>
     );
 }
@@ -102,6 +115,7 @@ export function isSabnzbdSettingsUpdated(config: Record<string, string>, newConf
         || config["rclone.mount-dir"] !== newConfig["rclone.mount-dir"]
         || config["api.max-queue-connections"] !== newConfig["api.max-queue-connections"]
         || config["api.ensure-importable-video"] !== newConfig["api.ensure-importable-video"]
+        || config["api.ensure-article-existence"] !== newConfig["api.ensure-article-existence"]
 }
 
 export function isSabnzbdSettingsValid(newConfig: Record<string, string>) {

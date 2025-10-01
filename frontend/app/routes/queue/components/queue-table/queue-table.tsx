@@ -133,7 +133,7 @@ export function QueueRow({ slot, onIsSelectedChanged, onIsRemovingChanged, onRem
                 name={slot.filename}
                 category={slot.cat}
                 status={slot.status}
-                percentage={slot.percentage}
+                percentage={slot.true_percentage}
                 fileSizeBytes={Number(slot.mb) * 1024 * 1024}
                 actions={<ActionButton type="delete" disabled={!!slot.isRemoving} onClick={onRemove} />}
                 onRowSelectionChanged={isSelected => onIsSelectedChanged(slot.nzo_id, isSelected)}
