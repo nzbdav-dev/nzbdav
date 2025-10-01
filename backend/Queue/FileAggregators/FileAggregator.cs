@@ -1,5 +1,6 @@
 ﻿using NzbWebDAV.Database;
 using NzbWebDAV.Database.Models;
+using NzbWebDAV.Extensions;
 using NzbWebDAV.Queue.FileProcessors;
 
 namespace NzbWebDAV.Queue.FileAggregators;
@@ -24,7 +25,7 @@ public class FileAggregator(DavDatabaseClient dbClient, DavItem mountDirectory) 
             var davNzbFile = new DavNzbFile()
             {
                 Id = davItem.Id,
-                SegmentIds = result.NzbFile.Segments.Select(x => x.MessageId.Value).ToArray(),
+                SegmentIds = result.NzbFile.GetSegmentIds(),
             };
 
             dbClient.Ctx.Items.Add(davItem);

@@ -1,5 +1,6 @@
 ﻿using NzbWebDAV.Database;
 using NzbWebDAV.Database.Models;
+using NzbWebDAV.Extensions;
 using NzbWebDAV.Queue.FileProcessors;
 using NzbWebDAV.Utils;
 
@@ -25,11 +26,11 @@ public class RarAggregator(DavDatabaseClient dbClient, DavItem mountDirectory) :
             foreach (var fileSegment in archivePart.StoredFileSegments)
             {
                 if (!archiveFiles.ContainsKey(fileSegment.PathWithinArchive))
-                    archiveFiles.Add(fileSegment.PathWithinArchive, new List<DavRarFile.RarPart>());
+                    archiveFiles.Add(fileSegment.PathWithinArchive, []);
 
                 archiveFiles[fileSegment.PathWithinArchive].Add(new DavRarFile.RarPart()
                 {
-                    SegmentIds = archivePart.NzbFile.Segments.Select(x => x.MessageId.Value).ToArray(),
+                    SegmentIds = archivePart.NzbFile.GetSegmentIds(),
                     PartSize = archivePart.PartSize,
                     Offset = fileSegment.Offset,
                     ByteCount = fileSegment.ByteCount,

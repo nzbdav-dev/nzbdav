@@ -5,6 +5,13 @@ namespace NzbWebDAV.Extensions;
 
 public static class NzbFileExtensions
 {
+    public static string[] GetSegmentIds(this NzbFile file)
+    {
+        return file.Segments
+            .Select(x => x.MessageId.Value)
+            .ToArray();
+    }
+
     public static string[] GetOrderedSegmentIds(this NzbFile file)
     {
         return file.Segments

@@ -104,9 +104,8 @@ public class RarProcessor(
 
     private async Task<NzbFileStream> GetNzbFileStream()
     {
-        var segments = nzbFile.Segments.Select(x => x.MessageId.Value).ToArray();
         var filesize = fileinfo.FileSize ?? await usenet.GetFileSizeAsync(nzbFile, ct);
-        return usenet.GetFileStream(segments, filesize, concurrentConnections: 1);
+        return usenet.GetFileStream(nzbFile, filesize, concurrentConnections: 1);
     }
 
     public new class Result : BaseProcessor.Result

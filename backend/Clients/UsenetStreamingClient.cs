@@ -2,6 +2,7 @@
 using NzbWebDAV.Clients.Connections;
 using NzbWebDAV.Config;
 using NzbWebDAV.Exceptions;
+using NzbWebDAV.Extensions;
 using NzbWebDAV.Streams;
 using NzbWebDAV.Websocket;
 using Usenet.Nntp.Responses;
@@ -84,9 +85,14 @@ public class UsenetStreamingClient
 
     public async Task<NzbFileStream> GetFileStream(NzbFile nzbFile, int concurrentConnections, CancellationToken ct)
     {
-        var segmentIds = nzbFile.Segments.Select(x => x.MessageId.Value).ToArray();
+        var segmentIds = nzbFile.GetSegmentIds();
         var fileSize = await _client.GetFileSizeAsync(nzbFile, cancellationToken: ct);
         return new NzbFileStream(segmentIds, fileSize, _client, concurrentConnections);
+    }
+
+    public NzbFileStream GetFileStream(NzbFile nzbFile, long fileSize, int concurrentConnections)
+    {
+        return new NzbFileStream(nzbFile.GetSegmentIds(), fileSize, _client, concurrentConnections);
     }
 
     public NzbFileStream GetFileStream(string[] segmentIds, long fileSize, int concurrentConnections)

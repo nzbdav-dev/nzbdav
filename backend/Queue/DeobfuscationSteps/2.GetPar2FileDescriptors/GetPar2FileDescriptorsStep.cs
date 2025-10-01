@@ -1,4 +1,5 @@
 ﻿using NzbWebDAV.Clients;
+using NzbWebDAV.Extensions;
 using NzbWebDAV.Par2Recovery;
 using NzbWebDAV.Par2Recovery.Packets;
 using NzbWebDAV.Queue.DeobfuscationSteps._1.FetchFirstSegment;
@@ -23,7 +24,7 @@ public static class GetPar2FileDescriptorsStep
 
         // return all file descriptors
         var fileDescriptors = new List<FileDesc>();
-        var segments = par2Index.NzbFile.Segments.Select(x => x.MessageId.Value).ToArray();
+        var segments = par2Index.NzbFile.GetSegmentIds();
         var filesize = par2Index.NzbFile.Segments.Count == 1
             ? par2Index.Header!.PartOffset + par2Index.Header!.PartSize
             : await client.GetFileSizeAsync(par2Index.NzbFile, cancellationToken);
