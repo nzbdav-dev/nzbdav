@@ -13,6 +13,7 @@ using NzbWebDAV.Queue.DeobfuscationSteps._3.GetFileInfos;
 using NzbWebDAV.Queue.FileAggregators;
 using NzbWebDAV.Queue.FileProcessors;
 using NzbWebDAV.Queue.Validators;
+using NzbWebDAV.Utils;
 using NzbWebDAV.Websocket;
 using Serilog;
 using Usenet.Nzb;
@@ -118,15 +119,11 @@ public class QueueItemProcessor(
             nzbFiles, usenetClient, configManager, ct, part1Progress);
         var par2FileDescriptors = await GetPar2FileDescriptorsStep.GetPar2FileDescriptors(
             segments, usenetClient, ct);
-        var fileInfoDictionary = GetFileInfosStep.GetFileInfos(
+        var fileInfos = GetFileInfosStep.GetFileInfos(
             segments, par2FileDescriptors);
 
         // part 2 -- perform file processing
-        var fileProcessors = nzbFiles
-            .DistinctBy(x => fileInfoDictionary[x].FileName)
-            .Select(x => GetFileProcessor(x, fileInfoDictionary[x]))
-            .Where(x => x is not null)
-            .ToList();
+        var fileProcessors = GetFileProcessors(fileInfos).ToList();
         var part2Progress = progress
             .Offset(50)
             .Scale(50, 100)
@@ -147,6 +144,7 @@ public class QueueItemProcessor(
             var mountFolder = CreateMountFolder(categoryFolder);
             new RarAggregator(dbClient, mountFolder).UpdateDatabase(fileProcessingResults);
             new FileAggregator(dbClient, mountFolder).UpdateDatabase(fileProcessingResults);
+            new SevenZipAggregator(dbClient, mountFolder).UpdateDatabase(fileProcessingResults);
 
             // validate video files found
             if (configManager.IsEnsureImportableVideoEnabled())
@@ -156,11 +154,32 @@ public class QueueItemProcessor(
         });
     }
 
-    private BaseProcessor? GetFileProcessor(NzbFile nzbFile, GetFileInfosStep.FileInfo fileinfo)
+    private IEnumerable<BaseProcessor> GetFileProcessors(List<GetFileInfosStep.FileInfo> fileInfos)
     {
-        return RarProcessor.CanProcess(fileinfo.FileName) ? new RarProcessor(nzbFile, fileinfo, usenetClient, ct)
-            : FileProcessor.CanProcess(fileinfo.FileName) ? new FileProcessor(nzbFile, fileinfo, usenetClient, ct)
-            : null;
+        var groups = fileInfos
+            .DistinctBy(x => x.FileName)
+            .GroupBy(x => GetGroup(x.FileName));
+
+        foreach (var group in groups)
+        {
+            if (group.Key == "7z")
+                yield return new SevenZipProcessor(group.ToList(), usenetClient, ct);
+
+            else if (group.Key == "rar")
+                foreach (var fileInfo in group)
+                    yield return new RarProcessor(fileInfo, usenetClient, ct);
+
+            else if (group.Key == "other")
+                foreach (var fileInfo in group)
+                    yield return new FileProcessor(fileInfo, usenetClient, ct);
+        }
+
+        yield break;
+
+        string GetGroup(string x) => false ? "impossible"
+            : FilenameUtil.Is7zFile(x) ? "7z"
+            : FilenameUtil.IsRarFile(x) ? "rar"
+            : "other";
     }
 
     private async Task<DavItem?> GetMountFolder()

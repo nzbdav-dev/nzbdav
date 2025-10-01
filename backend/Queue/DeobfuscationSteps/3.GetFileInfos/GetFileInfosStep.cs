@@ -9,7 +9,7 @@ namespace NzbWebDAV.Queue.DeobfuscationSteps._3.GetFileInfos;
 
 public static class GetFileInfosStep
 {
-    public static Dictionary<NzbFile, FileInfo> GetFileInfos
+    public static List<FileInfo> GetFileInfos
     (
         List<FetchFirstSegmentsStep.NzbFileWithFirstSegment> files,
         List<FileDesc> par2FileDescriptors
@@ -17,12 +17,11 @@ public static class GetFileInfosStep
     {
         using var md5 = MD5.Create();
         var hashToFileDescMap = GetHashToFileDescMap(par2FileDescriptors);
-        var fileinfoDictionary = files.ToDictionary(
-            x => x.NzbFile,
-            x => GetFileInfo(x, hashToFileDescMap, md5)
-        );
+        var filesInfos = files
+            .Select(x => GetFileInfo(x, hashToFileDescMap, md5))
+            .ToList();
 
-        return fileinfoDictionary;
+        return filesInfos;
     }
 
     private static Dictionary<string, FileDesc> GetHashToFileDescMap(List<FileDesc> par2FileDescriptors)
@@ -57,6 +56,7 @@ public static class GetFileInfosStep
 
         return new FileInfo()
         {
+            NzbFile = file.NzbFile,
             FileName = filename,
             FileSize = (long?)fileDesc?.FileLength
         };
@@ -74,6 +74,7 @@ public static class GetFileInfosStep
 
     public class FileInfo
     {
+        public required NzbFile NzbFile { get; init; }
         public required string FileName { get; init; }
         public long? FileSize { get; init; }
     }

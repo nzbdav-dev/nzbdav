@@ -40,7 +40,7 @@ public class MultipartFileStream : Stream
         while (_position < Length && !cancellationToken.IsCancellationRequested)
         {
             // If we haven't read the first stream, read it.
-            _currentStream ??= await GetCurrentStreamAsync(cancellationToken);
+            _currentStream ??= GetCurrentStream();
 
             // read from our current stream
             var readCount = await _currentStream.ReadAsync
@@ -60,14 +60,13 @@ public class MultipartFileStream : Stream
         return 0;
     }
 
-    private async Task<Stream> GetCurrentStreamAsync(CancellationToken cancellationToken)
+    private Stream GetCurrentStream()
     {
-        var searchResult = await InterpolationSearch.Find(
+        var searchResult = InterpolationSearch.Find(
             _position,
             new LongRange(0, _multipartFile.FileParts.Count),
             new LongRange(0, Length),
-            guess => Task.FromResult(_multipartFile.FileParts[guess].ByteRange),
-            cancellationToken
+            guess => _multipartFile.FileParts[guess].ByteRange
         );
 
         var filePart = _multipartFile.FileParts[searchResult.FoundIndex];

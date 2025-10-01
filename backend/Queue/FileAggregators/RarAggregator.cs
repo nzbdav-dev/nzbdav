@@ -6,9 +6,12 @@ using NzbWebDAV.Utils;
 
 namespace NzbWebDAV.Queue.FileAggregators;
 
-public class RarAggregator(DavDatabaseClient dbClient, DavItem mountDirectory) : IAggregator
+public class RarAggregator(DavDatabaseClient dbClient, DavItem mountDirectory) : BaseAggregator
 {
-    public void UpdateDatabase(List<BaseProcessor.Result> processorResults)
+    protected override DavDatabaseClient DBClient => dbClient;
+    protected override DavItem MountDirectory => mountDirectory;
+
+    public override void UpdateDatabase(List<BaseProcessor.Result> processorResults)
     {
         var orderedArchiveParts = processorResults
             .OfType<RarProcessor.Result>()
@@ -42,7 +45,7 @@ public class RarAggregator(DavDatabaseClient dbClient, DavItem mountDirectory) :
         {
             var pathWithinArchive = archiveFile.Key;
             var rarParts = archiveFile.Value.ToArray();
-            var parentDirectory = EnsurePath(pathWithinArchive);
+            var parentDirectory = EnsureExtractPath(pathWithinArchive);
             var name = Path.GetFileName(pathWithinArchive);
 
             // If there is only one file in the archive and the file-name is obfuscated,
@@ -67,40 +70,5 @@ public class RarAggregator(DavDatabaseClient dbClient, DavItem mountDirectory) :
             dbClient.Ctx.Items.Add(davItem);
             dbClient.Ctx.RarFiles.Add(davRarFile);
         }
-    }
-
-    private DavItem EnsurePath(string pathWithinArchive)
-    {
-        var pathSegments = pathWithinArchive
-            .Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
-            .Prepend("extracted")
-            .ToArray();
-        var parentDirectory = mountDirectory;
-        var pathKey = "";
-        for (var i = 0; i < pathSegments.Length - 1; i++)
-        {
-            pathKey = Path.Join(pathKey, pathSegments[i]);
-            parentDirectory = EnsureDirectory(parentDirectory, pathSegments[i], pathKey);
-        }
-
-        return parentDirectory;
-    }
-
-    private readonly Dictionary<string, DavItem> _directoryCache = new();
-
-    private DavItem EnsureDirectory(DavItem parentDirectory, string directoryName, string pathKey)
-    {
-        if (_directoryCache.TryGetValue(pathKey, out var cachedDirectory)) return cachedDirectory;
-
-        var directory = DavItem.New(
-            id: Guid.NewGuid(),
-            parent: parentDirectory,
-            name: directoryName,
-            fileSize: null,
-            type: DavItem.ItemType.Directory
-        );
-        _directoryCache.Add(pathKey, directory);
-        dbClient.Ctx.Items.Add(directory);
-        return directory;
     }
 }

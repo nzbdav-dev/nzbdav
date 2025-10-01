@@ -8,34 +8,28 @@ using Usenet.Nzb;
 namespace NzbWebDAV.Queue.FileProcessors;
 
 public class FileProcessor(
-    NzbFile nzbFile,
-    GetFileInfosStep.FileInfo fileinfo,
+    GetFileInfosStep.FileInfo fileInfo,
     UsenetStreamingClient usenet,
     CancellationToken ct
 ) : BaseProcessor
 {
-    public static bool CanProcess(string filename)
-    {
-        return true;
-    }
-
     public override async Task<BaseProcessor.Result?> ProcessAsync()
     {
         try
         {
             return new Result()
             {
-                NzbFile = nzbFile,
-                FileName = fileinfo.FileName,
-                FileSize = fileinfo.FileSize ?? await usenet.GetFileSizeAsync(nzbFile, ct),
+                NzbFile = fileInfo.NzbFile,
+                FileName = fileInfo.FileName,
+                FileSize = fileInfo.FileSize ?? await usenet.GetFileSizeAsync(fileInfo.NzbFile, ct),
             };
         }
 
         // Ignore missing articles if it's not a video file.
         // In that case, simply skip the file altogether.
-        catch (UsenetArticleNotFoundException) when (!FilenameUtil.IsVideoFile(fileinfo.FileName))
+        catch (UsenetArticleNotFoundException) when (!FilenameUtil.IsVideoFile(fileInfo.FileName))
         {
-            Log.Warning($"File `{fileinfo.FileName}` has missing articles. Skipping file since it is not a video.");
+            Log.Warning($"File `{fileInfo.FileName}` has missing articles. Skipping file since it is not a video.");
             return null;
         }
     }

@@ -5,9 +5,12 @@ using NzbWebDAV.Queue.FileProcessors;
 
 namespace NzbWebDAV.Queue.FileAggregators;
 
-public class FileAggregator(DavDatabaseClient dbClient, DavItem mountDirectory) : IAggregator
+public class FileAggregator(DavDatabaseClient dbClient, DavItem mountDirectory) : BaseAggregator
 {
-    public void UpdateDatabase(List<BaseProcessor.Result> processorResults)
+    protected override DavDatabaseClient DBClient => dbClient;
+    protected override DavItem MountDirectory => mountDirectory;
+
+    public override void UpdateDatabase(List<BaseProcessor.Result> processorResults)
     {
         foreach (var processorResult in processorResults)
         {

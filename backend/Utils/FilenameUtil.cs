@@ -23,4 +23,10 @@ public class FilenameUtil
         return filename.EndsWith(".rar", StringComparison.OrdinalIgnoreCase)
                || Regex.IsMatch(filename, @"\.r(\d+)$", RegexOptions.IgnoreCase);
     }
+
+    public static bool Is7zFile(string? filename)
+    {
+        if (string.IsNullOrEmpty(filename)) return false;
+        return Regex.IsMatch(filename, @"\.7z(\.(\d+))?$", RegexOptions.IgnoreCase);
+    }
 }

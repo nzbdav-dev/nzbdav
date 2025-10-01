@@ -5,12 +5,29 @@ namespace NzbWebDAV.Utils;
 
 public static class InterpolationSearch
 {
+    public static Result Find
+    (
+        long searchByte,
+        LongRange indexRangeToSearch,
+        LongRange byteRangeToSearch,
+        Func<int, LongRange> getByteRangeOfGuessedIndex
+    )
+    {
+        return Find(
+            searchByte,
+            indexRangeToSearch,
+            byteRangeToSearch,
+            guess => new ValueTask<LongRange>(getByteRangeOfGuessedIndex(guess)),
+            CancellationToken.None
+        ).GetAwaiter().GetResult();
+    }
+
     public static async Task<Result> Find
     (
         long searchByte,
         LongRange indexRangeToSearch,
         LongRange byteRangeToSearch,
-        Func<int, Task<LongRange>> getByteRangeOfGuessedIndex,
+        Func<int, ValueTask<LongRange>> getByteRangeOfGuessedIndex,
         CancellationToken cancellationToken
     )
     {
