@@ -108,7 +108,7 @@ public class ThreadSafeNntpClient : INntpClient
     private IEnumerable<string> GetArticleBody(string segmentId)
     {
         return _client.Body(new NntpMessageId(segmentId))?.Article?.Body
-               ?? throw new UsenetArticleNotFoundException($"Article with message-id {segmentId} not found.");
+               ?? throw new UsenetArticleNotFoundException(segmentId);
     }
 
     public void Dispose()

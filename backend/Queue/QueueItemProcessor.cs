@@ -6,6 +6,7 @@ using NzbWebDAV.Clients.Connections;
 using NzbWebDAV.Config;
 using NzbWebDAV.Database;
 using NzbWebDAV.Database.Models;
+using NzbWebDAV.Exceptions;
 using NzbWebDAV.Extensions;
 using NzbWebDAV.Queue.DeobfuscationSteps._1.FetchFirstSegment;
 using NzbWebDAV.Queue.DeobfuscationSteps._2.GetPar2FileDescriptors;
@@ -136,6 +137,20 @@ public class QueueItemProcessor(
             .Where(x => x is not null)
             .Select(x => x!)
             .ToList();
+
+        // part3 -- Optionally check full article existence
+        if (configManager.IsEnsureArticleExistenceEnabled())
+        {
+            var articlesToCheck = fileInfos
+                .Where(x => FilenameUtil.IsImportantFileType(x.FileName))
+                .SelectMany(x => x.NzbFile.GetSegmentIds())
+                .ToList();
+            var part3Progress = progress
+                .Offset(100)
+                .ToPercentage(articlesToCheck.Count);
+            var concurrency = configManager.GetMaxQueueConnections();
+            await usenetClient.CheckAllSegmentsAsync(articlesToCheck, concurrency, part3Progress, ct);
+        }
 
         // update the database
         await MarkQueueItemCompleted(startTime, error: null, () =>

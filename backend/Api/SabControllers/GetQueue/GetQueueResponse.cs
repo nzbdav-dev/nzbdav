@@ -38,6 +38,9 @@ public class GetQueueResponse : SabBaseResponse
         [JsonPropertyName("percentage")]
         public string Percentage { get; init; }
 
+        [JsonPropertyName("true_percentage")]
+        public string TruePercentage { get; init; }
+
         [JsonPropertyName("status")]
         public string Status { get; init; }
 
@@ -66,7 +69,8 @@ public class GetQueueResponse : SabBaseResponse
                 Priority = queueItem.Priority.ToString(),
                 Filename = queueItem.FileName,
                 Category = queueItem.Category,
-                Percentage = progressPercentage.ToString()!,
+                Percentage = (progressPercentage % 100).ToString(),
+                TruePercentage = progressPercentage.ToString(),
                 Status = status,
                 TimeLeft = TimeSpan.Zero,
                 SizeInMB = FormatSizeMB(queueItem.TotalSegmentBytes),

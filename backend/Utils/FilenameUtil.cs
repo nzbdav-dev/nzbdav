@@ -12,6 +12,14 @@ public class FilenameUtil
         ".img", ".iso", ".vob", ".mkv", ".mk3d", ".ts", ".wtv", ".m2ts"
     ];
 
+    public static bool IsImportantFileType(string filename)
+    {
+        return IsVideoFile(filename)
+               || IsRarFile(filename)
+               || Is7zFile(filename)
+               || IsMultipartMkv(filename);
+    }
+
     public static bool IsVideoFile(string filename)
     {
         return VideoExtensions.Contains(Path.GetExtension(filename).ToLower());

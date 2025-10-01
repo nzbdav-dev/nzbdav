@@ -59,28 +59,30 @@ public class UsenetStreamingClient
         };
     }
 
-    public async Task<bool> CheckNzbFileHealth(NzbFile nzbFile, CancellationToken cancellationToken = default)
+    public async Task CheckAllSegmentsAsync
+    (
+        IEnumerable<string> segmentIds,
+        int concurrency,
+        IProgress<int>? progress = null,
+        CancellationToken cancellationToken = default
+    )
     {
-        var childCt = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        var tasks = nzbFile.Segments
-            .Select(x => x.MessageId.Value)
-            .Select(x => _client.StatAsync(x, childCt.Token))
-            .ToHashSet();
+        using var childCt = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        using var _ = childCt.Token.SetScopedContext(cancellationToken.GetContext<object>());
+        var token = childCt.Token;
 
-        while (tasks.Count > 0)
+        var tasks = segmentIds
+            .Select(x => _client.StatAsync(x, token))
+            .WithConcurrencyAsync(concurrency);
+
+        var processed = 0;
+        await foreach (var result in tasks)
         {
-            var completedTask = await Task.WhenAny(tasks);
-            tasks.Remove(completedTask);
-
-            var completedResult = await completedTask;
-            if (completedResult.ResponseType != NntpStatResponseType.ArticleExists)
-            {
-                await childCt.CancelAsync();
-                return false;
-            }
+            progress?.Report(++processed);
+            if (result.ResponseType == NntpStatResponseType.ArticleExists) continue;
+            await childCt.CancelAsync();
+            throw new UsenetArticleNotFoundException(result.MessageId.Value);
         }
-
-        return true;
     }
 
     public async Task<NzbFileStream> GetFileStream(NzbFile nzbFile, int concurrentConnections, CancellationToken ct)
