@@ -145,6 +145,7 @@ public class QueueItemProcessor(
             new RarAggregator(dbClient, mountFolder).UpdateDatabase(fileProcessingResults);
             new FileAggregator(dbClient, mountFolder).UpdateDatabase(fileProcessingResults);
             new SevenZipAggregator(dbClient, mountFolder).UpdateDatabase(fileProcessingResults);
+            new MultipartMkvAggregator(dbClient, mountFolder).UpdateDatabase(fileProcessingResults);
 
             // validate video files found
             if (configManager.IsEnsureImportableVideoEnabled())
@@ -169,6 +170,9 @@ public class QueueItemProcessor(
                 foreach (var fileInfo in group)
                     yield return new RarProcessor(fileInfo, usenetClient, ct);
 
+            else if (group.Key == "multipart-mkv")
+                yield return new MultipartMkvProcessor(group.ToList(), usenetClient, ct);
+
             else if (group.Key == "other")
                 foreach (var fileInfo in group)
                     yield return new FileProcessor(fileInfo, usenetClient, ct);
@@ -179,6 +183,7 @@ public class QueueItemProcessor(
         string GetGroup(string x) => false ? "impossible"
             : FilenameUtil.Is7zFile(x) ? "7z"
             : FilenameUtil.IsRarFile(x) ? "rar"
+            : FilenameUtil.IsMultipartMkv(x) ? "multipart-mkv"
             : "other";
     }
 

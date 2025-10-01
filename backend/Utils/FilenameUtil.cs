@@ -29,4 +29,10 @@ public class FilenameUtil
         if (string.IsNullOrEmpty(filename)) return false;
         return Regex.IsMatch(filename, @"\.7z(\.(\d+))?$", RegexOptions.IgnoreCase);
     }
+
+    public static bool IsMultipartMkv(string? filename)
+    {
+        if (string.IsNullOrEmpty(filename)) return false;
+        return Regex.IsMatch(filename, @"\.mkv\.(\d+)?$", RegexOptions.IgnoreCase);
+    }
 }
