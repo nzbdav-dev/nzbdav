@@ -12,7 +12,7 @@ export type StatusBadgeProps = {
 
 export function StatusBadge({ status, percentage, error }: StatusBadgeProps) {
     const statusLower = status?.toLowerCase();
-    const percentNum = Number(percentage);
+    const percentNum = statusLower === "downloading" ? Number(percentage) : 0;
 
     // determine badge color
     let color = "grey";
