@@ -50,26 +50,11 @@ public class QueueItemProcessor(
             dbClient.Ctx.ChangeTracker.Clear();
         }
 
-        // when non-retryable errors are encountered
-        // we must still remove the queue-item and add
-        // it to the history as a failed job.
-        catch (Exception e) when (e.IsNonRetryableDownloadException())
-        {
-            try
-            {
-                await MarkQueueItemCompleted(startTime, error: e.Message);
-            }
-            catch (Exception ex)
-            {
-                Log.Error(e, ex.Message);
-            }
-        }
-
-        // when an unknown error is encountered
+        // when a retryable error is encountered
         // let's not remove the item from the queue
         // to give it a chance to retry. Simply
         // log the error and retry in a minute.
-        catch (Exception e)
+        catch (Exception e) when (e.IsRetryableDownloadException())
         {
             try
             {
@@ -84,6 +69,21 @@ public class QueueItemProcessor(
             catch (Exception ex)
             {
                 Log.Error(ex, ex.Message);
+            }
+        }
+
+        // when any other error is encountered,
+        // we must still remove the queue-item and add
+        // it to the history as a failed job.
+        catch (Exception e)
+        {
+            try
+            {
+                await MarkQueueItemCompleted(startTime, error: e.Message);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(e, ex.Message);
             }
         }
     }
