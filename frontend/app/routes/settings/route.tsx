@@ -96,6 +96,15 @@ function Body(props: BodyProps) {
     }, [showAdvanced, activeTab, setActiveTab])
 
     // events
+    const onSelectTab = React.useCallback((tab: string | null) => {
+        if (tab === "*") {
+            setShowAdvanced(true);
+            setActiveTab("library")
+        } else {
+            setActiveTab(tab!);
+        }
+    }, [setShowAdvanced, setActiveTab]);
+
     const onClear = React.useCallback(() => {
         setNewConfig(config);
         setIsSaved(false);
@@ -128,7 +137,7 @@ function Body(props: BodyProps) {
         <div className={styles.container}>
             <Tabs
                 activeKey={activeTab}
-                onSelect={(k) => setActiveTab(k!)}
+                onSelect={onSelectTab}
                 className={styles.tabs}
             >
                 <Tab eventKey="usenet" title={usenetTitle}>
@@ -140,6 +149,10 @@ function Body(props: BodyProps) {
                 <Tab eventKey="webdav" title={webdavTitle}>
                     <WebdavSettings config={newConfig} setNewConfig={setNewConfig} />
                 </Tab>
+                {!showAdvanced &&
+                    <Tab eventKey="*" title={"🚀"}>
+                    </Tab>
+                }
                 {showAdvanced &&
                     <Tab eventKey="library" title={libraryTitle}>
                         <LibrarySettings savedConfig={config} config={newConfig} setNewConfig={setNewConfig} />
