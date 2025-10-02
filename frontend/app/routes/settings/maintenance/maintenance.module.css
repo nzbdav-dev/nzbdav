@@ -18,8 +18,17 @@
     align-items: center;
 }
 
+.run-button {
+    flex-shrink: 0;
+}
+
+.dryrun-button {
+    padding: 0 5px;
+}
+
 .task-progress {
     font-size:12px;
+    white-space: pre-line;
 }
 
 .list {

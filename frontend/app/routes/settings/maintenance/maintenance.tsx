@@ -3,7 +3,7 @@ import styles from "./maintenance.module.css"
 import { useCallback, useEffect, useState } from "react";
 import { receiveMessage } from "~/utils/websocket-util";
 
-const symlinksTaskTopic = { 'stp': 'state' };
+const cleanupTaskTopic = { 'ctp': 'state' };
 
 type MaintenanceProps = {
     savedConfig: Record<string, string>
@@ -17,17 +17,12 @@ export function Maintenance({ savedConfig }: MaintenanceProps) {
 
     // derived variables
     const libraryDir = savedConfig["media.library-dir"];
-    const isFinished = progress?.startsWith("complete") || progress?.startsWith("failed");
+    const isDone = progress?.startsWith("Done");
+    const isFinished = progress?.startsWith("Done") || progress?.startsWith("Failed") || progress?.startsWith("Aborted");
     const isRunning = !isFinished && (isFetching || progress !== null);
     const isRunButtonEnabled = !!libraryDir && connected && !isRunning;
     const runButtonVariant = isRunButtonEnabled ? 'success' : 'secondary';
     const runButtonLabel = isRunning ? "⌛ Running.." : '▶ Run Task';
-    let [retargetted, processed] = ["0", "0"];
-    if (isRunning && progress?.includes("/")) {
-        const parts = progress.split("/");
-        retargetted = parts[0];
-        processed = parts[1];
-    }
 
     // effects
     useEffect(() => {
@@ -36,7 +31,7 @@ export function Maintenance({ savedConfig }: MaintenanceProps) {
         function connect() {
             ws = new WebSocket(window.location.origin.replace(/^http/, 'ws'));
             ws.onmessage = receiveMessage((_, message) => setProgress(message));
-            ws.onopen = () => { setConnected(true); ws.send(JSON.stringify(symlinksTaskTopic)); }
+            ws.onopen = () => { setConnected(true); ws.send(JSON.stringify(cleanupTaskTopic)); }
             ws.onclose = () => { !disposed && setTimeout(() => connect(), 1000); setProgress(null) };
             ws.onerror = () => { ws.close() };
             return () => { disposed = true; ws.close(); }
@@ -47,11 +42,28 @@ export function Maintenance({ savedConfig }: MaintenanceProps) {
     // events
     const onRun = useCallback(async () => {
         setIsFetching(true);
-        await fetch("/api/migrate-library-symlinks");
+        await fetch("/api/remove-unlinked-files");
+        setIsFetching(false);
+    }, [setIsFetching]);
+
+    const onDryRun = useCallback(async (event: any) => {
+        setIsFetching(true);
+        await fetch("/api/remove-unlinked-files/dry-run");
         setIsFetching(false);
     }, [setIsFetching]);
 
     // view
+    const dryRunButton =
+        <Button
+            className={styles["dryrun-button"]}
+            disabled={!isRunButtonEnabled}
+            onClick={onDryRun}
+            variant="secondary"
+            size="sm"
+        >
+            perform a dry-run
+        </Button>;
+
     return (
         <div className={styles.container}>
             {!libraryDir &&
@@ -70,53 +82,39 @@ export function Maintenance({ savedConfig }: MaintenanceProps) {
                     <span style={{ fontWeight: 'bold' }}>Danger</span>
                     <ul className={styles.list}>
                         <li className={styles["list-item"]}>
-                            Make a backup of your organized media library
-                            symlinks before running this task
+                            Make a backup of your NzbDAV database prior to running this task
                         </li>
                         <li className={styles["list-item"]}>
-                            Symlinks will be deleted and recreated with the
-                            same PUID/PGID that the NzbDAV process is running
-                            under
+                            Files will be removed from the webdav and will not be recoverable without a backup
                         </li>
                     </ul>
                 </Alert>
             }
             <div className={styles.task}>
                 <Form.Group>
-                    <Form.Label className={styles.title}>Update Symlink Targets</Form.Label>
+                    <Form.Label className={styles.title}>Removed Unlinked Files</Form.Label>
                     <div className={styles.run}>
-                        <Button variant={runButtonVariant} onClick={onRun} disabled={!isRunButtonEnabled}>
+                        <Button
+                            className={styles["run-button"]}
+                            variant={runButtonVariant}
+                            onClick={onRun}
+                            disabled={!isRunButtonEnabled}
+                        >
                             {runButtonLabel}
                         </Button>
-                        {isRunning &&
-                            <div className={styles["task-progress"]}>
-                                Processed: {processed} <br />
-                                Re-targetted: {retargetted}
-                            </div>
-                        }
-                        {isFinished &&
-                            <div className={styles["task-progress"]}>
-                                {progress}
-                            </div>
-                        }
+                        <div className={styles["task-progress"]}>
+                            {progress}
+                            {isDone && <>
+                                &nbsp;<a href="/api/remove-unlinked-files/audit">Audit.</a>
+                            </>}
+                        </div>
                     </div>
-                    <Form.Text id="symlink-task-progress-help" muted>
+                    <Form.Text id="cleanup-task-progress-help" muted>
                         <br />
-                        Prior to version 0.3.x, all symlink targets would point to the `/content`
-                        folder within the webdav. This caused performance issues with RClone since
-                        `/content/tv` often contained thousands of children, which RClone
-                        handles <a href="https://github.com/rclone/rclone/issues/8759">inefficiently</a>.
-                        <br /><br />
-                        Symlinks in version 0.3.x and onward now point to the `/.ids` folder within the
-                        webdav, which ensures that no single directory contains any more than a few
-                        children. This improves RClone performance and allows the library to scale better.
-                        <br /><br />
-                        This task recreates previously imported symlinks and re-targets them to the
-                        `/.ids` folder. It only needs to happen once. This task will be deprecated and
-                        removed when we reach 1.0 release. Be sure to run this task and rebuild your
-                        symlinks by then. If you've never used version 0.2.x, then there is no need to
-                        run this task. Those who have only used version 0.3.x onward should be good
-                        from the start.
+                        This task will scan your organized media library for all symlinked files.
+                        Any file on the webdav that is not pointed to by your library will be deleted.
+                        If you would like to see what would be deleted without running the task, you can {dryRunButton}.
+                        The dry-run will not delete anything.
                     </Form.Text>
                 </Form.Group>
             </div>
