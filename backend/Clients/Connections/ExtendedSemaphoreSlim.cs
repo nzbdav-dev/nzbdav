@@ -19,7 +19,7 @@
 
         // Waiters bucketed by requiredAvailable; keys sorted ascending, we serve descending.
         private readonly SortedDictionary<int, LinkedList<Waiter>> _queues = new();
-        private int _waiterCount; // volatile read for fast-path guard
+        private int _waiterCount; // tracked atomically for fast-path guard
 
         public ExtendedSemaphoreSlim(int initialCount, int maxCount)
         {
@@ -59,9 +59,8 @@
             var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var waiter = new Waiter(requiredAvailable, tcs);
 
-            List<Waiter>? toGrant = null;
+            List<Waiter>? toGrant;
             CancellationTokenRegistration ctr = default;
-            bool registered = false;
 
             lock (_lock)
             {
@@ -79,19 +78,19 @@
 
             if (cancellationToken.CanBeCanceled)
             {
-                // Register cancellation; remove in O(1) if still queued.
                 ctr = cancellationToken.Register(static state =>
                 {
                     var (sem, w, tok) = ((ExtendedSemaphoreSlim, Waiter, CancellationToken))state!;
                     bool removed = sem.TryRemoveWaiter(w);
                     if (removed)
+                    {
                         w.Tcs.TrySetCanceled(tok);
+                    }
                 }, (this, waiter, cancellationToken));
-                registered = true;
 
                 // Dispose registration when the wait completes in any way.
-                _ = tcs.Task.ContinueWith(static (_, s) => ((CancellationTokenRegistration)s!).Dispose(),
-                    ctr, CancellationToken.None,
+                _ = tcs.Task.ContinueWith(static (_, s) => { ((CancellationTokenRegistration)s!).Dispose(); }, ctr,
+                    CancellationToken.None,
                     TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
             }
 
@@ -149,7 +148,7 @@
             }
 
             w.Node = list.AddLast(w);
-            _waiterCount++;
+            Interlocked.Increment(ref _waiterCount);
         }
 
         private bool TryRemoveWaiter(Waiter w)
@@ -162,7 +161,7 @@
 
                 list.Remove(w.Node);
                 w.Node = null;
-                _waiterCount--;
+                Interlocked.Decrement(ref _waiterCount);
                 if (list.Count == 0) _queues.Remove(w.Required);
                 return true;
             }
@@ -174,7 +173,7 @@
         /// </summary>
         private List<Waiter> TryGrantWaiters_NoLock()
         {
-            if (_waiterCount == 0)
+            if (Volatile.Read(ref _waiterCount) == 0)
                 return s_empty;
 
             var granted = new List<Waiter>();
@@ -186,8 +185,19 @@
                 int req = kvp.Key;
                 var list = kvp.Value;
 
-                while (_currentCount > req && list.First is not null)
+                while (list.First is not null)
                 {
+                    int observed = Volatile.Read(ref _currentCount);
+                    if (observed <= req)
+                        break;
+
+                    int newCount = Interlocked.Decrement(ref _currentCount);
+                    if (newCount < 0)
+                    {
+                        Interlocked.Increment(ref _currentCount);
+                        throw new InvalidOperationException("Semaphore count went negative.");
+                    }
+
                     var node = list.First!;
                     list.RemoveFirst();
 
@@ -195,8 +205,7 @@
                     w.Node = null;
                     w.Signaled = true;
 
-                    _currentCount--; // consume one slot for this grant
-                    _waiterCount--;
+                    Interlocked.Decrement(ref _waiterCount);
                     granted.Add(w);
                 }
 
