@@ -5,6 +5,7 @@ public class WebsocketTopic
     // Stateful topics
     public static readonly WebsocketTopic UsenetConnections = new("cxs", TopicType.State);
     public static readonly WebsocketTopic SymlinkTaskProgress = new("stp", TopicType.State);
+    public static readonly WebsocketTopic CleanupTaskProgress = new("ctp", TopicType.State);
     public static readonly WebsocketTopic QueueItemStatus = new("qs", TopicType.State);
     public static readonly WebsocketTopic QueueItemProgress = new("qp", TopicType.State);
 
