@@ -84,6 +84,7 @@ export function UsenetSettings({ config, setNewConfig, onReadyToSave }: UsenetSe
 
             <div className={styles["justify-right"]}>
                 <Form.Check
+                    id="use-ssl-checkbox"
                     type="checkbox"
                     label={`Use SSL`}
                     checked={config["usenet.use-ssl"] === "true"}

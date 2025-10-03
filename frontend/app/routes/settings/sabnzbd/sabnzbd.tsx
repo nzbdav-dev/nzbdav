@@ -84,6 +84,7 @@ export function SabnzbdSettings({ config, setNewConfig }: SabnzbdSettingsProps) 
                 <Form.Check
                     className={styles.input}
                     type="checkbox"
+                    id="ensure-importable-video-checkbox"
                     aria-describedby="ensure-importable-video-help"
                     label={`Fail downloads for nzbs without video content`}
                     checked={config["api.ensure-importable-video"] === "true"}
@@ -97,6 +98,7 @@ export function SabnzbdSettings({ config, setNewConfig }: SabnzbdSettingsProps) 
                 <Form.Check
                     className={styles.input}
                     type="checkbox"
+                    id="ensure-article-existence-checkbox"
                     aria-describedby="ensure-article-existence-help"
                     label={`Perform article health check during downloads`}
                     checked={config["api.ensure-article-existence"] === "true"}
