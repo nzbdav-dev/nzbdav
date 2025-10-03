@@ -27,9 +27,6 @@ public class MediaIntegrityRunController(MediaIntegrityService integrityService,
 {
     protected override async Task<IActionResult> HandleRequest()
     {
-        var startTime = DateTime.UtcNow;
-        Log.Information("Starting manual integrity check request at {StartTime}", startTime);
-
         IntegrityCheckRunParameters? parameters = null;
 
         // Try to parse parameters from request body if provided
@@ -44,7 +41,6 @@ public class MediaIntegrityRunController(MediaIntegrityService integrityService,
                     Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
                 };
                 parameters = await JsonSerializer.DeserializeAsync<IntegrityCheckRunParameters>(stream, jsonOptions);
-                Log.Information("JSON deserialization completed in {ElapsedMs}ms", (DateTime.UtcNow - startTime).TotalMilliseconds);
             }
             catch (JsonException ex)
             {
@@ -70,16 +66,13 @@ public class MediaIntegrityRunController(MediaIntegrityService integrityService,
             }
             : defaults;
 
-        Log.Information("Parameter merging completed in {ElapsedMs}ms", (DateTime.UtcNow - startTime).TotalMilliseconds);
-
         // Generate a unique run ID
         var runId = Guid.NewGuid().ToString();
-        var dbStartTime = DateTime.UtcNow;
 
         var integrityRun = new IntegrityCheckRun
         {
             RunId = runId,
-            StartTime = dbStartTime,
+            StartTime = DateTime.UtcNow,
             RunType = runParams.RunType,
             ScanDirectory = runParams.ScanDirectory,
             MaxFilesToCheck = runParams.MaxFilesToCheck,
@@ -98,14 +91,11 @@ public class MediaIntegrityRunController(MediaIntegrityService integrityService,
         };
 
         await using var dbContext = new DavDatabaseContext();
-        Log.Information("Database context created in {ElapsedMs}ms", (DateTime.UtcNow - dbStartTime).TotalMilliseconds);
 
         var dbClient = new DavDatabaseClient(dbContext);
         dbClient.Ctx.IntegrityCheckRuns.Add(integrityRun);
-        Log.Information("Database record added in {ElapsedMs}ms", (DateTime.UtcNow - dbStartTime).TotalMilliseconds);
 
         await dbClient.Ctx.SaveChangesAsync();
-        Log.Information("Database save completed in background in {ElapsedMs}ms", (DateTime.UtcNow - dbStartTime).TotalMilliseconds);
 
         // Trigger the background task asynchronously without waiting
         _ = Task.Run(async () =>
@@ -156,8 +146,6 @@ public class MediaIntegrityRunController(MediaIntegrityService integrityService,
                 }
             }
         });
-
-        Log.Information("Total API request completed in {ElapsedMs}ms", (DateTime.UtcNow - startTime).TotalMilliseconds);
 
         // Return immediately with the run ID - frontend will get status updates via websockets
         return Ok(new MediaIntegrityRunResponse
