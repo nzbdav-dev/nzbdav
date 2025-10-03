@@ -813,29 +813,54 @@ export default function IntegrityResults(props: Route.ComponentProps) {
 
 // Component to display run parameters
 function RunParametersDisplay({ parameters }: { parameters?: IntegrityCheckRunParameters }) {
+    const [isExpanded, setIsExpanded] = useState(false);
+    
     if (!parameters) {
         return null;
     }
 
     return (
         <div className="mt-2">
-            <small className="text-muted">
-                <strong>Run Parameters:</strong>
-                <div className="ms-2">
-                    {parameters.scanDirectory && (
-                        <div>📁 Scan Directory: <code>{parameters.scanDirectory}</code></div>
-                    )}
-                    <div>📊 Max Files: {parameters.maxFilesToCheck}</div>
-                    <div>⚡ Action: {parameters.corruptFileAction}</div>
-                    <div>🔍 Type: {parameters.runType}</div>
-                    {parameters.mp4DeepScan && <div>🎬 MP4 Deep Scan: Enabled</div>}
-                    {parameters.autoMonitor && <div>👁️ Auto Monitor: Enabled</div>}
-                    {parameters.unmonitorValidatedFiles && <div>📤 Unmonitor Validated: Enabled</div>}
-                    {parameters.directDeletionFallback && <div>🗑️ Direct Deletion Fallback: Enabled</div>}
-                    <div>🔬 NZB Sample: {parameters.nzbSegmentSamplePercentage}%</div>
-                    <div>📊 NZB Threshold: {parameters.nzbSegmentThresholdPercentage}%</div>
+            <div 
+                className="d-flex align-items-center text-muted small"
+                style={{ cursor: 'pointer' }}
+                onClick={(e) => {
+                    e.stopPropagation(); // Prevent card expansion
+                    setIsExpanded(!isExpanded);
+                }}
+            >
+                <strong>Run Parameters</strong>
+                <svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    width="12" 
+                    height="12" 
+                    fill="currentColor" 
+                    className={`bi bi-chevron-down ms-1 ${isExpanded ? 'rotate-180' : ''}`}
+                    style={{ transition: 'transform 0.2s ease' }}
+                    viewBox="0 0 16 16"
+                >
+                    <path fillRule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/>
+                </svg>
+            </div>
+            
+            <Collapse in={isExpanded}>
+                <div className="ms-2 mt-1">
+                    <small className="text-muted">
+                        {parameters.scanDirectory && (
+                            <div>📁 Scan Directory: <code>{parameters.scanDirectory}</code></div>
+                        )}
+                        <div>📊 Max Files: {parameters.maxFilesToCheck}</div>
+                        <div>⚡ Action: {parameters.corruptFileAction}</div>
+                        <div>🔍 Type: {parameters.runType}</div>
+                        {parameters.mp4DeepScan && <div>🎬 MP4 Deep Scan: Enabled</div>}
+                        {parameters.autoMonitor && <div>👁️ Auto Monitor: Enabled</div>}
+                        {parameters.unmonitorValidatedFiles && <div>📤 Unmonitor Validated: Enabled</div>}
+                        {parameters.directDeletionFallback && <div>🗑️ Direct Deletion Fallback: Enabled</div>}
+                        <div>🔬 NZB Sample: {parameters.nzbSegmentSamplePercentage}%</div>
+                        <div>📊 NZB Threshold: {parameters.nzbSegmentThresholdPercentage}%</div>
+                    </small>
                 </div>
-            </small>
+            </Collapse>
         </div>
     );
 }
@@ -931,7 +956,9 @@ function JobRunsList({
                                                 {run.corruptFiles} corrupt
                                             </Badge>
                                         )}
-                                        <strong className="h6 mb-0">Integrity Check Execution</strong>
+                                        <strong className="h6 mb-0">
+                                            {run.parameters?.runType === 'manual' ? 'Manual Run' : 'Scheduled Run'}: {run.parameters?.scanDirectory}
+                                        </strong>
                                     </div>
                                     
                                     <div className="text-muted small">
@@ -958,12 +985,6 @@ function JobRunsList({
                                         ) : (
                                             <div>
                                                 <strong>Date:</strong> {formatTimestampForDisplay(run.date)}
-                                            </div>
-                                        )}
-                                        
-                                        {run.runId && (
-                                            <div className="mt-1">
-                                                <strong>Run ID:</strong> {run.runId}
                                             </div>
                                         )}
                                     </div>

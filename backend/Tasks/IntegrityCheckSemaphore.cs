@@ -1,3 +1,5 @@
+using Serilog;
+
 namespace NzbWebDAV.Tasks;
 
 /// <summary>
@@ -26,6 +28,7 @@ public static class IntegrityCheckSemaphore
             // Check if there's already a running task
             if (_runningTask is { IsCompleted: false })
             {
+                Log.Information("TryStartTaskAsync: Another task is already running - {ExistingTaskType}", _runningTaskType);
                 return false; // Another task is already running
             }
 
@@ -34,14 +37,17 @@ public static class IntegrityCheckSemaphore
             _runningTaskType = taskType;
             _taskCancellationTokenSource = taskCancellationTokenSource;
 
+            Log.Information("TryStartTaskAsync: Starting new task of type: {TaskType}", taskType);
+
             // Start the task
             task.Start();
 
             // Set up continuation to clear the running task when done
-            _ = task.ContinueWith(async _ =>
+            _ = task.ContinueWith(async completedTask =>
             {
+                Log.Information("Task {TaskType} finished with status: {TaskStatus}, clearing running task", taskType, completedTask.Status);
                 await ClearRunningTaskAsync();
-            }, TaskContinuationOptions.ExecuteSynchronously);
+            }, TaskContinuationOptions.None); // Changed from ExecuteSynchronously to None
 
             return true;
         }
@@ -78,11 +84,17 @@ public static class IntegrityCheckSemaphore
         await _semaphore.WaitAsync();
         try
         {
+            Log.Information("CancelRunningTaskAsync: _runningTask={RunningTask}, _taskCancellationTokenSource={TokenSource}, _runningTaskType={TaskType}",
+                _runningTask?.Status, _taskCancellationTokenSource != null, _runningTaskType);
+
             if (_runningTask is { IsCompleted: false } && _taskCancellationTokenSource != null)
             {
+                Log.Information("Cancelling running task of type: {TaskType}", _runningTaskType);
                 _taskCancellationTokenSource.Cancel();
                 return true;
             }
+
+            Log.Information("No active task to cancel - task status: {TaskStatus}", _runningTask?.Status);
             return false;
         }
         finally

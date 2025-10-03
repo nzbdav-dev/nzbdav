@@ -4,6 +4,7 @@ using NzbWebDAV.Config;
 using NzbWebDAV.Database;
 using NzbWebDAV.Database.Models;
 using NzbWebDAV.Tasks;
+using Serilog;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -26,6 +27,9 @@ public class MediaIntegrityRunController(MediaIntegrityService integrityService,
 {
     protected override async Task<IActionResult> HandleRequest()
     {
+        var startTime = DateTime.UtcNow;
+        Log.Information("Starting manual integrity check request at {StartTime}", startTime);
+
         IntegrityCheckRunParameters? parameters = null;
 
         // Try to parse parameters from request body if provided
@@ -40,6 +44,7 @@ public class MediaIntegrityRunController(MediaIntegrityService integrityService,
                     Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
                 };
                 parameters = await JsonSerializer.DeserializeAsync<IntegrityCheckRunParameters>(stream, jsonOptions);
+                Log.Information("JSON deserialization completed in {ElapsedMs}ms", (DateTime.UtcNow - startTime).TotalMilliseconds);
             }
             catch (JsonException ex)
             {
@@ -65,18 +70,22 @@ public class MediaIntegrityRunController(MediaIntegrityService integrityService,
             }
             : defaults;
 
+        Log.Information("Parameter merging completed in {ElapsedMs}ms", (DateTime.UtcNow - startTime).TotalMilliseconds);
+
         // Generate a unique run ID
         var runId = Guid.NewGuid().ToString();
-        var startTime = DateTime.UtcNow;
+        var dbStartTime = DateTime.UtcNow;
 
         // Create the database record FIRST with "initialized" status
         await using var dbContext = new DavDatabaseContext();
+        Log.Information("Database context created in {ElapsedMs}ms", (DateTime.UtcNow - dbStartTime).TotalMilliseconds);
+
         var dbClient = new DavDatabaseClient(dbContext);
 
         var integrityRun = new IntegrityCheckRun
         {
             RunId = runId,
-            StartTime = startTime,
+            StartTime = dbStartTime,
             RunType = runParams.RunType,
             ScanDirectory = runParams.ScanDirectory,
             MaxFilesToCheck = runParams.MaxFilesToCheck,
@@ -95,29 +104,62 @@ public class MediaIntegrityRunController(MediaIntegrityService integrityService,
         };
 
         dbClient.Ctx.IntegrityCheckRuns.Add(integrityRun);
+        Log.Information("Database record added in {ElapsedMs}ms", (DateTime.UtcNow - dbStartTime).TotalMilliseconds);
+
         await dbClient.Ctx.SaveChangesAsync();
+        Log.Information("Database save completed in {ElapsedMs}ms", (DateTime.UtcNow - dbStartTime).TotalMilliseconds);
 
         // Trigger the background task asynchronously without waiting
         _ = Task.Run(async () =>
         {
-            var started = await integrityService.TriggerManualIntegrityCheckWithRunIdAsync(runParams, runId);
-            if (!started)
+            try
             {
-                // If task couldn't start, update status to failed
-                // (websocket message already sent by the service)
-                await using var failDbContext = new DavDatabaseContext();
-                var failDbClient = new DavDatabaseClient(failDbContext);
-                var failedRun = await failDbClient.Ctx.IntegrityCheckRuns
-                    .FirstOrDefaultAsync(r => r.RunId == runId);
-
-                if (failedRun != null)
+                var started = await integrityService.TriggerManualIntegrityCheckWithRunIdAsync(runParams, runId);
+                if (!started)
                 {
-                    failedRun.Status = IntegrityCheckRun.StatusOption.Failed;
-                    failedRun.IsRunning = false;
-                    await failDbClient.Ctx.SaveChangesAsync();
+                    // If task couldn't start, update status to failed
+                    // (websocket message already sent by the service)
+                    await using var failDbContext = new DavDatabaseContext();
+                    var failDbClient = new DavDatabaseClient(failDbContext);
+                    var failedRun = await failDbClient.Ctx.IntegrityCheckRuns
+                        .FirstOrDefaultAsync(r => r.RunId == runId);
+
+                    if (failedRun != null)
+                    {
+                        failedRun.Status = IntegrityCheckRun.StatusOption.Failed;
+                        failedRun.IsRunning = false;
+                        await failDbClient.Ctx.SaveChangesAsync();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log any unexpected errors in the background task
+                Log.Error(ex, "Error in background integrity check task for run {RunId}", runId);
+
+                // Update status to failed
+                try
+                {
+                    await using var failDbContext = new DavDatabaseContext();
+                    var failDbClient = new DavDatabaseClient(failDbContext);
+                    var failedRun = await failDbClient.Ctx.IntegrityCheckRuns
+                        .FirstOrDefaultAsync(r => r.RunId == runId);
+
+                    if (failedRun != null)
+                    {
+                        failedRun.Status = IntegrityCheckRun.StatusOption.Failed;
+                        failedRun.IsRunning = false;
+                        await failDbClient.Ctx.SaveChangesAsync();
+                    }
+                }
+                catch (Exception dbEx)
+                {
+                    Log.Error(dbEx, "Failed to update failed run status for {RunId}", runId);
                 }
             }
         });
+
+        Log.Information("Total API request completed in {ElapsedMs}ms", (DateTime.UtcNow - startTime).TotalMilliseconds);
 
         // Return immediately with the run ID - frontend will get status updates via websockets
         return Ok(new MediaIntegrityRunResponse
