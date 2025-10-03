@@ -59,6 +59,8 @@ public class MediaIntegrityRunController(MediaIntegrityService integrityService,
                 AutoMonitor = parameters.AutoMonitor,
                 UnmonitorValidatedFiles = parameters.UnmonitorValidatedFiles,
                 DirectDeletionFallback = parameters.DirectDeletionFallback,
+                NzbSegmentSamplePercentage = parameters.NzbSegmentSamplePercentage > 0 ? parameters.NzbSegmentSamplePercentage : defaults.NzbSegmentSamplePercentage,
+                NzbSegmentThresholdPercentage = parameters.NzbSegmentThresholdPercentage > 0 ? parameters.NzbSegmentThresholdPercentage : defaults.NzbSegmentThresholdPercentage,
                 RunType = parameters.RunType
             }
             : defaults;
