@@ -338,6 +338,15 @@ public class MediaIntegrityChecker
             {
                 await using var dbContext = new DavDatabaseContext();
                 var dbClient = new DavDatabaseClient(dbContext);
+
+                // Debug: Check if any RarFiles exist in the database
+                var totalRarFiles = await dbClient.Ctx.RarFiles.CountAsync(ct);
+                Log.Information("Debug: Total RarFiles in database: {Count}", totalRarFiles);
+
+                // Debug: Check if a RarFile with this specific ID exists
+                var rarFileExists = await dbClient.Ctx.RarFiles.AnyAsync(x => x.Id == davItem.Id, ct);
+                Log.Information("Debug: RarFile with ID {Id} exists: {Exists}", davItem.Id, rarFileExists);
+
                 var rarFile = await dbClient.Ctx.RarFiles.Where(x => x.Id == davItem.Id).FirstOrDefaultAsync(ct);
                 if (rarFile == null)
                 {

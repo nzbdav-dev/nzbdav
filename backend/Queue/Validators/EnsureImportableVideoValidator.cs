@@ -70,33 +70,36 @@ public class EnsureImportableVideoValidator(DavDatabaseClient dbClient, UsenetSt
                                 .Select(x => x.Entity)
                                 .FirstOrDefault(x => x.Id == videoFile.Id) :
                             await dbClient.GetNzbFileAsync(videoFile.Id, ct);
-                        await dbClient.GetNzbFileAsync(videoFile.Id, ct);
-                        if (nzbFile == null)
+
+                        if (nzbFile != null)
+                        {
+                            segmentIds = nzbFile.SegmentIds;
+                        }
+                        else
                         {
                             Log.Warning("Could not find NZB file data for {FilePath} (ID: {Id})", videoFile.Path, videoFile.Id);
                             isValid = false;
-                            break;
                         }
-                        segmentIds = nzbFile.SegmentIds;
                         break;
                     case DavItem.ItemType.RarFile:
                         {
-                            await using var dbContext = new DavDatabaseContext();
-                            var dbClient = new DavDatabaseClient(dbContext);
                             var rarFile = useChangeTracker ?
                                 dbClient.Ctx.ChangeTracker.Entries<DavRarFile>()
                                     .Where(x => x.State == EntityState.Added)
                                     .Select(x => x.Entity)
                                     .FirstOrDefault(x => x.Id == videoFile.Id) :
                                 await dbClient.Ctx.RarFiles.Where(x => x.Id == videoFile.Id).FirstOrDefaultAsync(ct);
-                            if (rarFile == null)
+
+                            if (rarFile != null)
+                            {
+                                segmentIds = rarFile.GetSegmentIds();
+                            }
+                            else
                             {
                                 Log.Warning("Could not find RAR file data for {FilePath} (ID: {Id})", videoFile.Path, videoFile.Id);
                                 isValid = false;
-                                break;
                             }
 
-                            segmentIds = rarFile.GetSegmentIds();
                             break;
                         }
                     default:
