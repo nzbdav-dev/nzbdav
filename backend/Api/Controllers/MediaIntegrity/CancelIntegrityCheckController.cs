@@ -12,9 +12,9 @@ public class CancelIntegrityCheckController(MediaIntegrityService mediaIntegrity
     protected override async Task<IActionResult> HandleRequest()
     {
         Log.Information("Received request to cancel integrity check");
-        
+
         var cancelled = await mediaIntegrityService.CancelIntegrityCheckAsync();
-        
+
         if (cancelled)
         {
             Log.Information("Integrity check cancellation initiated successfully");

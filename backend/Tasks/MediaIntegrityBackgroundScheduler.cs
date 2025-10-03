@@ -158,13 +158,14 @@ public class MediaIntegrityBackgroundScheduler : IDisposable
 
                         // Create the task but don't start it yet
                         var checker = new MediaIntegrityChecker(_configManager, _websocketManager, _arrManager, _usenetClient);
-                        var integrityTask = new Task(async () =>
+                        var integrityTask = new Task(() =>
                         {
                             // Set reserved connections context for this integrity check
                             var reservedConnections = _configManager.GetMaxConnections() - _configManager.GetMaxQueueConnections();
                             using var _ = ct.SetScopedContext(new ReservedConnectionsContext(reservedConnections));
 
-                            await checker.PerformIntegrityCheckAsync(ct, scheduledRunId, checkItems, scheduledParams);
+                            // Run the async work synchronously within this task
+                            checker.PerformIntegrityCheckAsync(ct, scheduledRunId, checkItems, scheduledParams).GetAwaiter().GetResult();
                         }, ct);
 
                         // Try to register and start the task

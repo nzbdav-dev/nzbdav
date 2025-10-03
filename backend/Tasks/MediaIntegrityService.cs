@@ -123,13 +123,14 @@ public class MediaIntegrityService : IDisposable
 
         // Create the task but don't start it yet
         var checker = new MediaIntegrityChecker(_configManager, _websocketManager, _arrManager, _usenetClient);
-        var integrityTask = new Task(async () =>
+        var integrityTask = new Task(() =>
         {
             // Set reserved connections context for this integrity check
             var reservedConnections = _configManager.GetMaxConnections() - _configManager.GetMaxQueueConnections();
             using var _ = _cancellationTokenSource.Token.SetScopedContext(new ReservedConnectionsContext(reservedConnections));
 
-            await checker.PerformIntegrityCheckAsync(_cancellationTokenSource.Token, runId, checkItems, runParams);
+            // Run the async work synchronously within this task
+            checker.PerformIntegrityCheckAsync(_cancellationTokenSource.Token, runId, checkItems, runParams).GetAwaiter().GetResult();
         }, _cancellationTokenSource.Token);
 
         // Try to register and start the task

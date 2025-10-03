@@ -76,12 +76,6 @@ public class MediaIntegrityRunController(MediaIntegrityService integrityService,
         var runId = Guid.NewGuid().ToString();
         var dbStartTime = DateTime.UtcNow;
 
-        // Create the database record FIRST with "initialized" status
-        await using var dbContext = new DavDatabaseContext();
-        Log.Information("Database context created in {ElapsedMs}ms", (DateTime.UtcNow - dbStartTime).TotalMilliseconds);
-
-        var dbClient = new DavDatabaseClient(dbContext);
-
         var integrityRun = new IntegrityCheckRun
         {
             RunId = runId,
@@ -103,11 +97,15 @@ public class MediaIntegrityRunController(MediaIntegrityService integrityService,
             Status = IntegrityCheckRun.StatusOption.Initialized // New state before "started"
         };
 
+        await using var dbContext = new DavDatabaseContext();
+        Log.Information("Database context created in {ElapsedMs}ms", (DateTime.UtcNow - dbStartTime).TotalMilliseconds);
+
+        var dbClient = new DavDatabaseClient(dbContext);
         dbClient.Ctx.IntegrityCheckRuns.Add(integrityRun);
         Log.Information("Database record added in {ElapsedMs}ms", (DateTime.UtcNow - dbStartTime).TotalMilliseconds);
 
         await dbClient.Ctx.SaveChangesAsync();
-        Log.Information("Database save completed in {ElapsedMs}ms", (DateTime.UtcNow - dbStartTime).TotalMilliseconds);
+        Log.Information("Database save completed in background in {ElapsedMs}ms", (DateTime.UtcNow - dbStartTime).TotalMilliseconds);
 
         // Trigger the background task asynchronously without waiting
         _ = Task.Run(async () =>
