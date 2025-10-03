@@ -27,6 +27,7 @@ public class EnsureImportableVideoValidator(DavDatabaseClient dbClient, UsenetSt
 
     private async Task<bool> IsValidAsync(List<DavItem>? existingVideoFiles, CancellationToken ct)
     {
+        var useChangeTracker = existingVideoFiles == null;
         var videoFiles = existingVideoFiles ?? dbClient.Ctx.ChangeTracker.Entries<DavItem>()
             .Where(x => x.State == EntityState.Added)
             .Select(x => x.Entity)
@@ -63,7 +64,13 @@ public class EnsureImportableVideoValidator(DavDatabaseClient dbClient, UsenetSt
                 switch (videoFile.Type)
                 {
                     case DavItem.ItemType.NzbFile:
-                        var nzbFile = await dbClient.GetNzbFileAsync(videoFile.Id, ct);
+                        var nzbFile = useChangeTracker ?
+                            dbClient.Ctx.ChangeTracker.Entries<DavNzbFile>()
+                                .Where(x => x.State == EntityState.Added)
+                                .Select(x => x.Entity)
+                                .FirstOrDefault(x => x.Id == videoFile.Id) :
+                            await dbClient.GetNzbFileAsync(videoFile.Id, ct);
+                        await dbClient.GetNzbFileAsync(videoFile.Id, ct);
                         if (nzbFile == null)
                         {
                             Log.Warning("Could not find NZB file data for {FilePath} (ID: {Id})", videoFile.Path, videoFile.Id);
@@ -76,7 +83,12 @@ public class EnsureImportableVideoValidator(DavDatabaseClient dbClient, UsenetSt
                         {
                             await using var dbContext = new DavDatabaseContext();
                             var dbClient = new DavDatabaseClient(dbContext);
-                            var rarFile = await dbClient.Ctx.RarFiles.Where(x => x.Id == videoFile.Id).FirstOrDefaultAsync(ct);
+                            var rarFile = useChangeTracker ?
+                                dbClient.Ctx.ChangeTracker.Entries<DavRarFile>()
+                                    .Where(x => x.State == EntityState.Added)
+                                    .Select(x => x.Entity)
+                                    .FirstOrDefault(x => x.Id == videoFile.Id) :
+                                await dbClient.Ctx.RarFiles.Where(x => x.Id == videoFile.Id).FirstOrDefaultAsync(ct);
                             if (rarFile == null)
                             {
                                 Log.Warning("Could not find RAR file data for {FilePath} (ID: {Id})", videoFile.Path, videoFile.Id);
