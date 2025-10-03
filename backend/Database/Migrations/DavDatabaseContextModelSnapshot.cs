@@ -15,7 +15,7 @@ namespace NzbWebDAV.Database.Migrations
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "9.0.4");
+            modelBuilder.HasAnnotation("ProductVersion", "9.0.9");
 
             modelBuilder.Entity("NzbWebDAV.Database.Models.Account", b =>
                 {
@@ -169,6 +169,127 @@ namespace NzbWebDAV.Database.Migrations
                     b.ToTable("HistoryItems", (string)null);
                 });
 
+            modelBuilder.Entity("NzbWebDAV.Database.Models.IntegrityCheckFileResult", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("ActionTaken")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FileId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FilePath")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsLibraryFile")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("LastChecked")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RunId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FileId");
+
+                    b.HasIndex("RunId");
+
+                    b.ToTable("IntegrityCheckFileResults", (string)null);
+                });
+
+            modelBuilder.Entity("NzbWebDAV.Database.Models.IntegrityCheckRun", b =>
+                {
+                    b.Property<string>("RunId")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("AutoMonitor")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("CorruptFileAction")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("CorruptFiles")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("CurrentFile")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("DirectDeletionFallback")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("EndTime")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsRunning")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("MaxFilesToCheck")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Mp4DeepScan")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("NzbSegmentSamplePercentage")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("NzbSegmentThresholdPercentage")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<double?>("ProgressPercentage")
+                        .HasColumnType("REAL");
+
+                    b.Property<int>("RunType")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ScanDirectory")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("StartTime")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("TotalFiles")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("UnmonitorValidatedFiles")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ValidFiles")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("RunId");
+
+                    b.ToTable("IntegrityCheckRuns", (string)null);
+                });
+
             modelBuilder.Entity("NzbWebDAV.Database.Models.QueueItem", b =>
                 {
                     b.Property<Guid>("Id")
@@ -256,6 +377,17 @@ namespace NzbWebDAV.Database.Migrations
                         .IsRequired();
 
                     b.Navigation("DavItem");
+                });
+
+            modelBuilder.Entity("NzbWebDAV.Database.Models.IntegrityCheckFileResult", b =>
+                {
+                    b.HasOne("NzbWebDAV.Database.Models.IntegrityCheckRun", "Run")
+                        .WithMany()
+                        .HasForeignKey("RunId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Run");
                 });
 
             modelBuilder.Entity("NzbWebDAV.Database.Models.DavItem", b =>

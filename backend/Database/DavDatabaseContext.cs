@@ -1,6 +1,7 @@
 ﻿using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using NzbWebDAV.Config;
 using NzbWebDAV.Database.Interceptors;
 using NzbWebDAV.Database.Models;
 
@@ -27,6 +28,8 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
     public DbSet<QueueItem> QueueItems => Set<QueueItem>();
     public DbSet<HistoryItem> HistoryItems => Set<HistoryItem>();
     public DbSet<ConfigItem> ConfigItems => Set<ConfigItem>();
+    public DbSet<IntegrityCheckRun> IntegrityCheckRuns => Set<IntegrityCheckRun>();
+    public DbSet<IntegrityCheckFileResult> IntegrityCheckFileResults => Set<IntegrityCheckFileResult>();
 
     // tables
     protected override void OnModelCreating(ModelBuilder b)
@@ -258,6 +261,139 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
             e.HasKey(i => i.ConfigName);
             e.Property(i => i.ConfigValue)
                 .IsRequired();
+        });
+
+        // IntegrityCheckRun
+        b.Entity<IntegrityCheckRun>(e =>
+        {
+            e.ToTable("IntegrityCheckRuns");
+
+            // Primary key
+            e.HasKey(i => i.RunId);
+
+            // Required properties with constraints
+            e.Property(i => i.RunId)
+                .IsRequired()
+                .HasMaxLength(50);
+
+            e.Property(i => i.StartTime)
+                .IsRequired();
+
+            e.Property(i => i.RunType)
+                .HasConversion<int>()
+                .IsRequired();
+
+            e.Property(i => i.CorruptFileAction)
+                .HasConversion<int>()
+                .IsRequired();
+
+            e.Property(i => i.Status)
+                .HasConversion<int>()
+                .IsRequired();
+
+            // Optional properties with constraints
+            e.Property(i => i.EndTime)
+                .IsRequired(false);
+
+            e.Property(i => i.ScanDirectory)
+                .HasMaxLength(500)
+                .IsRequired(false);
+
+            e.Property(i => i.CurrentFile)
+                .HasMaxLength(500)
+                .IsRequired(false);
+
+            e.Property(i => i.ProgressPercentage)
+                .IsRequired(false);
+
+            // Required properties without additional constraints
+            e.Property(i => i.MaxFilesToCheck)
+                .IsRequired();
+
+            e.Property(i => i.Mp4DeepScan)
+                .IsRequired();
+
+            e.Property(i => i.AutoMonitor)
+                .IsRequired();
+
+            e.Property(i => i.UnmonitorValidatedFiles)
+                .IsRequired();
+
+            e.Property(i => i.DirectDeletionFallback)
+                .IsRequired();
+
+            e.Property(i => i.NzbSegmentSamplePercentage)
+                .IsRequired();
+
+            e.Property(i => i.NzbSegmentThresholdPercentage)
+                .IsRequired();
+
+            e.Property(i => i.ValidFiles)
+                .IsRequired();
+
+            e.Property(i => i.CorruptFiles)
+                .IsRequired();
+
+            e.Property(i => i.TotalFiles)
+                .IsRequired();
+
+            e.Property(i => i.IsRunning)
+                .IsRequired();
+        });
+
+        // IntegrityCheckFileResult
+        b.Entity<IntegrityCheckFileResult>(e =>
+        {
+            e.ToTable("IntegrityCheckFileResults");
+
+            // Primary key
+            e.HasKey(i => i.Id);
+
+            // Required properties with constraints
+            e.Property(i => i.RunId)
+                .IsRequired()
+                .HasMaxLength(50);
+
+            e.Property(i => i.FileId)
+                .IsRequired()
+                .HasMaxLength(50);
+
+            e.Property(i => i.FilePath)
+                .IsRequired()
+                .HasMaxLength(500);
+
+            e.Property(i => i.FileName)
+                .IsRequired()
+                .HasMaxLength(255);
+
+            e.Property(i => i.Status)
+                .HasConversion<int>()
+                .IsRequired();
+
+            e.Property(i => i.LastChecked)
+                .IsRequired();
+
+            e.Property(i => i.IsLibraryFile)
+                .IsRequired();
+
+            // Optional properties
+            e.Property(i => i.ErrorMessage)
+                .HasMaxLength(1000)
+                .IsRequired(false);
+
+            e.Property(i => i.ActionTaken)
+                .HasConversion<int>()
+                .IsRequired(false);
+
+            // Foreign key relationship
+            e.HasOne(f => f.Run)
+                .WithMany()
+                .HasForeignKey(f => f.RunId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Indexes for performance
+            e.HasIndex(i => i.RunId);
+            e.HasIndex(i => i.FileId);
         });
     }
 }

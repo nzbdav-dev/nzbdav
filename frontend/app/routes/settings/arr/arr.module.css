@@ -1,0 +1,102 @@
+.container {
+    max-width: 800px;
+}
+
+.section {
+    margin-bottom: 2rem;
+}
+
+.sectionHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.sectionHeader h5 {
+    margin: 0;
+    color: #495057;
+}
+
+.addButton {
+    white-space: nowrap;
+}
+
+.emptyState {
+    text-align: center;
+    padding: 2rem;
+    color: #6c757d;
+    font-style: italic;
+    background-color: #f8f9fa;
+    border: 1px dashed #dee2e6;
+    border-radius: 0.375rem;
+}
+
+.instanceCard {
+    margin-bottom: 1rem;
+    border: 1px solid #dee2e6;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.instanceHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.instanceHeader h6 {
+    margin: 0;
+    color: #495057;
+    font-weight: 600;
+}
+
+.testSection {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #dee2e6;
+}
+
+.testResult {
+    margin: 0;
+    padding: 0.5rem;
+    font-size: 0.875rem;
+    flex: 1;
+}
+
+.testResult.alert-success {
+    background-color: #d1edff;
+    border-color: #b6d7ff;
+    color: #0f5132;
+}
+
+.testResult.alert-danger {
+    background-color: #f8d7da;
+    border-color: #f5c2c7;
+    color: #842029;
+}
+
+/* Form styling */
+.instanceCard .form-group {
+    margin-bottom: 1rem;
+}
+
+.instanceCard .form-label {
+    font-weight: 500;
+    margin-bottom: 0.25rem;
+}
+
+.instanceCard .form-control {
+    margin-bottom: 0.25rem;
+}
+
+.instanceCard .form-text {
+    font-size: 0.875rem;
+}

@@ -1,4 +1,7 @@
 ﻿using System.Security.Claims;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using FFMpegCore;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Hosting;
@@ -14,6 +17,7 @@ using NzbWebDAV.Database;
 using NzbWebDAV.Extensions;
 using NzbWebDAV.Middlewares;
 using NzbWebDAV.Queue;
+using NzbWebDAV.Tasks;
 using NzbWebDAV.Utils;
 using NzbWebDAV.WebDav;
 using NzbWebDAV.WebDav.Base;
@@ -41,13 +45,35 @@ class Program
             .WriteTo.Console(theme: AnsiConsoleTheme.Code)
             .CreateLogger();
 
+        // Configure FFMpegCore to use the ffprobe binary installed in the container
+        GlobalFFOptions.Configure(new FFOptions { BinaryFolder = "/usr/bin" });
+
         // initialize database
         await using var databaseContext = new DavDatabaseContext();
 
         // run database migration, if necessary.
         if (args.Contains("--db-migration"))
         {
-            await databaseContext.Database.MigrateAsync(SigtermUtil.GetCancellationToken());
+            Log.Information("Beginning database migration");
+            try
+            {
+                // Clear any stale migration locks first
+                Log.Information("Clearing any stale migration locks...");
+                await databaseContext.Database.ExecuteSqlRawAsync("DELETE FROM __EFMigrationsLock WHERE 1=1;");
+                Log.Information("Migration locks cleared");
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Could not clear migration locks (table may not exist yet): {Message}", ex.Message);
+            }
+
+            Log.Information("Starting database migration with 60 second timeout...");
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            using var combinedCts = CancellationTokenSource.CreateLinkedTokenSource(
+                SigtermUtil.GetCancellationToken(),
+                cts.Token);
+
+            await databaseContext.Database.MigrateAsync(combinedCts.Token);
             return;
         }
 
@@ -63,20 +89,30 @@ class Program
         var maxRequestBodySize = EnvironmentUtil.GetLongVariable("MAX_REQUEST_BODY_SIZE") ?? 100 * 1024 * 1024;
         builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = maxRequestBodySize);
         builder.Host.UseSerilog();
-        builder.Services.AddControllers();
+        builder.Services.AddControllers()
+            .AddJsonOptions(options =>
+            {
+                options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+                options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
+            });
         builder.Services.AddHealthChecks();
         builder.Services
             .AddSingleton(configManager)
             .AddSingleton(websocketManager)
             .AddSingleton<UsenetStreamingClient>()
             .AddSingleton<QueueManager>()
+            .AddSingleton<ArrManager>()
+            .AddSingleton<MediaIntegrityBackgroundScheduler>()
+            .AddSingleton<MediaIntegrityService>()
             .AddScoped<DavDatabaseContext>()
             .AddScoped<DavDatabaseClient>()
             .AddScoped<DatabaseStore>()
             .AddScoped<IStore, DatabaseStore>()
             .AddScoped<GetAndHeadHandlerPatch>()
-            .AddScoped<SabApiController>()
-            .AddNWebDav(opts =>
+            .AddScoped<SabApiController>();
+
+
+        builder.Services.AddNWebDav(opts =>
             {
                 opts.Handlers["GET"] = typeof(GetAndHeadHandlerPatch);
                 opts.Handlers["HEAD"] = typeof(GetAndHeadHandlerPatch);
@@ -100,7 +136,23 @@ class Program
 
         // run
         var app = builder.Build();
-        app.UseSerilogRequestLogging();
+        app.UseSerilogRequestLogging(options =>
+        {
+            // Reduce PROPFIND requests to DEBUG level to reduce log noise
+            // Keep GET/POST and other requests at INFO level
+            options.GetLevel = (httpContext, elapsed, ex) =>
+            {
+                if (ex != null)
+                    return LogEventLevel.Error;
+
+                var method = httpContext.Request.Method;
+                if (method == "PROPFIND")
+                    return LogEventLevel.Debug;
+
+                // All other HTTP methods (GET, POST, PUT, DELETE, etc.) stay at INFO level
+                return LogEventLevel.Information;
+            };
+        });
         app.UseMiddleware<ExceptionMiddleware>();
         app.UseWebSockets();
         app.MapHealthChecks("/health");
@@ -108,6 +160,10 @@ class Program
         app.MapControllers();
         app.UseAuthentication();
         app.UseNWebDav();
+
+        // Force creation of MediaIntegrityBackgroundScheduler to start the background task
+        _ = app.Services.GetRequiredService<MediaIntegrityBackgroundScheduler>();
+
         await app.RunAsync();
     }
 

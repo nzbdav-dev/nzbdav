@@ -31,22 +31,23 @@ const setApiKeyForAuthenticatedRequests = async (req: express.Request) => {
 
   // if the request is not authenticated, do nothing
   const authenticated = await isAuthenticated(req.headers.cookie);
+
   if (!authenticated) return;
 
   // otherwise, set the api key header
   req.headers["x-api-key"] = process.env.FRONTEND_BACKEND_API_KEY || "";
-}
+};
 
 app.use(async (req, res, next) => {
   if (
-    req.method.toUpperCase() === "PROPFIND"
-    || req.method.toUpperCase() === "OPTIONS"
-    || req.path.startsWith("/api")
-    || req.path.startsWith("/view")
-    || req.path.startsWith("/.ids")
-    || req.path.startsWith("/nzbs")
-    || req.path.startsWith("/content")
-    || req.path.startsWith("/completed-symlinks")
+    req.method.toUpperCase() === "PROPFIND" ||
+    req.method.toUpperCase() === "OPTIONS" ||
+    req.path.startsWith("/api") ||
+    req.path.startsWith("/view") ||
+    req.path.startsWith("/.ids") ||
+    req.path.startsWith("/nzbs") ||
+    req.path.startsWith("/content") ||
+    req.path.startsWith("/completed-symlinks")
   ) {
     await setApiKeyForAuthenticatedRequests(req);
     return forwardToBackend(req, res, next);
@@ -63,5 +64,5 @@ app.use(
         VALUE_FROM_EXPRESS: "Hello from Express",
       };
     },
-  }),
+  })
 );

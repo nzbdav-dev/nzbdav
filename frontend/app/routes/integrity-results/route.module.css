@@ -1,0 +1,25 @@
+.container {
+    max-width: 1200px;
+}
+
+.statusBadge {
+    min-width: 80px;
+    text-align: center;
+}
+
+.filePathCode {
+    font-size: 0.85em;
+    word-break: break-all;
+}
+
+.jobRunCard {
+    transition: all 0.2s ease;
+}
+
+.jobRunCard:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.expandButton {
+    min-width: 80px;
+}

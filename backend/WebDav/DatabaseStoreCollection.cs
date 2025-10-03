@@ -60,24 +60,8 @@ public class DatabaseStoreCollection(
         var davItem = await dbClient.GetDirectoryChildAsync(davDirectory.Id, request.Name, request.CancellationToken);
         if (davItem is null) return DavStatusCode.NotFound;
 
-        // If the item is a file, simply delete it and we're done.
-        if (davItem.Type is DavItem.ItemType.NzbFile or DavItem.ItemType.RarFile)
-        {
-            dbClient.Ctx.Items.Remove(davItem);
-            await dbClient.Ctx.SaveChangesAsync();
-            return DavStatusCode.Ok;
-        }
-
-        // If the item is a directory and it not a protected directory, simply delete it.
-        if (davItem.Type == DavItem.ItemType.Directory && !davItem.IsProtected())
-        {
-            dbClient.Ctx.Items.Remove(davItem);
-            await dbClient.Ctx.SaveChangesAsync();
-            return DavStatusCode.Ok;
-        }
-
-        // forbid deletion of any other items
-        return DavStatusCode.Forbidden;
+        var success = await dbClient.DeleteItemAsync(davItem, request.CancellationToken);
+        return success ? DavStatusCode.Ok : DavStatusCode.Forbidden;
     }
 
     private IStoreItem GetItem(DavItem davItem)

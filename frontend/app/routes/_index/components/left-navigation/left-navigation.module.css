@@ -68,6 +68,15 @@
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cdefs%3E%3Cmask id='ipSPlay0'%3E%3Cg fill='none' stroke-linejoin='round' stroke-width='4'%3E%3Cpath fill='%23fff' stroke='%23fff' d='M24 44c11.046 0 20-8.954 20-20S35.046 4 24 4S4 12.954 4 24s8.954 20 20 20Z'/%3E%3Cpath fill='%23000' stroke='%23000' d='M20 24v-6.928l6 3.464L32 24l-6 3.464l-6 3.464z'/%3E%3C/g%3E%3C/mask%3E%3C/defs%3E%3Cpath fill='%2393a1a1' d='M0 0h48v48H0z' mask='url(%23ipSPlay0)'/%3E%3C/svg%3E");
 }
 
+.integrity-icon {
+    display: inline-block;
+    width: 22px;
+    height: 22px;
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%2393a1a1' d='M12 1L3 5v6c0 5.55 3.84 10.74 9 12c5.16-1.26 9-6.45 9-12V5zm-1 6h2v2h-2zm0 4h2v6h-2z'/%3E%3C/svg%3E");
+}
+
 .settings-icon {
     display: inline-block;
     width: 22px;

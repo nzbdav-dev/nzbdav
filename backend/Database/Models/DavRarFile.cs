@@ -15,4 +15,9 @@ public class DavRarFile
         public long Offset { get; set; }
         public long ByteCount { get; set; }
     }
+
+    public string[] GetSegmentIds()
+    {
+        return RarParts.SelectMany(x => x.SegmentIds).ToArray();
+    }
 }

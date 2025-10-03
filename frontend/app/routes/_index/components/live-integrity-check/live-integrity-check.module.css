@@ -1,0 +1,42 @@
+.container {
+    width: 100%;
+    margin-top: 25px;
+}
+
+.title {
+    font-size: 14px;
+    margin-bottom: 5px;
+}
+
+.bar {
+    position: relative;
+    height: 1px;
+    margin-bottom: 5px;
+}
+
+.max {
+    background-color: #93a1a1;
+    opacity: 0.25;
+    position: absolute;
+    height: 100%;
+    width: 100%;
+}
+
+.validProgress {
+    background-color: #268bd2; /* Blue for valid files */
+    position: absolute;
+    height: 100%;
+    width: 0%;
+}
+
+.corruptProgress {
+    background-color: #dc322f; /* Red for corrupt files */
+    position: absolute;
+    height: 100%;
+    width: 0%;
+}
+
+.caption {
+    margin-right: 5px;
+    font-size: 12px;
+}

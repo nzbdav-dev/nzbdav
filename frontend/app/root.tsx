@@ -17,6 +17,7 @@ import { TopNavigation } from "./routes/_index/components/top-navigation/top-nav
 import { LeftNavigation } from "./routes/_index/components/left-navigation/left-navigation";
 import { PageLayout } from "./routes/_index/components/page-layout/page-layout";
 import { Loading } from "./routes/_index/components/loading/loading";
+import { backendClient } from "~/clients/backend-client.server";
 
 export async function loader({ request }: Route.LoaderArgs) {
   // unauthenticated routes
@@ -28,9 +29,20 @@ export async function loader({ request }: Route.LoaderArgs) {
   let session = await sessionStorage.getSession(request.headers.get("cookie"));
   let user = session.get("user");
   if (!user) return redirect("/login");
+  
+  // Get integrity enabled setting for conditional navigation
+  let integrityEnabled = false;
+  try {
+    const configItems = await backendClient.getConfig(["integrity.enabled"]);
+    integrityEnabled = configItems.find(item => item.configName === "integrity.enabled")?.configValue === "true";
+  } catch (error) {
+    console.warn("Failed to fetch integrity.enabled setting:", error);
+  }
+  
   return {
     useLayout: true,
-    version: process.env.NZBDAV_VERSION
+    version: process.env.NZBDAV_VERSION,
+    integrityEnabled
   };
 }
 
@@ -55,7 +67,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App({ loaderData }: Route.ComponentProps) {
-  const { useLayout, version } = loaderData;
+  const { useLayout, version, integrityEnabled } = loaderData;
   const location = useLocation();
   const navigation = useNavigation();
   const isNavigating = Boolean(navigation.location);
@@ -71,7 +83,7 @@ export default function App({ loaderData }: Route.ComponentProps) {
       <PageLayout
         topNavComponent={TopNavigation}
         bodyChild={showLoading ? <Loading /> : <Outlet />}
-        leftNavChild={<LeftNavigation version={version} />} />
+        leftNavChild={<LeftNavigation version={version} integrityEnabled={integrityEnabled} />} />
     );
   }
 

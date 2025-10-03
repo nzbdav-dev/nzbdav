@@ -2,8 +2,10 @@
 using NzbWebDAV.Clients.Connections;
 using NzbWebDAV.Config;
 using NzbWebDAV.Exceptions;
+using NzbWebDAV.Extensions;
 using NzbWebDAV.Streams;
 using NzbWebDAV.Websocket;
+using Serilog;
 using Usenet.Nntp.Responses;
 using Usenet.Nzb;
 
@@ -13,11 +15,12 @@ public class UsenetStreamingClient
 {
     private readonly INntpClient _client;
     private readonly WebsocketManager _websocketManager;
-
+    private readonly ConfigManager _configManager;
     public UsenetStreamingClient(ConfigManager configManager, WebsocketManager websocketManager)
     {
         // initialize private members
         _websocketManager = websocketManager;
+        _configManager = configManager;
 
         // get connection settings from config-manager
         var host = configManager.GetConfigValue("usenet.host") ?? string.Empty;
@@ -58,28 +61,56 @@ public class UsenetStreamingClient
         };
     }
 
-    public async Task<bool> CheckNzbFileHealth(NzbFile nzbFile, CancellationToken cancellationToken = default)
+    public async Task<bool> CheckNzbFileHealth(string[] segmentIds, int samplePct, int healthyThresholdPct, CancellationToken cancellationToken = default)
     {
-        var childCt = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        var tasks = nzbFile.Segments
-            .Select(x => x.MessageId.Value)
-            .Select(x => _client.StatAsync(x, childCt.Token))
-            .ToHashSet();
+        // ensure segmentIds has Count > 0 and thresholdPercentage is between 80 and 100
+        if (segmentIds.Length == 0) throw new ArgumentException("segmentIds must have Count > 0");
+        if (healthyThresholdPct < 80 || healthyThresholdPct > 100) throw new ArgumentException("healthyThresholdPct must be between 80 and 100");
+        if (samplePct < 1 || samplePct > 100) throw new ArgumentException("samplePct must be between 1 and 100");
 
-        while (tasks.Count > 0)
+        var reservedConnections = _configManager.GetMaxConnections() - _configManager.GetMaxQueueConnections();
+        using var _ = cancellationToken.SetScopedContext(new ReservedConnectionsContext(reservedConnections));
+
+        var sampledSegmentIds = samplePct == 100 ? segmentIds :
+            segmentIds
+                .OrderBy(x => Random.Shared.Next())
+                .Take((int)Math.Ceiling(segmentIds.Length * samplePct / 100.0d));
+
+        using var childCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var missingSegments = 0;
+        var missingSegmentsThreshold = Math.Ceiling(sampledSegmentIds.Count() * (100 - healthyThresholdPct) / 100.0d);
+
+        try
         {
-            var completedTask = await Task.WhenAny(tasks);
-            tasks.Remove(completedTask);
+            var tasks = sampledSegmentIds
+                .Select(segmentId => _client.StatAsync(segmentId, childCts.Token))
+                .WithConcurrencyAsync(_configManager.GetMaxQueueConnections());
 
-            var completedResult = await completedTask;
-            if (completedResult.ResponseType != NntpStatResponseType.ArticleExists)
+            await foreach (var response in tasks.WithCancellation(childCts.Token))
             {
-                await childCt.CancelAsync();
-                return false;
+                if (response.ResponseType != NntpStatResponseType.ArticleExists)
+                {
+                    missingSegments++;
+
+                    if (missingSegments >= missingSegmentsThreshold)
+                    {
+                        childCts.Cancel();
+                        break;
+                    }
+                }
             }
         }
+        catch (OperationCanceledException)
+        {
+            // Expected when we cancel due to threshold being reached or parent cancellation
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error checking NZB file health");
+            return false;
+        }
 
-        return true;
+        return missingSegments < missingSegmentsThreshold;
     }
 
     public async Task<NzbFileStream> GetFileStream(NzbFile nzbFile, int concurrentConnections, CancellationToken ct)

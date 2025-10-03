@@ -135,6 +135,103 @@ public class ConfigManager
         return (configValue != null ? bool.Parse(configValue) : defaultValue);
     }
 
+    public bool IsIntegrityCheckingEnabled()
+    {
+        var configValue = StringUtil.EmptyToNull(GetConfigValue("integrity.enabled"));
+        return configValue?.ToLowerInvariant() == "true";
+    }
+
+    public bool IsScheduledIntegrityCheckingEnabled()
+    {
+        var configValue = StringUtil.EmptyToNull(GetConfigValue("integrity.scheduled_enabled"));
+        return configValue?.ToLowerInvariant() == "true";
+    }
+
+    public int GetIntegrityCheckIntervalHours()
+    {
+        if (int.TryParse(GetConfigValue("integrity.interval_hours"), out var hours))
+            return Math.Max(1, hours);
+        return 24; // Default to every 24 hours
+    }
+
+    public int GetIntegrityCheckRecheckEligibilityDays()
+    {
+        if (int.TryParse(GetConfigValue("integrity.recheck_eligibility_days"), out var days))
+            return Math.Max(1, days);
+        return 7; // Default to every 7 days
+    }
+
+    public int GetMaxFilesToCheckPerRun()
+    {
+        if (int.TryParse(GetConfigValue("integrity.max_files_per_run"), out var maxFiles))
+            return Math.Max(1, maxFiles);
+        return 100; // Default to 100 files per run
+    }
+
+    public string GetCorruptFileAction()
+    {
+        return GetConfigValue("integrity.corrupt_file_action") ?? "log";
+    }
+
+    public bool IsDirectDeletionFallbackEnabled()
+    {
+        if (bool.TryParse(GetConfigValue("integrity.direct_deletion_fallback"), out var enabled))
+            return enabled;
+        return false; // Default to disabled for safety
+    }
+
+    public bool IsMp4DeepScanEnabled()
+    {
+        if (bool.TryParse(GetConfigValue("integrity.mp4_deep_scan"), out var enabled))
+            return enabled;
+        return false; // Default to disabled for performance
+    }
+
+    public bool IsAutoMonitorEnabled()
+    {
+        if (bool.TryParse(GetConfigValue("integrity.auto_monitor"), out var enabled))
+            return enabled;
+        return false; // Default to disabled for safety
+    }
+
+    public bool IsUnmonitorValidatedFilesEnabled()
+    {
+        if (bool.TryParse(GetConfigValue("integrity.unmonitor_validated_files"), out var enabled))
+            return enabled;
+        return false; // Default to disabled for safety
+    }
+
+    public int GetNzbSegmentThresholdPercentage()
+    {
+        if (int.TryParse(GetConfigValue("integrity.nzb_segment_threshold_percentage"), out var threshold))
+            return Math.Max(80, Math.Min(100, threshold)); // Clamp between 80-100
+        return 92; // Default value
+    }
+
+    public int GetNzbSegmentSamplePercentage()
+    {
+        if (int.TryParse(GetConfigValue("integrity.nzb_segment_sample_percentage"), out var samplePct))
+            return Math.Max(1, Math.Min(100, samplePct)); // Clamp between 1-100
+        return 25; // Default value
+    }
+
+    public IntegrityCheckRunParameters GetDefaultRunParameters()
+    {
+        return new IntegrityCheckRunParameters
+        {
+            ScanDirectory = GetLibraryDir(),
+            MaxFilesToCheck = GetMaxFilesToCheckPerRun(),
+            CorruptFileAction = Enum.TryParse<IntegrityCheckRun.CorruptFileActionOption>(GetCorruptFileAction(), true, out var action) ? action : IntegrityCheckRun.CorruptFileActionOption.Log,
+            Mp4DeepScan = IsMp4DeepScanEnabled(),
+            AutoMonitor = IsAutoMonitorEnabled(),
+            UnmonitorValidatedFiles = IsUnmonitorValidatedFilesEnabled(),
+            DirectDeletionFallback = IsDirectDeletionFallbackEnabled(),
+            NzbSegmentSamplePercentage = GetNzbSegmentSamplePercentage(),
+            NzbSegmentThresholdPercentage = GetNzbSegmentThresholdPercentage(),
+            RunType = IntegrityCheckRun.RunTypeOption.Manual
+        };
+    }
+
     public class ConfigEventArgs : EventArgs
     {
         public Dictionary<string, string> ChangedConfig { get; set; } = new();

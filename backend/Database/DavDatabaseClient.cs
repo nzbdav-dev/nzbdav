@@ -1,5 +1,7 @@
+using System.Data.Common;
 using Microsoft.EntityFrameworkCore;
 using NzbWebDAV.Database.Models;
+using NzbWebDAV.Extensions;
 
 namespace NzbWebDAV.Database;
 
@@ -31,6 +33,31 @@ public sealed class DavDatabaseClient(DavDatabaseContext ctx)
     public Task<DavItem?> GetDirectoryChildAsync(Guid dirId, string childName, CancellationToken ct = default)
     {
         return ctx.Items.FirstOrDefaultAsync(x => x.ParentId == dirId && x.Name == childName, ct);
+    }
+
+    public async Task<bool> DeleteItemAsync(DavItem davItem, CancellationToken ct = default)
+    {
+        switch (davItem.Type)
+        {
+            case DavItem.ItemType.NzbFile or DavItem.ItemType.RarFile:
+                // If the item is a file, simply delete it and we're done
+                ctx.Items.Remove(davItem);
+                return await ctx.SaveChangesAsync(ct) > 0;
+            case DavItem.ItemType.Directory:
+                if (davItem.IsProtected())
+                {
+                    // do not delete protected directories (IdsRoot, SymlinkRoot, etc.)
+                    return false;
+                }
+                else
+                {
+                    // If the item is a directory and it not a protected directory, simply delete it
+                    ctx.Items.Remove(davItem);
+                    return await ctx.SaveChangesAsync(ct) > 0;
+                }
+            default:
+                return false;
+        }
     }
 
     public async Task<long> GetRecursiveSize(Guid dirId, CancellationToken ct = default)
@@ -65,6 +92,49 @@ public sealed class DavDatabaseClient(DavDatabaseContext ctx)
         command.Parameters.Add(parameter);
         var result = await command.ExecuteScalarAsync(ct);
         return Convert.ToInt64(result);
+    }
+
+    public async Task<List<DavItem>> GetAllItemsRecursiveAsync(Guid dirId, CancellationToken ct = default)
+    {
+        const string sql = @"
+            WITH RECURSIVE RecursiveChildren AS (
+                SELECT Id, Name, FileSize, Type, Path, ParentId, IdPrefix, CreatedAt
+                FROM DavItems
+                WHERE ParentId = @parentId
+
+                UNION ALL
+
+                SELECT d.Id, d.Name, d.FileSize, d.Type, d.Path, d.ParentId, d.IdPrefix, d.CreatedAt
+                FROM DavItems d
+                INNER JOIN RecursiveChildren rc ON d.ParentId = rc.Id
+            )
+            SELECT Id, Name, FileSize, Type, Path, ParentId, IdPrefix, CreatedAt
+            FROM RecursiveChildren;
+        ";
+        var connection = Ctx.Database.GetDbConnection();
+        if (connection.State != System.Data.ConnectionState.Open) await connection.OpenAsync(ct);
+        await using var command = connection.CreateCommand();
+        command.CommandText = sql;
+        var parameter = command.CreateParameter();
+        parameter.ParameterName = "@parentId";
+        parameter.Value = dirId;
+        command.Parameters.Add(parameter);
+        var result = await command.ExecuteReaderAsync(ct);
+        var items = new List<DavItem>();
+        while (await result.ReadAsync(ct))
+        {
+            items.Add(DavItem.New(
+                id: result.GetGuid(0),
+                parentId: result.IsDBNull(5) ? null : result.GetGuid(5),
+                name: result.GetString(1),
+                fileSize: result.IsDBNull(2) ? null : result.GetInt64(2),
+                type: (DavItem.ItemType)result.GetInt32(3),
+                path: result.GetString(4),
+                createdAt: result.GetDateTime(7),
+                idPrefix: result.GetString(6)
+            ));
+        }
+        return items;
     }
 
     // nzbfile
@@ -155,12 +225,12 @@ public sealed class DavDatabaseClient(DavDatabaseContext ctx)
         CancellationToken ct = default)
     {
         var query = from historyItem in Ctx.HistoryItems
-            where historyItem.Category == category
-                  && historyItem.DownloadStatus == HistoryItem.DownloadStatusOption.Completed
-                  && historyItem.DownloadDirId != null
-            join davItem in Ctx.Items on historyItem.DownloadDirId equals davItem.Id
-            where davItem.Type == DavItem.ItemType.Directory
-            select davItem;
+                    where historyItem.Category == category
+                          && historyItem.DownloadStatus == HistoryItem.DownloadStatusOption.Completed
+                          && historyItem.DownloadDirId != null
+                    join davItem in Ctx.Items on historyItem.DownloadDirId equals davItem.Id
+                    where davItem.Type == DavItem.ItemType.Directory
+                    select davItem;
         return await query.Distinct().ToListAsync(ct);
     }
 }

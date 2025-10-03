@@ -3,12 +3,14 @@ import styles from "./left-navigation.module.css";
 import { className } from "~/utils/styling";
 import type React from "react";
 import { LiveUsenetConnections } from "../live-usenet-connections/live-usenet-connections";
+import { LiveIntegrityCheck } from "../live-integrity-check/live-integrity-check";
 
 export type LeftNavigationProps = {
-    version?: string
+    version?: string;
+    integrityEnabled?: boolean;
 }
 
-export function LeftNavigation({ version }: LeftNavigationProps) {
+export function LeftNavigation({ version, integrityEnabled }: LeftNavigationProps) {
     return (
         <div className={styles.container}>
             <Item target="/queue">
@@ -19,11 +21,18 @@ export function LeftNavigation({ version }: LeftNavigationProps) {
                 <div className={styles["explore-icon"]} />
                 <div className={styles.title}>Dav Explore</div>
             </Item>
+            {integrityEnabled && (
+                <Item target="/integrity-results">
+                    <div className={styles["integrity-icon"]} />
+                    <div className={styles.title}>Integrity Results</div>
+                </Item>
+            )}
             <Item target="/settings">
                 <div className={styles["settings-icon"]} />
                 <div className={styles.title}>Settings</div>
             </Item>
             <LiveUsenetConnections />
+            {integrityEnabled && <LiveIntegrityCheck />}
 
             <div className={styles.footer}>
                 <div className={styles["footer-item"]}>

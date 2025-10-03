@@ -1,0 +1,60 @@
+.container {
+    max-width: 600px;
+}
+
+.input {
+    margin-bottom: 8px;
+}
+
+.input::placeholder {
+    color: rgba(255, 255, 255, 0.25);
+}
+
+.task {
+    background-color: #02181d;
+    padding: 1rem;
+    color: #dee2e6;
+    border-radius: .375rem;
+    box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.25);
+}
+
+.title {
+    font-weight: bold;
+    margin-bottom: 0;
+}
+
+.run {
+    margin-top: 12px;
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+    align-items: center;
+}
+
+.task-progress {
+    font-size: 12px;
+}
+
+.error {
+    border: 1px solid red !important;
+}
+
+.arrSection {
+    background-color: #f8f9fa;
+    padding: 1rem;
+    border-radius: .375rem;
+    border: 1px solid #dee2e6;
+    margin-bottom: 1rem;
+}
+
+.arrSection h5 {
+    color: #495057;
+    margin-bottom: 0.5rem;
+}
+
+.arrSection h6 {
+    color: #6c757d;
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
+    font-size: 1rem;
+}

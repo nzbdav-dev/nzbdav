@@ -37,6 +37,40 @@ public class DavItem
         };
     }
 
+    public static DavItem New
+    (
+        Guid id,
+        Guid? parentId,
+        string name,
+        long? fileSize,
+        ItemType type,
+        string path,
+        DateTime createdAt,
+        string idPrefix
+    )
+    {
+        return type switch
+        {
+            ItemType.IdsRoot => IdsFolder,
+            ItemType.SymlinkRoot => SymlinkFolder,
+            ItemType.Directory when id == NzbFolder.Id => NzbFolder,
+            ItemType.Directory when id == ContentFolder.Id => ContentFolder,
+            ItemType.Directory when id == SymlinkFolder.Id => SymlinkFolder,
+            ItemType.Directory when id == IdsFolder.Id => IdsFolder,
+            _ => new DavItem
+            {
+                Id = id,
+                IdPrefix = idPrefix,
+                CreatedAt = createdAt,
+                ParentId = parentId,
+                Name = name,
+                FileSize = fileSize,
+                Type = type,
+                Path = path,
+            },
+        };
+    }
+
     // Important: numerical values cannot be
     // changed without a database migration.
     public enum ItemType

@@ -14,6 +14,7 @@ using NzbWebDAV.Queue.DeobfuscationSteps._3.GetFileInfos;
 using NzbWebDAV.Queue.FileAggregators;
 using NzbWebDAV.Queue.FileProcessors;
 using NzbWebDAV.Queue.Validators;
+using NzbWebDAV.Utils;
 using NzbWebDAV.Websocket;
 using Serilog;
 using Usenet.Nzb;
@@ -93,11 +94,39 @@ public class QueueItemProcessor(
         // if the mount folder already exists,
         // then we've already downloaded this nzb and we can mark the job as completed.
         var existingMountFolder = await GetMountFolder();
-        var isAlreadyDownloaded = existingMountFolder is not null;
-        if (isAlreadyDownloaded)
+        if (existingMountFolder is not null)
         {
-            Log.Information($"Nzb `{queueItem.JobName}` is a duplicate. Skipping and marking complete.");
-            await MarkQueueItemCompleted(startTime, error: null, () => existingMountFolder);
+            Log.Information($"Nzb `{queueItem.JobName}` is a duplicate. Skipping download but still validating content.");
+
+            Log.Information("Existing mount folder: {ExistingMountFolderPath}/{ExistingMountFolderName}", existingMountFolder.Path, existingMountFolder.Name);
+
+            // grab existing already-processed video files from the database
+            var existingVideoFiles = (await dbClient.GetAllItemsRecursiveAsync(existingMountFolder.Id))
+                .Where(x => x.Type == DavItem.ItemType.NzbFile || x.Type == DavItem.ItemType.RarFile)
+                .Where(x => FilenameUtil.IsVideoFile(x.Name))
+                .ToList();
+
+            try
+            {
+                await ValidateVideoContentAsync(existingVideoFiles);
+            }
+            catch (Exception ex) when (ex.IsNonRetryableDownloadException())
+            {
+                // we should not re-use this folder if validation fails - delete it.
+                var deleted = await dbClient.DeleteItemAsync(existingMountFolder, ct);
+                if (deleted)
+                {
+                    Log.Information("Deleted existing mount folder: {ExistingMountFolderPath}/{ExistingMountFolderName}", existingMountFolder.Path, existingMountFolder.Name);
+                }
+                else
+                {
+                    Log.Error("Failed to delete existing mount folder: {ExistingMountFolderPath}/{ExistingMountFolderName}", existingMountFolder.Path, existingMountFolder.Name);
+                }
+                throw;
+            }
+
+            // Only mark as completed if validation passes
+            await MarkQueueItemCompleted(startTime, error: null, () => Task.FromResult<DavItem?>(existingMountFolder));
             return;
         }
 
@@ -142,7 +171,7 @@ public class QueueItemProcessor(
             .ToList();
 
         // update the database
-        await MarkQueueItemCompleted(startTime, error: null, () =>
+        await MarkQueueItemCompleted(startTime, error: null, async () =>
         {
             var categoryFolder = GetOrCreateCategoryFolder();
             var mountFolder = CreateMountFolder(categoryFolder);
@@ -150,11 +179,24 @@ public class QueueItemProcessor(
             new FileAggregator(dbClient, mountFolder).UpdateDatabase(fileProcessingResults);
 
             // validate video files found
-            if (configManager.IsEnsureImportableVideoEnabled())
-                new EnsureImportableVideoValidator(dbClient).ThrowIfValidationFails();
+            await ValidateVideoContentAsync(null);
 
             return mountFolder;
         });
+    }
+
+    private async Task ValidateVideoContentAsync(List<DavItem>? existingVideoFiles)
+    {
+        if (configManager.IsEnsureImportableVideoEnabled())
+        {
+            Log.Information("Video validation is enabled, starting validation for job: {JobName}", queueItem.JobName);
+            var validator = new EnsureImportableVideoValidator(dbClient, usenetClient, configManager);
+            await validator.ThrowIfValidationFailsAsync(existingVideoFiles, ct);
+        }
+        else
+        {
+            Log.Debug("Video validation is disabled, skipping validation for job: {JobName}", queueItem.JobName);
+        }
     }
 
     private BaseProcessor? GetFileProcessor(NzbFile nzbFile, GetFileInfosStep.FileInfo fileinfo)
@@ -167,12 +209,12 @@ public class QueueItemProcessor(
     private async Task<DavItem?> GetMountFolder()
     {
         var query = from mountFolder in dbClient.Ctx.Items
-            join categoryFolder in dbClient.Ctx.Items on mountFolder.ParentId equals categoryFolder.Id
-            where mountFolder.Name == queueItem.JobName
-                  && mountFolder.ParentId != null
-                  && categoryFolder.Name == queueItem.Category
-                  && categoryFolder.ParentId == DavItem.ContentFolder.Id
-            select mountFolder;
+                    join categoryFolder in dbClient.Ctx.Items on mountFolder.ParentId equals categoryFolder.Id
+                    where mountFolder.Name == queueItem.JobName
+                          && mountFolder.ParentId != null
+                          && categoryFolder.Name == queueItem.Category
+                          && categoryFolder.ParentId == DavItem.ContentFolder.Id
+                    select mountFolder;
 
         return await query.FirstOrDefaultAsync(ct);
     }
@@ -233,11 +275,11 @@ public class QueueItemProcessor(
     (
         DateTime startTime,
         string? error = null,
-        Func<DavItem?>? databaseOperations = null
+        Func<Task<DavItem?>>? databaseOperations = null
     )
     {
         dbClient.Ctx.ChangeTracker.Clear();
-        var mountFolder = databaseOperations?.Invoke();
+        var mountFolder = databaseOperations == null ? null : await databaseOperations.Invoke();
         var mountDirectory = configManager.GetRcloneMountDir();
         var historyItem = CreateHistoryItem(mountFolder, startTime, error);
         var historySlot = GetHistoryResponse.HistorySlot.FromHistoryItem(historyItem, mountDirectory);
