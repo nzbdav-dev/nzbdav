@@ -68,6 +68,20 @@ export function WebdavSettings({ config, setNewConfig }: SabnzbdSettingsProps) {
                     Hidden files or directories are those whose names are prefixed by a period.
                 </Form.Text>
             </Form.Group>
+            <hr />
+            <Form.Group>
+                <Form.Check
+                    className={styles.input}
+                    type="checkbox"
+                    id="preview-par2-files-checkbox"
+                    aria-describedby="preview-par2-files-help"
+                    label={`Preview par2 files on Dav Explorer`}
+                    checked={config["webdav.preview-par2-files"] === "true"}
+                    onChange={e => setNewConfig({ ...config, "webdav.preview-par2-files": "" + e.target.checked })} />
+                <Form.Text id="preview-par2-files-help" muted>
+                    When enabled, par2 files will be rendered as text files on the Dav Explorer page, displaying all File-Descriptor entries.
+                </Form.Text>
+            </Form.Group>
         </div>
     );
 }
@@ -77,6 +91,7 @@ export function isWebdavSettingsUpdated(config: Record<string, string>, newConfi
         || config["webdav.pass"] !== newConfig["webdav.pass"]
         || config["webdav.show-hidden-files"] !== newConfig["webdav.show-hidden-files"]
         || config["webdav.enforce-readonly"] !== newConfig["webdav.enforce-readonly"]
+        || config["webdav.preview-par2-files"] !== newConfig["webdav.preview-par2-files"]
 }
 
 export function isWebdavSettingsValid(newConfig: Record<string, string>) {
