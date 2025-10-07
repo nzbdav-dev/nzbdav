@@ -21,8 +21,8 @@ public class LimitedLengthStream(Stream stream, long length) : Stream
             return 0;
 
         // Calculate how many bytes we can still read
-        var remainingBytes = (int)(length - _position);
-        var bytesToRead = Math.Min(remainingBytes, buffer.Length);
+        var remainingBytes = length - _position;
+        var bytesToRead = (int)Math.Min(remainingBytes, buffer.Length);
 
         // Read from the underlying stream
         var bytesRead = await stream.ReadAsync(buffer[..bytesToRead], cancellationToken);
