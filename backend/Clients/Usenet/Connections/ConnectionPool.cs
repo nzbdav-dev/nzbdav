@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using NzbWebDAV.Extensions;
 
-namespace NzbWebDAV.Clients.Connections;
+namespace NzbWebDAV.Clients.Usenet.Connections;
 
 /// <summary>
 /// Thread-safe, lazy connection pool.

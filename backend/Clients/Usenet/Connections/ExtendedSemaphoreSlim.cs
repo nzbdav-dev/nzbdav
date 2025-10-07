@@ -1,4 +1,4 @@
-﻿namespace NzbWebDAV.Clients.Connections
+﻿namespace NzbWebDAV.Clients.Usenet.Connections
 {
     /// <summary>
     /// A semaphore-like primitive where each waiter specifies the number of

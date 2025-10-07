@@ -1,5 +1,5 @@
 ﻿using System.Text.RegularExpressions;
-using NzbWebDAV.Clients;
+using NzbWebDAV.Clients.Usenet;
 using NzbWebDAV.Exceptions;
 using NzbWebDAV.Extensions;
 using NzbWebDAV.Queue.DeobfuscationSteps._3.GetFileInfos;

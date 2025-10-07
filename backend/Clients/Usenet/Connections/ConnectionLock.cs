@@ -1,4 +1,4 @@
-namespace NzbWebDAV.Clients.Connections;
+namespace NzbWebDAV.Clients.Usenet.Connections;
 
 /// <summary>
 /// Disposable wrapper that automatically returns a borrowed connection to the

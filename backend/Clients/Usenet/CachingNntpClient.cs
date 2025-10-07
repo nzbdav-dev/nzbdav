@@ -3,7 +3,7 @@ using NzbWebDAV.Streams;
 using Usenet.Nzb;
 using Usenet.Yenc;
 
-namespace NzbWebDAV.Clients;
+namespace NzbWebDAV.Clients.Usenet;
 
 public class CachingNntpClient(INntpClient client, MemoryCache cache) : WrappingNntpClient(client)
 {

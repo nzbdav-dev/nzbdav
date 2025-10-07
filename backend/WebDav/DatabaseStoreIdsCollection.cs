@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Http;
 using NWebDav.Server.Stores;
-using NzbWebDAV.Clients;
+using NzbWebDAV.Clients.Usenet;
 using NzbWebDAV.Config;
 using NzbWebDAV.Database;
 using NzbWebDAV.Database.Models;

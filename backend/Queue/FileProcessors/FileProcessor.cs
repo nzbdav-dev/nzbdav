@@ -1,4 +1,4 @@
-﻿using NzbWebDAV.Clients;
+﻿using NzbWebDAV.Clients.Usenet;
 using NzbWebDAV.Exceptions;
 using NzbWebDAV.Queue.DeobfuscationSteps._3.GetFileInfos;
 using NzbWebDAV.Utils;

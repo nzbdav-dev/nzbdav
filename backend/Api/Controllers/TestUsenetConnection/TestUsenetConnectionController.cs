@@ -1,5 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using NzbWebDAV.Clients;
+using NzbWebDAV.Clients.Usenet;
 using NzbWebDAV.Exceptions;
 
 namespace NzbWebDAV.Api.Controllers.TestUsenetConnection;

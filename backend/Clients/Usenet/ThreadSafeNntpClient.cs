@@ -7,7 +7,7 @@ using Usenet.Nntp.Responses;
 using Usenet.Nzb;
 using Usenet.Yenc;
 
-namespace NzbWebDAV.Clients;
+namespace NzbWebDAV.Clients.Usenet;
 
 public class ThreadSafeNntpClient : INntpClient
 {

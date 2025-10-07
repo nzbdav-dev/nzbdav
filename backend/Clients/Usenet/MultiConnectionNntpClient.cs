@@ -1,11 +1,11 @@
-﻿using NzbWebDAV.Clients.Connections;
+﻿using NzbWebDAV.Clients.Usenet.Connections;
 using NzbWebDAV.Streams;
 using Usenet.Exceptions;
 using Usenet.Nntp.Responses;
 using Usenet.Nzb;
 using Usenet.Yenc;
 
-namespace NzbWebDAV.Clients;
+namespace NzbWebDAV.Clients.Usenet;
 
 public class MultiConnectionNntpClient(ConnectionPool<INntpClient> connectionPool) : INntpClient
 {

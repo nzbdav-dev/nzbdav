@@ -1,4 +1,4 @@
-﻿using NzbWebDAV.Clients;
+﻿using NzbWebDAV.Clients.Usenet;
 using NzbWebDAV.Models;
 using NzbWebDAV.Utils;
 

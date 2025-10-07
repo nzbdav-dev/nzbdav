@@ -1,4 +1,4 @@
-﻿namespace NzbWebDAV.Clients.Connections;
+﻿namespace NzbWebDAV.Clients.Usenet.Connections;
 
 public readonly struct ReservedConnectionsContext(int reservedCount)
 {

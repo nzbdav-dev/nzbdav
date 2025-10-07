@@ -1,6 +1,6 @@
 // ReSharper disable InconsistentNaming
 
-using NzbWebDAV.Clients;
+using NzbWebDAV.Clients.Usenet;
 using NzbWebDAV.Config;
 using NzbWebDAV.Exceptions;
 using NzbWebDAV.Extensions;

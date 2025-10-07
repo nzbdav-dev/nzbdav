@@ -8,7 +8,7 @@ using NWebDav.Server;
 using NWebDav.Server.Authentication;
 using NWebDav.Server.Stores;
 using NzbWebDAV.Api.SabControllers;
-using NzbWebDAV.Clients;
+using NzbWebDAV.Clients.Usenet;
 using NzbWebDAV.Config;
 using NzbWebDAV.Database;
 using NzbWebDAV.Extensions;

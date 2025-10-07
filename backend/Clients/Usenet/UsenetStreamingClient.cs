@@ -1,5 +1,5 @@
 ﻿using Microsoft.Extensions.Caching.Memory;
-using NzbWebDAV.Clients.Connections;
+using NzbWebDAV.Clients.Usenet.Connections;
 using NzbWebDAV.Config;
 using NzbWebDAV.Exceptions;
 using NzbWebDAV.Extensions;
@@ -8,7 +8,7 @@ using NzbWebDAV.Websocket;
 using Usenet.Nntp.Responses;
 using Usenet.Nzb;
 
-namespace NzbWebDAV.Clients;
+namespace NzbWebDAV.Clients.Usenet;
 
 public class UsenetStreamingClient
 {
