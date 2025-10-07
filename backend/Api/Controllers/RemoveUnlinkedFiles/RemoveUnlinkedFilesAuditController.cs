@@ -1,8 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using NzbWebDAV.Config;
-using NzbWebDAV.Database;
 using NzbWebDAV.Tasks;
-using NzbWebDAV.Websocket;
 
 namespace NzbWebDAV.Api.Controllers.RemoveUnlinkedFiles;
 

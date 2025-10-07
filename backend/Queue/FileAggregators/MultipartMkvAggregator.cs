@@ -1,7 +1,6 @@
 ﻿using NzbWebDAV.Database;
 using NzbWebDAV.Database.Models;
 using NzbWebDAV.Queue.FileProcessors;
-using NzbWebDAV.Utils;
 
 namespace NzbWebDAV.Queue.FileAggregators;
 
