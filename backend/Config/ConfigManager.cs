@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using NzbWebDAV.Database;
 using NzbWebDAV.Database.Models;
 using NzbWebDAV.Utils;
@@ -30,6 +31,12 @@ public class ConfigManager
         {
             return _config.TryGetValue(configName, out string? value) ? value : null;
         }
+    }
+
+    public T? GetConfigValue<T>(string configName)
+    {
+        var rawValue = StringUtil.EmptyToNull(GetConfigValue(configName));
+        return rawValue == null ? default : JsonSerializer.Deserialize<T>(rawValue);
     }
 
     public void UpdateValues(List<ConfigItem> configItems)
@@ -147,6 +154,12 @@ public class ConfigManager
         var defaultValue = false;
         var configValue = StringUtil.EmptyToNull(GetConfigValue("webdav.preview-par2-files"));
         return (configValue != null ? bool.Parse(configValue) : defaultValue);
+    }
+
+    public ArrConfig GetArrConfig()
+    {
+        var defaultValue = new ArrConfig();
+        return GetConfigValue<ArrConfig>("arr.instances") ?? defaultValue;
     }
 
     public class ConfigEventArgs : EventArgs
