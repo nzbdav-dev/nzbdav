@@ -47,6 +47,17 @@ public class ExceptionMiddleware(RequestDelegate next)
             var seekPosition = context.Request.GetRange()?.Start?.ToString() ?? "unknown";
             Log.Error($"File `{filePath}` could not seek to byte position: {seekPosition}");
         }
+        catch (Exception e) when (IsDavItemRequest(context))
+        {
+            if (!context.Response.HasStarted)
+            {
+                context.Response.Clear();
+                context.Response.StatusCode = 500;
+            }
+
+            var filePath = GetRequestFilePath(context);
+            Log.Error($"File `{filePath}` could not be read due to unhandled {e.GetType()}: {e.Message}");
+        }
     }
 
     private static string GetRequestFilePath(HttpContext context)
@@ -54,5 +65,10 @@ public class ExceptionMiddleware(RequestDelegate next)
         return context.Items["DavItem"] is DavItem davItem
             ? davItem.Path
             : context.Request.Path;
+    }
+
+    private static bool IsDavItemRequest(HttpContext context)
+    {
+        return context.Items["DavItem"] is DavItem;
     }
 }
