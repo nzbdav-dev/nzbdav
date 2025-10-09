@@ -7,6 +7,7 @@ import React, { useEffect } from "react";
 import { isSabnzbdSettingsUpdated, isSabnzbdSettingsValid, SabnzbdSettings } from "./sabnzbd/sabnzbd";
 import { isWebdavSettingsUpdated, isWebdavSettingsValid, WebdavSettings } from "./webdav/webdav";
 import { isLibrarySettingsUpdated, LibrarySettings } from "./library/library";
+import { isArrsSettingsUpdated, isArrsSettingsValid, ArrsSettings } from "./arrs/arrs";
 import { Maintenance } from "./maintenance/maintenance";
 
 const defaultConfig = {
@@ -29,6 +30,7 @@ const defaultConfig = {
     "webdav.preview-par2-files": "false",
     "rclone.mount-dir": "",
     "media.library-dir": "",
+    "arr.instances": "{\"RadarrInstances\":[],\"SonarrInstances\":[],\"QueueRules\":[]}",
 }
 
 const advancedTabs = ["library", "maintenance"];
@@ -70,11 +72,13 @@ function Body(props: BodyProps) {
     const isSabnzbdUpdated = isSabnzbdSettingsUpdated(config, newConfig);
     const isWebdavUpdated = isWebdavSettingsUpdated(config, newConfig);
     const isLibraryUpdated = isLibrarySettingsUpdated(config, newConfig);
-    const isUpdated = iseUsenetUpdated || isSabnzbdUpdated || isWebdavUpdated || isLibraryUpdated;
+    const isArrsUpdated = isArrsSettingsUpdated(config, newConfig);
+    const isUpdated = iseUsenetUpdated || isSabnzbdUpdated || isWebdavUpdated || isLibraryUpdated || isArrsUpdated;
 
     const usenetTitle = iseUsenetUpdated ? "Usenet ✏️" : "Usenet";
     const sabnzbdTitle = isSabnzbdUpdated ? "SABnzbd ✏️" : "SABnzbd";
     const webdavTitle = isWebdavUpdated ? "WebDAV ✏️" : "WebDAV";
+    const arrsTitle = isArrsUpdated ? "Arrs ✏️" : "Arrs";
     const libraryTitle = isLibraryUpdated ? "Library ✏️" : "Library";
 
     const saveButtonLabel = isSaving ? "Saving..."
@@ -83,6 +87,7 @@ function Body(props: BodyProps) {
         : iseUsenetUpdated && !isUsenetSettingsReadyToSave ? "Must test the usenet connection to save"
         : isSabnzbdUpdated && !isSabnzbdSettingsValid(newConfig) ? "Invalid SABnzbd settings"
         : isWebdavUpdated && !isWebdavSettingsValid(newConfig) ? "Invalid WebDAV settings"
+        : isArrsUpdated && !isArrsSettingsValid(newConfig) ? "Invalid Arrs settings"
         : "Save";
     const saveButtonVariant = saveButtonLabel === "Save" ? "primary"
         : saveButtonLabel === "Saved ✅" ? "success"
@@ -150,10 +155,13 @@ function Body(props: BodyProps) {
                 <Tab eventKey="webdav" title={webdavTitle}>
                     <WebdavSettings config={newConfig} setNewConfig={setNewConfig} />
                 </Tab>
-                {!showAdvanced &&
+                <Tab eventKey="arrs" title={arrsTitle}>
+                    <ArrsSettings config={newConfig} setNewConfig={setNewConfig} />
+                </Tab>
+                {/* {!showAdvanced &&
                     <Tab eventKey="*" title={"🚀"}>
                     </Tab>
-                }
+                } */}
                 {showAdvanced &&
                     <Tab eventKey="library" title={libraryTitle}>
                         <LibrarySettings savedConfig={config} config={newConfig} setNewConfig={setNewConfig} />
