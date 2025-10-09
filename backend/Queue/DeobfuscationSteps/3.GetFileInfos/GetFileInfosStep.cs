@@ -67,7 +67,7 @@ public static class GetFileInfosStep
         var priority = startingPriority;
         if (string.IsNullOrWhiteSpace(filename)) return priority - 5000;
         if (ObfuscationUtil.IsProbablyObfuscated(filename)) priority -= 1000;
-        if (FilenameUtil.IsVideoFile(filename)) priority += 50;
+        if (FilenameUtil.IsImportantFileType(filename)) priority += 50;
         if (Path.GetExtension(filename).TrimStart('.').Length is >= 2 and <= 4) priority += 10;
         return priority;
     }

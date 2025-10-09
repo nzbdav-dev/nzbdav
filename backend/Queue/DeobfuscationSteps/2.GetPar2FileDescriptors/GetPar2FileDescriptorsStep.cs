@@ -18,7 +18,7 @@ public static class GetPar2FileDescriptorsStep
         // find the par2 index file
         var par2Index = files
             .Where(x => !x.MissingFirstSegment)
-            .Where(x => Par2.IsPar2Index(x.First16KB!))
+            .Where(x => Par2.HasPar2MagicBytes(x.First16KB!))
             .MinBy(x => x.NzbFile.Segments.Count);
         if (par2Index is null) return [];
 

@@ -113,14 +113,13 @@ namespace NzbWebDAV.Par2Recovery
             }
         }
 
-        public static bool IsPar2Index(byte[] bytes)
+        public static bool HasPar2MagicBytes(byte[] bytes)
         {
             try
             {
                 var header = ReadStruct<Par2PacketHeader>(bytes);
                 var magic = Encoding.ASCII.GetString(header.Magic);
-                return Par2PacketHeaderMagic.Equals(magic)
-                       && Encoding.ASCII.GetString(header.PacketType) == FileDesc.PacketType;
+                return Par2PacketHeaderMagic.Equals(magic);
             }
             catch (Exception e)
             {
