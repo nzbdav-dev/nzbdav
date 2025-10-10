@@ -107,6 +107,21 @@ export function SabnzbdSettings({ config, setNewConfig }: SabnzbdSettingsProps) 
                     Whether to check for the existence of all articles within an NZB during queue processing. This process may be slow.
                 </Form.Text>
             </Form.Group>
+            <hr />
+            <Form.Group>
+                <Form.Check
+                    className={styles.input}
+                    type="checkbox"
+                    id="ignore-history-limit-checkbox"
+                    aria-describedby="ignore-history-limit-help"
+                    label={`Always send full History to Radarr/Sonarr`}
+                    checked={config["api.ignore-history-limit"] === "true"}
+                    onChange={e => setNewConfig({ ...config, "api.ignore-history-limit": "" + e.target.checked })} />
+                <Form.Text id="ignore-history-limit-help" muted>
+                    When enabled, this will ignore the History limit sent by radarr/sonarr and always reply with all History items.&nbsp;
+                    <a href="https://github.com/Sonarr/Sonarr/issues/5452">See here</a>.
+                </Form.Text>
+            </Form.Group>
         </div>
     );
 }
@@ -118,6 +133,7 @@ export function isSabnzbdSettingsUpdated(config: Record<string, string>, newConf
         || config["api.max-queue-connections"] !== newConfig["api.max-queue-connections"]
         || config["api.ensure-importable-video"] !== newConfig["api.ensure-importable-video"]
         || config["api.ensure-article-existence"] !== newConfig["api.ensure-article-existence"]
+        || config["api.ignore-history-limit"] !== newConfig["api.ignore-history-limit"]
 }
 
 export function isSabnzbdSettingsValid(newConfig: Record<string, string>) {
