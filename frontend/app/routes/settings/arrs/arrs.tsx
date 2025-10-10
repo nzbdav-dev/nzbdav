@@ -24,12 +24,42 @@ interface ArrConfig {
 }
 
 const queueStatusMessages = [
-    "Found matching series via grab history, but release was matched to series by ID. Automatic import is not possible.",
-    "Found matching movie via grab history, but release was matched to movie by ID. Manual Import required.",
-    "Not an upgrade for existing episode file(s)",
-    "No files found are eligible for import",
-    "Episode file already imported",
-    "Sample"
+    {
+        display: "Found matching series via grab history, but release was matched to series by ID. Automatic import is not possible.",
+        searchTerm: "Found matching series via grab history, but release was matched to series by ID. Automatic import is not possible."
+    },
+    {
+        display: "Found matching movie via grab history, but release was matched to movie by ID. Manual Import required.",
+        searchTerm: "Found matching movie via grab history, but release was matched to movie by ID. Manual Import required."
+    },
+    {
+        display: "Episode was not found in the grabbed release",
+        searchTerm: "was not found in the grabbed release"
+    },
+    {
+        display: "Not an upgrade for existing episode file(s)",
+        searchTerm: "Not an upgrade for existing episode file(s)"
+    },
+    {
+        display: "Not an upgrade for existing movie file",
+        searchTerm: "Not an upgrade for existing movie file"
+    },
+    {
+        display: "No files found are eligible for import",
+        searchTerm: "No files found are eligible for import"
+    },
+    {
+        display: "Episode file already imported",
+        searchTerm: "Episode file already imported"
+    },
+    {
+        display: "Unable to determine if file is a sample",
+        searchTerm: "Unable to determine if file is a sample"
+    },
+    {
+        display: "Sample",
+        searchTerm: "Sample"
+    },
 ];
 
 export function ArrsSettings({ config, setNewConfig }: ArrsSettingsProps) {
@@ -95,18 +125,18 @@ export function ArrsSettings({ config, setNewConfig }: ArrsSettingsProps) {
         });
     }, [arrConfig, updateConfig]);
 
-    const updateQueueAction = useCallback((message: string, action: number) => {
+    const updateQueueAction = useCallback((searchTerm: string, action: number) => {
         // update the queue rule if it already exists
         var newQueueRules = (arrConfig.QueueRules || [])
-            .filter((queueRule: QueueRule) => queueStatusMessages.includes(queueRule.Message))
-            .map((queueRule: QueueRule) => queueRule.Message == message
-                ? { Message: message, Action: action }
+            .filter((queueRule: QueueRule) => queueStatusMessages.map(x => x.searchTerm).includes(queueRule.Message))
+            .map((queueRule: QueueRule) => queueRule.Message == searchTerm
+                ? { Message: searchTerm, Action: action }
                 : queueRule
             );
 
         // add the new queue rule if it doesn't already exist
-        if (!newQueueRules.find((queueRule: QueueRule) => queueRule.Message == message))
-            newQueueRules.push({ Message: message, Action: action });
+        if (!newQueueRules.find((queueRule: QueueRule) => queueRule.Message == searchTerm))
+            newQueueRules.push({ Message: searchTerm, Action: action });
 
         // update the config
         updateConfig({
@@ -159,13 +189,13 @@ export function ArrsSettings({ config, setNewConfig }: ArrsSettingsProps) {
                     Only `usenet` queue items will be acted upon.
                 </p>
                 <ul>
-                    {queueStatusMessages.map((message, index) =>
+                    {queueStatusMessages.map((queueStatusMessage, index) =>
                         <li key={index} className={styles.listItem}>
-                            <div className={styles.statusMessage}>{message}</div>
+                            <div className={styles.statusMessage}>{queueStatusMessage.display}</div>
                             <Form.Select
                                 className={styles.input}
-                                value={arrConfig.QueueRules.find((x: QueueRule) => x.Message == message)?.Action ?? "0"}
-                                onChange={e => updateQueueAction(message, Number(e.target.value))}
+                                value={arrConfig.QueueRules.find((x: QueueRule) => x.Message == queueStatusMessage.searchTerm)?.Action ?? "0"}
+                                onChange={e => updateQueueAction(queueStatusMessage.searchTerm, Number(e.target.value))}
                             >
                                 <option value="0">Do Nothing</option>
                                 <option value="1">Remove</option>
