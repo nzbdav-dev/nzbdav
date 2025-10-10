@@ -79,7 +79,7 @@ function Body(props: BodyProps) {
     const usenetTitle = iseUsenetUpdated ? "Usenet ✏️" : "Usenet";
     const sabnzbdTitle = isSabnzbdUpdated ? "SABnzbd ✏️" : "SABnzbd";
     const webdavTitle = isWebdavUpdated ? "WebDAV ✏️" : "WebDAV";
-    const arrsTitle = isArrsUpdated ? "Arrs ✏️" : "Arrs";
+    const arrsTitle = isArrsUpdated ? "Radarr/Sonarr ✏️" : "Radarr/Sonarr";
     const libraryTitle = isLibraryUpdated ? "Library ✏️" : "Library";
 
     const saveButtonLabel = isSaving ? "Saving..."
@@ -159,10 +159,10 @@ function Body(props: BodyProps) {
                 <Tab eventKey="arrs" title={arrsTitle}>
                     <ArrsSettings config={newConfig} setNewConfig={setNewConfig} />
                 </Tab>
-                {/* {!showAdvanced &&
+                {!showAdvanced &&
                     <Tab eventKey="*" title={"🚀"}>
                     </Tab>
-                } */}
+                }
                 {showAdvanced &&
                     <Tab eventKey="library" title={libraryTitle}>
                         <LibrarySettings savedConfig={config} config={newConfig} setNewConfig={setNewConfig} />
