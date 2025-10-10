@@ -45,7 +45,7 @@ public class GetHistoryController(
 
     protected override async Task<IActionResult> Handle()
     {
-        var request = new GetHistoryRequest(httpContext);
+        var request = new GetHistoryRequest(httpContext, configManager);
         return Ok(await GetHistoryAsync(request));
     }
 }

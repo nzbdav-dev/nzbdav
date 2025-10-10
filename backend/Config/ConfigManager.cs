@@ -156,6 +156,13 @@ public class ConfigManager
         return (configValue != null ? bool.Parse(configValue) : defaultValue);
     }
 
+    public bool IsIgnoreSabHistoryLimitEnabled()
+    {
+        var defaultValue = true;
+        var configValue = StringUtil.EmptyToNull(GetConfigValue("api.ignore-history-limit"));
+        return (configValue != null ? bool.Parse(configValue) : defaultValue);
+    }
+
     public ArrConfig GetArrConfig()
     {
         var defaultValue = new ArrConfig();
