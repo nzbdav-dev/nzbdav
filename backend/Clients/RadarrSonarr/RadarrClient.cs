@@ -8,5 +8,5 @@ public class RadarrClient(string host, string apiKey) : ArrClient(host, apiKey)
         Get<List<RadarrMovie>>($"/movie");
 
     public Task<RadarrQueue> GetRadarrQueueAsync() =>
-        Get<RadarrQueue>($"/queue?protocol=usenet");
+        Get<RadarrQueue>($"/queue?protocol=usenet&pageSize=5000");
 }

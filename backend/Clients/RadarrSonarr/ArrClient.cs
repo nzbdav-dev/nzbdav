@@ -15,7 +15,7 @@ public abstract class ArrClient(string host, string apiKey)
         Get<ArrQueueStatus>($"/queue/status");
 
     public Task<ArrQueue<ArrQueueRecord>> GetQueueAsync() =>
-        Get<ArrQueue<ArrQueueRecord>>($"/queue?protocol=usenet");
+        Get<ArrQueue<ArrQueueRecord>>($"/queue?protocol=usenet&pageSize=5000");
 
     public Task<HttpStatusCode> DeleteQueueRecord(int id, DeleteQueueRecordRequest request) =>
         Delete($"/queue/{id}", request.GetQueryParams());
