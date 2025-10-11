@@ -79,6 +79,27 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
             e.Property(i => i.IdPrefix)
                 .IsRequired();
 
+            e.Property(i => i.ReleaseDate)
+                .ValueGeneratedNever()
+                .HasConversion(
+                    x => x.HasValue ? x.Value.ToUnixTimeSeconds() : (long?)null,
+                    x => x.HasValue ? DateTimeOffset.FromUnixTimeSeconds(x.Value) : null
+                );
+
+            e.Property(i => i.LastHealthCheck)
+                .ValueGeneratedNever()
+                .HasConversion(
+                    x => x.HasValue ? x.Value.ToUnixTimeSeconds() : (long?)null,
+                    x => x.HasValue ? DateTimeOffset.FromUnixTimeSeconds(x.Value) : null
+                );
+
+            e.Property(i => i.NextHealthCheck)
+                .ValueGeneratedNever()
+                .HasConversion(
+                    x => x.HasValue ? x.Value.ToUnixTimeSeconds() : (long?)null,
+                    x => x.HasValue ? DateTimeOffset.FromUnixTimeSeconds(x.Value) : null
+                );
+
             e.HasOne(i => i.Parent)
                 .WithMany(p => p.Children)
                 .HasForeignKey(i => i.ParentId)

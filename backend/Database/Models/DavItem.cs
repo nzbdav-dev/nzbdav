@@ -14,6 +14,9 @@ public class DavItem
     public long? FileSize { get; set; }
     public ItemType Type { get; init; }
     public string Path { get; init; } = null!;
+    public DateTimeOffset? ReleaseDate { get; init; }
+    public DateTimeOffset? LastHealthCheck { get; init; }
+    public DateTimeOffset? NextHealthCheck { get; init; }
 
     public static DavItem New
     (
