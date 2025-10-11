@@ -325,11 +325,21 @@ public class MediaIntegrityChecker
 
                 var samplePercentage = runParams?.NzbSegmentSamplePercentage ?? _configManager.GetNzbSegmentSamplePercentage();
                 var thresholdPercentage = runParams?.NzbSegmentThresholdPercentage ?? _configManager.GetNzbSegmentThresholdPercentage();
-                var articlesArePresent = await _usenetClient.CheckNzbFileHealth(nzbFile.SegmentIds, samplePercentage, thresholdPercentage, ct);
-                if (!articlesArePresent)
+
+                try
                 {
-                    Log.Warning("Missing usenet articles detected for {FilePath}: {Message}", davItem.Path, "NZB file is missing articles");
-                    return (true, "NZB file is missing articles"); // Mark as corrupt
+                    var articlesArePresent = await _usenetClient.CheckNzbFileHealth(nzbFile.SegmentIds, samplePercentage, thresholdPercentage, ct);
+                    if (!articlesArePresent)
+                    {
+                        Log.Warning("Missing usenet articles detected for {FilePath}: {Message}", davItem.Path, "NZB file is missing articles");
+                        return (true, "NZB file is missing articles"); // Mark as corrupt
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // note: we don't consider this case invalid because it indicates a connection or
+                    //       other transient issue.
+                    Log.Error(ex, "Error checking NZB file health");
                 }
 
                 stream = _usenetClient.GetFileStream(nzbFile.SegmentIds, davItem.FileSize!.Value, _configManager.GetConnectionsPerStream());
@@ -347,11 +357,21 @@ public class MediaIntegrityChecker
 
                 var samplePercentage = runParams?.NzbSegmentSamplePercentage ?? _configManager.GetNzbSegmentSamplePercentage();
                 var thresholdPercentage = runParams?.NzbSegmentThresholdPercentage ?? _configManager.GetNzbSegmentThresholdPercentage();
-                var articlesArePresent = await _usenetClient.CheckNzbFileHealth(rarFile.GetSegmentIds(), samplePercentage, thresholdPercentage, ct);
-                if (!articlesArePresent)
+
+                try
                 {
-                    Log.Warning("Missing usenet articles detected for {FilePath}: {Message}", davItem.Path, "RAR file is missing articles");
-                    return (true, "RAR file is missing articles"); // Mark as corrupt
+                    var articlesArePresent = await _usenetClient.CheckNzbFileHealth(rarFile.GetSegmentIds(), samplePercentage, thresholdPercentage, ct);
+                    if (!articlesArePresent)
+                    {
+                        Log.Warning("Missing usenet articles detected for {FilePath}: {Message}", davItem.Path, "RAR file is missing articles");
+                        return (true, "RAR file is missing articles"); // Mark as corrupt
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // note: we don't consider this case invalid because it indicates a connection or
+                    //       other transient issue.
+                    Log.Error(ex, "Error checking RAR file health");
                 }
 
                 stream = new RarFileStream(rarFile.RarParts, _usenetClient, _configManager.GetConnectionsPerStream());

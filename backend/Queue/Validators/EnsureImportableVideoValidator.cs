@@ -112,11 +112,21 @@ public class EnsureImportableVideoValidator(DavDatabaseClient dbClient, UsenetSt
                     // for queue item processing, we want things to be fast, so we'll sample 5% of the segments
                     var samplePercentage = 5;
                     var thresholdPercentage = configManager.GetNzbSegmentThresholdPercentage();
-                    var articlesArePresent = await usenetClient.CheckNzbFileHealth(segmentIds, samplePercentage, thresholdPercentage, ct);
-                    if (!articlesArePresent)
+
+                    try
                     {
-                        Log.Warning("Missing usenet articles detected for {FilePath}: {Message}", videoFile.Path, "NZB file is missing articles");
-                        isValid = false;
+                        var articlesArePresent = await usenetClient.CheckNzbFileHealth(segmentIds, samplePercentage, thresholdPercentage, ct);
+                        if (!articlesArePresent)
+                        {
+                            Log.Warning("Missing usenet articles detected for {FilePath}: {Message}", videoFile.Path, "NZB file is missing articles");
+                            isValid = false;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        // note: we don't consider this case invalid because it indicates a connection or
+                        //       other transient issue.
+                        Log.Error(ex, "Error checking NZB file health");
                     }
 
                     if (isValid)
@@ -132,7 +142,6 @@ public class EnsureImportableVideoValidator(DavDatabaseClient dbClient, UsenetSt
                 else
                 {
                     Log.Warning("Could not find segment IDs for {FilePath} (ID: {Id})", videoFile.Path, videoFile.Id);
-                    isValid = false;
                 }
             }
             catch (UsenetArticleNotFoundException ex)

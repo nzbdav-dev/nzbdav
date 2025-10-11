@@ -151,7 +151,8 @@ public class RadarrClient : ArrClient
                 path = movie.Path,
                 monitored = false, // This is the field we're changing
                 hasFile = movie.HasFile,
-                movieFile = movie.MovieFile
+                movieFile = movie.MovieFile,
+                qualityProfileId = movie.QualityProfileId
             };
 
             var result = await PutAsync<object>($"/api/v3/movie/{movie.Id}", updatePayload, ct);
@@ -208,7 +209,8 @@ public class RadarrClient : ArrClient
                 path = movie.Path,
                 monitored = true, // This is the field we're changing
                 hasFile = movie.HasFile,
-                movieFile = movie.MovieFile
+                movieFile = movie.MovieFile,
+                qualityProfileId = movie.QualityProfileId
             };
 
             Log.Debug("Attempting to monitor movie '{Title}' (ID: {MovieId}) with payload: {Payload}",
@@ -296,6 +298,9 @@ public class RadarrMovie
 
     [JsonPropertyName("hasFile")]
     public bool HasFile { get; set; }
+
+    [JsonPropertyName("qualityProfileId")]
+    public int QualityProfileId { get; set; }
 }
 
 public class RadarrMovieFile

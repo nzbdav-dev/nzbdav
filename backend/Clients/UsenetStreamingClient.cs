@@ -104,11 +104,6 @@ public class UsenetStreamingClient
         {
             // Expected when we cancel due to threshold being reached or parent cancellation
         }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Error checking NZB file health");
-            return false;
-        }
 
         return missingSegments < missingSegmentsThreshold;
     }

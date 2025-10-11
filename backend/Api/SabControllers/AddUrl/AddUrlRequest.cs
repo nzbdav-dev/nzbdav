@@ -31,7 +31,7 @@ public class AddUrlRequest() : AddFileRequest
                 throw new Exception($"The url is invalid.");
 
             // fetch url
-            var httpClient = new HttpClient();
+            using var httpClient = new HttpClient();
             var response = await httpClient.GetAsync(url);
             if (!response.IsSuccessStatusCode)
                 throw new Exception($"Received status code {response.StatusCode}.");

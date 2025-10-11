@@ -94,9 +94,9 @@ public class ThreadSafeNntpClient : INntpClient
 
     private async Task<T> Synchronized<T>(Func<Task<T>> run, CancellationToken cancellationToken)
     {
-        await _semaphore.WaitAsync(cancellationToken);
         try
         {
+            await _semaphore.WaitAsync(cancellationToken);
             return await run();
         }
         finally
