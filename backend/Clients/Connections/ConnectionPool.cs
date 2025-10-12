@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using NzbWebDAV.Extensions;
+using Serilog;
 
 namespace NzbWebDAV.Clients.Connections;
 
@@ -33,6 +34,7 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
     private readonly ExtendedSemaphoreSlim _gate;
     private readonly CancellationTokenSource _sweepCts = new();
     private readonly Task _sweeperTask; // keeps timer alive
+    private readonly Task _healthCheckTask; // keeps health checker alive
 
     private int _live; // number of connections currently alive
     private int _disposed; // 0 == false, 1 == true
@@ -54,6 +56,7 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
         _maxConnections = maxConnections;
         _gate = new ExtendedSemaphoreSlim(maxConnections, maxConnections);
         _sweeperTask = Task.Run(SweepLoop); // background idle-reaper
+        _healthCheckTask = Task.Run(HealthCheckLoop); // background health checker
     }
 
     /* ============================== public API ==================================== */
@@ -231,6 +234,77 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
             TriggerConnectionPoolChangedEvent();
     }
 
+    /* =================== health checker (background) =============================== */
+
+    private async Task HealthCheckLoop()
+    {
+        try
+        {
+            using var timer = new PeriodicTimer(TimeSpan.FromMinutes(5));
+            while (await timer.WaitForNextTickAsync(_sweepCts.Token).ConfigureAwait(false))
+                ReconcileConnectionCounts();
+        }
+        catch (OperationCanceledException)
+        {
+            /* normal on disposal */
+        }
+    }
+
+    private void ReconcileConnectionCounts()
+    {
+        // Calculate what the gate's available count should be:
+        // Available = MaxConnections - (Live - Idle)
+        int live = Volatile.Read(ref _live);
+        int idle = _idleConnections.Count;
+        int active = live - idle;
+        int expectedAvailable = _maxConnections - active;
+        int actualAvailable = _gate.CurrentCount;
+
+        int drift = expectedAvailable - actualAvailable;
+
+        if (drift > 0)
+        {
+            // We have fewer available slots in the gate than we should.
+            // This means some connection locks were never released.
+            // Release the missing slots back to the gate.
+            int released = 0;
+            for (int i = 0; i < drift; i++)
+            {
+                try
+                {
+                    _gate.Release();
+                    released++;
+                }
+                catch (SemaphoreFullException)
+                {
+                    // Already at max, counts are now synchronized
+                    break;
+                }
+            }
+
+            if (released > 0)
+            {
+                Log.Warning(
+                    "Connection pool health check detected {Drift} stuck connection(s). " +
+                    "Released {Released} slot(s) back to pool. " +
+                    "(Live: {Live}, Idle: {Idle}, Active: {Active}, Gate Available: {GateAvailable}→{NewGateAvailable})",
+                    drift, released, live, idle, active, actualAvailable, _gate.CurrentCount);
+                TriggerConnectionPoolChangedEvent();
+            }
+        }
+        else if (drift < 0)
+        {
+            // We have MORE available slots than expected.
+            // This is unusual but could happen if Release() was called too many times.
+            // We can't easily fix this without potentially breaking things, so just log it.
+            Log.Warning(
+                "Connection pool health check detected negative drift of {Drift}. " +
+                "More slots available than expected. " +
+                "(Live: {Live}, Idle: {Idle}, Active: {Active}, Gate Available: {GateAvailable})",
+                drift, live, idle, active, actualAvailable);
+        }
+    }
+
     /* ------------------------- dispose helpers ------------------------------------ */
 
     private static async ValueTask DisposeConnectionAsync(T conn)
@@ -256,7 +330,7 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
 
         try
         {
-            await _sweeperTask.ConfigureAwait(false); // await clean sweep exit
+            await Task.WhenAll(_sweeperTask, _healthCheckTask).ConfigureAwait(false); // await both background tasks
         }
         catch (OperationCanceledException)
         {
