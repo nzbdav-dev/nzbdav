@@ -43,7 +43,8 @@ public class MultipartMkvProcessor : BaseProcessor
         return new Result
         {
             Filename = GetBaseName(sortedFileInfos.First().FileName),
-            Parts = fileParts
+            Parts = fileParts,
+            ReleaseDate = sortedFileInfos.First().ReleaseDate,
         };
     }
 
@@ -62,6 +63,7 @@ public class MultipartMkvProcessor : BaseProcessor
     public new class Result : BaseProcessor.Result
     {
         public required string Filename { get; init; }
-        public List<DavRarFile.RarPart> Parts { get; init; } = [];
+        public required List<DavRarFile.RarPart> Parts { get; init; } = [];
+        public required DateTimeOffset ReleaseDate { get; init; }
     }
 }

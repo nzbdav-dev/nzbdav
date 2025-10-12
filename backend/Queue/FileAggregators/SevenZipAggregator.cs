@@ -39,7 +39,8 @@ public class SevenZipAggregator(DavDatabaseClient dbClient, DavItem mountDirecto
                 parent: parentDirectory,
                 name: name,
                 fileSize: sevenZipParts.Sum(x => x.ByteCount),
-                type: DavItem.ItemType.RarFile
+                type: DavItem.ItemType.RarFile,
+                releaseDate: sevenZipFile.ReleaseDate
             );
 
             var davRarFile = new DavRarFile()

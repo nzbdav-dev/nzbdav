@@ -22,6 +22,7 @@ public class FileProcessor(
                 NzbFile = fileInfo.NzbFile,
                 FileName = fileInfo.FileName,
                 FileSize = fileInfo.FileSize ?? await usenet.GetFileSizeAsync(fileInfo.NzbFile, ct),
+                ReleaseDate = fileInfo.ReleaseDate,
             };
         }
 
@@ -36,8 +37,9 @@ public class FileProcessor(
 
     public new class Result : BaseProcessor.Result
     {
-        public NzbFile NzbFile { get; init; } = null!;
-        public string FileName { get; init; } = null!;
-        public long FileSize { get; init; }
+        public required NzbFile NzbFile { get; init; }
+        public required string FileName { get; init; }
+        public required long FileSize { get; init; }
+        public required DateTimeOffset ReleaseDate { get; init; }
     }
 }

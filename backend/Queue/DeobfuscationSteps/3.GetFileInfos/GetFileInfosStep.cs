@@ -58,6 +58,7 @@ public static class GetFileInfosStep
         {
             NzbFile = file.NzbFile,
             FileName = filename,
+            ReleaseDate = file.ReleaseDate,
             FileSize = (long?)fileDesc?.FileLength
         };
     }
@@ -76,6 +77,7 @@ public static class GetFileInfosStep
     {
         public required NzbFile NzbFile { get; init; }
         public required string FileName { get; init; }
+        public required DateTimeOffset ReleaseDate { get; init; }
         public long? FileSize { get; init; }
     }
 }

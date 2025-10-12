@@ -62,7 +62,8 @@ public static class FetchFirstSegmentsStep
                 NzbFile = nzbFile,
                 First16KB = first16KB,
                 Header = stream.Header,
-                MissingFirstSegment = false
+                MissingFirstSegment = false,
+                ReleaseDate = stream.ArticleHeaders!.Date
             };
         }
         catch (UsenetArticleNotFoundException)
@@ -72,7 +73,8 @@ public static class FetchFirstSegmentsStep
                 NzbFile = nzbFile,
                 First16KB = null,
                 Header = null,
-                MissingFirstSegment = true
+                MissingFirstSegment = true,
+                ReleaseDate = DateTimeOffset.UtcNow
             };
         }
     }
@@ -83,5 +85,6 @@ public static class FetchFirstSegmentsStep
         public required YencHeader? Header { get; init; }
         public required byte[]? First16KB { get; init; }
         public required bool MissingFirstSegment { get; init; }
+        public required DateTimeOffset ReleaseDate { get; init; }
     }
 }

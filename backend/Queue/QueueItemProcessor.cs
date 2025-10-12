@@ -228,7 +228,8 @@ public class QueueItemProcessor(
             parent: DavItem.ContentFolder,
             name: queueItem.Category,
             fileSize: null,
-            type: DavItem.ItemType.Directory
+            type: DavItem.ItemType.Directory,
+            releaseDate: null
         );
         dbClient.Ctx.Items.Add(categoryFolder);
         return categoryFolder;
@@ -241,7 +242,8 @@ public class QueueItemProcessor(
             parent: categoryFolder,
             name: queueItem.JobName,
             fileSize: null,
-            type: DavItem.ItemType.Directory
+            type: DavItem.ItemType.Directory,
+            releaseDate: null
         );
         dbClient.Ctx.Items.Add(mountFolder);
         return mountFolder;

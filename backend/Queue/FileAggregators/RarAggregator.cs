@@ -58,7 +58,8 @@ public class RarAggregator(DavDatabaseClient dbClient, DavItem mountDirectory) :
                 parent: parentDirectory,
                 name: name,
                 fileSize: rarParts.Sum(x => x.ByteCount),
-                type: DavItem.ItemType.RarFile
+                type: DavItem.ItemType.RarFile,
+                releaseDate: archiveParts.First().ReleaseDate
             );
 
             var davRarFile = new DavRarFile()

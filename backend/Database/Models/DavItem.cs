@@ -24,7 +24,8 @@ public class DavItem
         DavItem parent,
         string name,
         long? fileSize,
-        ItemType type
+        ItemType type,
+        DateTimeOffset? releaseDate
     )
     {
         return new DavItem()
@@ -36,7 +37,8 @@ public class DavItem
             Name = name,
             FileSize = fileSize,
             Type = type,
-            Path = System.IO.Path.Join(parent.Path, name)
+            Path = System.IO.Path.Join(parent.Path, name),
+            ReleaseDate = releaseDate
         };
     }
 

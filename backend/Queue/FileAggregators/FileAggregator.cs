@@ -22,7 +22,8 @@ public class FileAggregator(DavDatabaseClient dbClient, DavItem mountDirectory) 
                 parent: mountDirectory,
                 name: result.FileName,
                 fileSize: result.FileSize,
-                type: DavItem.ItemType.NzbFile
+                type: DavItem.ItemType.NzbFile,
+                releaseDate: result.ReleaseDate
             );
 
             var davNzbFile = new DavNzbFile()

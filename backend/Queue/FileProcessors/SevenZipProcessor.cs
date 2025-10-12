@@ -45,8 +45,9 @@ public class SevenZipProcessor : BaseProcessor
             SevenZipFiles = sevenZipEntries.Select(x => new SevenZipFile()
             {
                 PathWithinArchive = x.PathWithinArchive,
-                Parts = GetSevenZipParts(x, multipartFile)
-            }).ToList()
+                Parts = GetSevenZipParts(x, multipartFile),
+                ReleaseDate = _fileInfos.First().ReleaseDate,
+            }).ToList(),
         };
     }
 
@@ -124,12 +125,13 @@ public class SevenZipProcessor : BaseProcessor
 
     public new class Result : BaseProcessor.Result
     {
-        public List<SevenZipFile> SevenZipFiles { get; init; } = [];
+        public required List<SevenZipFile> SevenZipFiles { get; init; }
     }
 
     public class SevenZipFile
     {
         public required string PathWithinArchive { get; init; }
-        public List<DavRarFile.RarPart> Parts { get; init; } = [];
+        public required List<DavRarFile.RarPart> Parts { get; init; }
+        public required DateTimeOffset ReleaseDate { get; init; }
     }
 }

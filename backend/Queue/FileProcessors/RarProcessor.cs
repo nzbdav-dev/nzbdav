@@ -37,6 +37,7 @@ public class RarProcessor(
                         Offset = x.GetDataStartPosition(),
                         ByteCount = x.GetAdditionalDataSize(),
                     }).ToArray(),
+                ReleaseDate = fileInfo.ReleaseDate,
             };
         }
         catch (CryptographicException ex)
@@ -103,17 +104,18 @@ public class RarProcessor(
 
     public new class Result : BaseProcessor.Result
     {
-        public NzbFile NzbFile { get; init; } = null!;
-        public long PartSize { get; init; }
-        public string ArchiveName { get; init; } = null!;
-        public int PartNumber { get; init; }
-        public StoredFileSegment[] StoredFileSegments { get; init; } = [];
+        public required NzbFile NzbFile { get; init; }
+        public required long PartSize { get; init; }
+        public required string ArchiveName { get; init; }
+        public required int PartNumber { get; init; }
+        public required StoredFileSegment[] StoredFileSegments { get; init; }
+        public required DateTimeOffset ReleaseDate { get; init; }
     }
 
     public class StoredFileSegment
     {
-        public string PathWithinArchive { get; init; } = null!;
-        public long Offset { get; init; }
-        public long ByteCount { get; init; }
+        public required string PathWithinArchive { get; init; }
+        public required long Offset { get; init; }
+        public required long ByteCount { get; init; }
     }
 }

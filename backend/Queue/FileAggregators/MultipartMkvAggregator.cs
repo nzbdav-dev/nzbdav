@@ -31,7 +31,8 @@ public class MultipartMkvAggregator(DavDatabaseClient dbClient, DavItem mountDir
                 parent: parentDirectory,
                 name: name,
                 fileSize: fileParts.Sum(x => x.ByteCount),
-                type: DavItem.ItemType.RarFile
+                type: DavItem.ItemType.RarFile,
+                releaseDate: multipartMkvFile.ReleaseDate
             );
 
             var davRarFile = new DavRarFile()
