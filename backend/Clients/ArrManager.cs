@@ -66,7 +66,7 @@ public class ArrManager : IDisposable
                         {
                             // Trigger search for replacement if we have a item ID
                             Log.Information("Triggering search for {AppType} item (ID: {ItemId}) in {AppType} instance '{InstanceName}'",
-                                 itemId, arrClient.AppType, arrClient.InstanceName);
+                                 arrClient.AppType, itemId, arrClient.AppType, arrClient.InstanceName);
                             await arrClient.TriggerSearchByIdAsync(itemId, ct);
                         }
                     }

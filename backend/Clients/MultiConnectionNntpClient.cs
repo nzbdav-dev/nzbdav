@@ -67,8 +67,9 @@ public class MultiConnectionNntpClient(ConnectionPool<INntpClient> connectionPoo
             // ReSharper disable once MethodSupportsCancellation
             // we intentionally do not pass the cancellation token to ContinueWith,
             // since we want the continuation to always run.
-            _ = connectionLock.Connection.WaitForReady(CancellationToken.None)
-                .ContinueWith(_ => connectionLock.Dispose());
+            var waitForReadyTask = connectionLock.Connection.WaitForReady(cancellationToken);
+            _ = waitForReadyTask.ContinueWith(_ => connectionLock.Dispose(), TaskContinuationOptions.OnlyOnCanceled);
+            _ = waitForReadyTask.ContinueWith(_ => connectionLock.Dispose(), TaskContinuationOptions.NotOnCanceled);
             return result;
         }
         catch (NntpException e)
