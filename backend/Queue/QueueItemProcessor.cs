@@ -138,6 +138,7 @@ public class QueueItemProcessor(
             .ToList();
 
         // part3 -- Optionally check full article existence
+        var checkedFullHealth = false;
         if (configManager.IsEnsureArticleExistenceEnabled())
         {
             var articlesToCheck = fileInfos
@@ -149,6 +150,7 @@ public class QueueItemProcessor(
                 .ToPercentage(articlesToCheck.Count);
             var concurrency = configManager.GetMaxQueueConnections();
             await usenetClient.CheckAllSegmentsAsync(articlesToCheck, concurrency, part3Progress, ct);
+            checkedFullHealth = true;
         }
 
         // update the database
@@ -156,10 +158,10 @@ public class QueueItemProcessor(
         {
             var categoryFolder = GetOrCreateCategoryFolder();
             var mountFolder = CreateMountFolder(categoryFolder);
-            new RarAggregator(dbClient, mountFolder).UpdateDatabase(fileProcessingResults);
-            new FileAggregator(dbClient, mountFolder).UpdateDatabase(fileProcessingResults);
-            new SevenZipAggregator(dbClient, mountFolder).UpdateDatabase(fileProcessingResults);
-            new MultipartMkvAggregator(dbClient, mountFolder).UpdateDatabase(fileProcessingResults);
+            new RarAggregator(dbClient, mountFolder, checkedFullHealth).UpdateDatabase(fileProcessingResults);
+            new FileAggregator(dbClient, mountFolder, checkedFullHealth).UpdateDatabase(fileProcessingResults);
+            new SevenZipAggregator(dbClient, mountFolder, checkedFullHealth).UpdateDatabase(fileProcessingResults);
+            new MultipartMkvAggregator(dbClient, mountFolder, checkedFullHealth).UpdateDatabase(fileProcessingResults);
 
             // validate video files found
             if (configManager.IsEnsureImportableVideoEnabled())
@@ -229,7 +231,8 @@ public class QueueItemProcessor(
             name: queueItem.Category,
             fileSize: null,
             type: DavItem.ItemType.Directory,
-            releaseDate: null
+            releaseDate: null,
+            lastHealthCheck: null
         );
         dbClient.Ctx.Items.Add(categoryFolder);
         return categoryFolder;
@@ -243,7 +246,8 @@ public class QueueItemProcessor(
             name: queueItem.JobName,
             fileSize: null,
             type: DavItem.ItemType.Directory,
-            releaseDate: null
+            releaseDate: null,
+            lastHealthCheck: null
         );
         dbClient.Ctx.Items.Add(mountFolder);
         return mountFolder;

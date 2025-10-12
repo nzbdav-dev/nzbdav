@@ -5,7 +5,12 @@ using NzbWebDAV.Utils;
 
 namespace NzbWebDAV.Queue.FileAggregators;
 
-public class SevenZipAggregator(DavDatabaseClient dbClient, DavItem mountDirectory) : BaseAggregator
+public class SevenZipAggregator
+(
+    DavDatabaseClient dbClient,
+    DavItem mountDirectory,
+    bool checkedFullHealth
+) : BaseAggregator
 {
     protected override DavDatabaseClient DBClient => dbClient;
     protected override DavItem MountDirectory => mountDirectory;
@@ -40,7 +45,8 @@ public class SevenZipAggregator(DavDatabaseClient dbClient, DavItem mountDirecto
                 name: name,
                 fileSize: sevenZipParts.Sum(x => x.ByteCount),
                 type: DavItem.ItemType.RarFile,
-                releaseDate: sevenZipFile.ReleaseDate
+                releaseDate: sevenZipFile.ReleaseDate,
+                lastHealthCheck: checkedFullHealth ? DateTimeOffset.UtcNow : null
             );
 
             var davRarFile = new DavRarFile()

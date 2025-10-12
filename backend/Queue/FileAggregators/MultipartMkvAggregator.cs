@@ -4,7 +4,12 @@ using NzbWebDAV.Queue.FileProcessors;
 
 namespace NzbWebDAV.Queue.FileAggregators;
 
-public class MultipartMkvAggregator(DavDatabaseClient dbClient, DavItem mountDirectory) : BaseAggregator
+public class MultipartMkvAggregator
+(
+    DavDatabaseClient dbClient,
+    DavItem mountDirectory,
+    bool checkedFullHealth
+) : BaseAggregator
 {
     protected override DavDatabaseClient DBClient => dbClient;
     protected override DavItem MountDirectory => mountDirectory;
@@ -32,7 +37,8 @@ public class MultipartMkvAggregator(DavDatabaseClient dbClient, DavItem mountDir
                 name: name,
                 fileSize: fileParts.Sum(x => x.ByteCount),
                 type: DavItem.ItemType.RarFile,
-                releaseDate: multipartMkvFile.ReleaseDate
+                releaseDate: multipartMkvFile.ReleaseDate,
+                lastHealthCheck: checkedFullHealth ? DateTimeOffset.UtcNow : null
             );
 
             var davRarFile = new DavRarFile()

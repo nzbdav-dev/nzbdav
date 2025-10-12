@@ -39,7 +39,8 @@ public abstract class BaseAggregator
             name: directoryName,
             fileSize: null,
             type: DavItem.ItemType.Directory,
-            releaseDate: null
+            releaseDate: null,
+            lastHealthCheck: null
         );
         _directoryCache.Add(pathKey, directory);
         DBClient.Ctx.Items.Add(directory);

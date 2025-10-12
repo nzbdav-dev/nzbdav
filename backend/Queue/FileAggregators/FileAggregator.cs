@@ -5,7 +5,7 @@ using NzbWebDAV.Queue.FileProcessors;
 
 namespace NzbWebDAV.Queue.FileAggregators;
 
-public class FileAggregator(DavDatabaseClient dbClient, DavItem mountDirectory) : BaseAggregator
+public class FileAggregator(DavDatabaseClient dbClient, DavItem mountDirectory, bool checkedFullHealth) : BaseAggregator
 {
     protected override DavDatabaseClient DBClient => dbClient;
     protected override DavItem MountDirectory => mountDirectory;
@@ -23,7 +23,8 @@ public class FileAggregator(DavDatabaseClient dbClient, DavItem mountDirectory) 
                 name: result.FileName,
                 fileSize: result.FileSize,
                 type: DavItem.ItemType.NzbFile,
-                releaseDate: result.ReleaseDate
+                releaseDate: result.ReleaseDate,
+                lastHealthCheck: checkedFullHealth ? DateTimeOffset.UtcNow : null
             );
 
             var davNzbFile = new DavNzbFile()

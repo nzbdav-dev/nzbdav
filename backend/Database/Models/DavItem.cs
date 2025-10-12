@@ -25,7 +25,8 @@ public class DavItem
         string name,
         long? fileSize,
         ItemType type,
-        DateTimeOffset? releaseDate
+        DateTimeOffset? releaseDate,
+        DateTimeOffset? lastHealthCheck
     )
     {
         return new DavItem()
@@ -38,7 +39,11 @@ public class DavItem
             FileSize = fileSize,
             Type = type,
             Path = System.IO.Path.Join(parent.Path, name),
-            ReleaseDate = releaseDate
+            ReleaseDate = releaseDate,
+            LastHealthCheck = lastHealthCheck,
+            NextHealthCheck = releaseDate != null && lastHealthCheck != null
+                ? releaseDate.Value + 2 * (lastHealthCheck.Value - releaseDate.Value)
+                : null
         };
     }
 
