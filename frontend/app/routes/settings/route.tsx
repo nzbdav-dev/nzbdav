@@ -9,6 +9,7 @@ import { isWebdavSettingsUpdated, isWebdavSettingsValid, WebdavSettings } from "
 import { isLibrarySettingsUpdated, LibrarySettings } from "./library/library";
 import { isArrsSettingsUpdated, isArrsSettingsValid, ArrsSettings } from "./arrs/arrs";
 import { Maintenance } from "./maintenance/maintenance";
+import { isRepairsSettingsUpdated, isRepairsSettingsValid, RepairsSettings } from "./repairs/repairs";
 
 const defaultConfig = {
     "api.key": "",
@@ -32,6 +33,8 @@ const defaultConfig = {
     "rclone.mount-dir": "",
     "media.library-dir": "",
     "arr.instances": "{\"RadarrInstances\":[],\"SonarrInstances\":[],\"QueueRules\":[]}",
+    "repair.connections": "",
+    "repair.delete-unlinked-files": "false",
 }
 
 const advancedTabs = ["library", "maintenance"];
@@ -74,13 +77,15 @@ function Body(props: BodyProps) {
     const isWebdavUpdated = isWebdavSettingsUpdated(config, newConfig);
     const isLibraryUpdated = isLibrarySettingsUpdated(config, newConfig);
     const isArrsUpdated = isArrsSettingsUpdated(config, newConfig);
-    const isUpdated = iseUsenetUpdated || isSabnzbdUpdated || isWebdavUpdated || isLibraryUpdated || isArrsUpdated;
+    const isRepairsUpdated = isRepairsSettingsUpdated(config, newConfig);
+    const isUpdated = iseUsenetUpdated || isSabnzbdUpdated || isWebdavUpdated || isLibraryUpdated || isArrsUpdated || isRepairsUpdated;
 
-    const usenetTitle = iseUsenetUpdated ? "Usenet ✏️" : "Usenet";
-    const sabnzbdTitle = isSabnzbdUpdated ? "SABnzbd ✏️" : "SABnzbd";
-    const webdavTitle = isWebdavUpdated ? "WebDAV ✏️" : "WebDAV";
-    const arrsTitle = isArrsUpdated ? "Radarr/Sonarr ✏️" : "Radarr/Sonarr";
-    const libraryTitle = isLibraryUpdated ? "Library ✏️" : "Library";
+    const usenetTitle = iseUsenetUpdated ? "✏️ Usenet" : "Usenet";
+    const sabnzbdTitle = isSabnzbdUpdated ? "✏️ SABnzbd " : "SABnzbd";
+    const webdavTitle = isWebdavUpdated ? "✏️ WebDAV" : "WebDAV";
+    const arrsTitle = isArrsUpdated ? "✏️ Radarr/Sonarr" : "Radarr/Sonarr";
+    const libraryTitle = isLibraryUpdated ? "✏️ Library" : "Library";
+    const repairsTitle = isRepairsUpdated ? "✏️ Repairs" : "Repairs";
 
     const saveButtonLabel = isSaving ? "Saving..."
         : !isUpdated && isSaved ? "Saved ✅"
@@ -89,6 +94,7 @@ function Body(props: BodyProps) {
         : isSabnzbdUpdated && !isSabnzbdSettingsValid(newConfig) ? "Invalid SABnzbd settings"
         : isWebdavUpdated && !isWebdavSettingsValid(newConfig) ? "Invalid WebDAV settings"
         : isArrsUpdated && !isArrsSettingsValid(newConfig) ? "Invalid Arrs settings"
+        : isRepairsUpdated && !isRepairsSettingsValid(newConfig) ? "Invalid Repairs settings"
         : "Save";
     const saveButtonVariant = saveButtonLabel === "Save" ? "primary"
         : saveButtonLabel === "Saved ✅" ? "success"
@@ -158,6 +164,9 @@ function Body(props: BodyProps) {
                 </Tab>
                 <Tab eventKey="arrs" title={arrsTitle}>
                     <ArrsSettings config={newConfig} setNewConfig={setNewConfig} />
+                </Tab>
+                <Tab eventKey="repairs" title={repairsTitle}>
+                    <RepairsSettings config={newConfig} setNewConfig={setNewConfig} />
                 </Tab>
                 {!showAdvanced &&
                     <Tab eventKey="*" title={"🚀"}>
