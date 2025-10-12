@@ -110,6 +110,7 @@ class Program
         app.MapControllers();
         app.UseAuthentication();
         app.UseNWebDav();
+        app.Lifetime.ApplicationStopping.Register(SigtermUtil.Cancel);
         await app.RunAsync();
     }
 

@@ -1,4 +1,6 @@
-﻿namespace NzbWebDAV.Clients.Usenet.Connections
+﻿using NzbWebDAV.Utils;
+
+namespace NzbWebDAV.Clients.Usenet.Connections
 {
     /// <summary>
     /// A semaphore-like primitive where each waiter specifies the number of
@@ -90,7 +92,7 @@
 
                 // Dispose registration when the wait completes in any way.
                 _ = tcs.Task.ContinueWith(static (_, s) => { ((CancellationTokenRegistration)s!).Dispose(); }, ctr,
-                    CancellationToken.None,
+                    SigtermUtil.GetCancellationToken(),
                     TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
             }
 

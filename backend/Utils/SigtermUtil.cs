@@ -39,4 +39,9 @@ public static class SigtermUtil
 
         return CancellationTokenSource.Token;
     }
+
+    public static void Cancel()
+    {
+        CancellationTokenSource.Cancel();
+    }
 }

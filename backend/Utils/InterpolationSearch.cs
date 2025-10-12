@@ -18,7 +18,7 @@ public static class InterpolationSearch
             indexRangeToSearch,
             byteRangeToSearch,
             guess => new ValueTask<LongRange>(getByteRangeOfGuessedIndex(guess)),
-            CancellationToken.None
+            SigtermUtil.GetCancellationToken()
         ).GetAwaiter().GetResult();
     }
 

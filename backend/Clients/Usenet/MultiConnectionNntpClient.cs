@@ -1,5 +1,6 @@
 ﻿using NzbWebDAV.Clients.Usenet.Connections;
 using NzbWebDAV.Streams;
+using NzbWebDAV.Utils;
 using Usenet.Exceptions;
 using Usenet.Nntp.Responses;
 using Usenet.Nzb;
@@ -67,7 +68,7 @@ public class MultiConnectionNntpClient(ConnectionPool<INntpClient> connectionPoo
             // ReSharper disable once MethodSupportsCancellation
             // we intentionally do not pass the cancellation token to ContinueWith,
             // since we want the continuation to always run.
-            _ = connectionLock.Connection.WaitForReady(CancellationToken.None)
+            _ = connectionLock.Connection.WaitForReady(SigtermUtil.GetCancellationToken())
                 .ContinueWith(_ => connectionLock.Dispose());
             return result;
         }

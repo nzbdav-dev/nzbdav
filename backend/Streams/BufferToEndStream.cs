@@ -1,6 +1,7 @@
 ﻿using System.Buffers;
 using System.IO.Pipelines;
 using System.Runtime.ExceptionServices;
+using NzbWebDAV.Utils;
 
 namespace NzbWebDAV.Streams;
 
@@ -54,7 +55,7 @@ public sealed class BufferToEndStream : Stream
             minimumSegmentSize:        _segmentSize,
             useSynchronizationContext: false));
 
-        _pumpTask = Task.Run(() => PumpAsync(sourceStream), CancellationToken.None);
+        _pumpTask = Task.Run(() => PumpAsync(sourceStream), SigtermUtil.GetCancellationToken());
     }
 
     // ───────────────────────────────────  background producer
@@ -73,7 +74,7 @@ public sealed class BufferToEndStream : Stream
                 {
                     await _pipe.Writer.WriteAsync(
                             scratch.AsMemory(0, read),
-                            CancellationToken.None).ConfigureAwait(false);
+                            SigtermUtil.GetCancellationToken()).ConfigureAwait(false);
                 }
                 // else: wrapper already disposed → just discard into 'scratch'
             }
@@ -147,7 +148,7 @@ public sealed class BufferToEndStream : Stream
         byte[] tmp = ArrayPool<byte>.Shared.Rent(buffer.Length);
         try
         {
-            int read = ReadCoreAsync(tmp.AsMemory(0, buffer.Length), CancellationToken.None)
+            int read = ReadCoreAsync(tmp.AsMemory(0, buffer.Length), SigtermUtil.GetCancellationToken())
                        .AsTask().GetAwaiter().GetResult();
             tmp.AsSpan(0, read).CopyTo(buffer);
             return read;

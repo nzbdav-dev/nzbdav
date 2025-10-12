@@ -1,4 +1,6 @@
-﻿namespace NzbWebDAV.Streams;
+﻿using NzbWebDAV.Utils;
+
+namespace NzbWebDAV.Streams;
 
 public class LimitedLengthStream(Stream stream, long length) : Stream
 {
@@ -8,7 +10,7 @@ public class LimitedLengthStream(Stream stream, long length) : Stream
     public override void Flush() => stream.Flush();
 
     public override int Read(byte[] buffer, int offset, int count) =>
-        ReadAsync(buffer, offset, count, CancellationToken.None).GetAwaiter().GetResult();
+        ReadAsync(buffer, offset, count, SigtermUtil.GetCancellationToken()).GetAwaiter().GetResult();
 
     public override async Task<int>
         ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken) =>

@@ -84,8 +84,8 @@ public class WebsocketManager
             var buffer = new byte[1024];
             WebSocketReceiveResult? result = null;
             while (result is not { CloseStatus: not null })
-                result = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), default);
-            await socket.CloseAsync(result.CloseStatus.Value, result.CloseStatusDescription, default);
+                result = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), SigtermUtil.GetCancellationToken());
+            await socket.CloseAsync(result.CloseStatus.Value, result.CloseStatusDescription, CancellationToken.None);
         }
         catch (Exception e)
         {
@@ -115,7 +115,7 @@ public class WebsocketManager
     {
         try
         {
-            await socket.SendAsync(message, WebSocketMessageType.Text, true, default);
+            await socket.SendAsync(message, WebSocketMessageType.Text, true, SigtermUtil.GetCancellationToken());
         }
         catch (Exception e)
         {
@@ -134,7 +134,7 @@ public class WebsocketManager
         try
         {
             var buffer = new byte[1024];
-            using var cts = new CancellationTokenSource();
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(SigtermUtil.GetCancellationToken());
             cts.CancelAfter(TimeSpan.FromSeconds(5));
             var result = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), cts.Token);
             return result.MessageType == WebSocketMessageType.Text
