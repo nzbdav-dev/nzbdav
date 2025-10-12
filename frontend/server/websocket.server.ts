@@ -17,7 +17,6 @@ function initializeWebsocketServer(wss: WebSocketServer) {
                 const session = await sessionStorage.getSession(cookieHeader);
                 const user = session.get("user");
                 if (!user) {
-                    console.warn("Websocket authentication failed. Sign in required.");
                     ws.close(1008, "Unauthorized");
                     return;
                 }
@@ -58,7 +57,6 @@ function initializeWebsocketServer(wss: WebSocketServer) {
                 return;
             }
         } else {
-            console.warn("Websocket authentication failed. Sign in required.");
             ws.close(1008, "Unauthorized");
             return;
         }
