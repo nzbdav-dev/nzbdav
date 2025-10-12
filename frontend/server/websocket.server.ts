@@ -67,7 +67,6 @@ function initializeWebsocketServer(wss: WebSocketServer) {
 
 export function initializeWebsocketClient(subscriptions: Map<string, Set<WebSocket>>, lastMessage: Map<string, string>) {
     let reconnectRetryDelay = 1000;
-    let reconnectRetryMaxDelay = 30000;
     let reconnectTimeout: NodeJS.Timeout | null = null;
     const url = getBackendWebsocketUrl();
 
@@ -75,7 +74,7 @@ export function initializeWebsocketClient(subscriptions: Map<string, Set<WebSock
         const socket = new WebSocket(url);
 
         socket.onopen = () => {
-            reconnectRetryDelay = 1000;
+            console.info("WebSocket connected");
             if (reconnectTimeout) {
                 clearTimeout(reconnectTimeout);
                 reconnectTimeout = null;
@@ -103,15 +102,16 @@ export function initializeWebsocketClient(subscriptions: Map<string, Set<WebSock
         };
 
         socket.onclose = (event: WebSocket.CloseEvent) => {
-            console.info(`WebSocket closed (code: ${event.code}, reason: ${event.reason}) — retrying in ${reconnectRetryDelay / 1000}s`);
+            console.info(`WebSocket closed (code: ${event.code}, reason: ${event.reason})`);
             scheduleReconnect();
         };
     }
 
     function scheduleReconnect() {
-        if (reconnectTimeout) return;
+        if (reconnectTimeout) clearTimeout(reconnectTimeout);
+
         reconnectTimeout = setTimeout(() => {
-            reconnectRetryDelay = Math.min(reconnectRetryDelay * 2, reconnectRetryMaxDelay);
+            console.info(`WebSocket reconnecting...`);
             connect();
         }, reconnectRetryDelay);
     }
