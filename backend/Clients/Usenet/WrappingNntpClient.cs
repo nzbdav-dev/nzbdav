@@ -27,9 +27,14 @@ public abstract class WrappingNntpClient(INntpClient client) : INntpClient
         return client.DateAsync(cancellationToken);
     }
 
-    public virtual Task<YencHeaderStream> GetSegmentStreamAsync(string segmentId, CancellationToken cancellationToken)
+    public virtual Task<YencHeaderStream> GetSegmentStreamAsync
+    (
+        string segmentId,
+        bool includeHeaders,
+        CancellationToken cancellationToken
+    )
     {
-        return client.GetSegmentStreamAsync(segmentId, cancellationToken);
+        return client.GetSegmentStreamAsync(segmentId, includeHeaders, cancellationToken);
     }
 
     public virtual Task<YencHeader> GetSegmentYencHeaderAsync(string segmentId, CancellationToken cancellationToken)

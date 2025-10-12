@@ -96,7 +96,7 @@ public class NzbFileStream(
     {
         return new CombinedStream(
             fileSegmentIds[firstSegmentIndex..]
-                .Select(async x => (Stream)await client.GetSegmentStreamAsync(x, ct))
+                .Select(async x => (Stream)await client.GetSegmentStreamAsync(x, false, ct))
                 .WithConcurrency(concurrentConnections)
         );
     }

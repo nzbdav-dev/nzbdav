@@ -38,7 +38,7 @@ public static class FetchFirstSegmentsStep
         {
             // get the first article stream
             var firstSegment = nzbFile.Segments[0].MessageId.Value;
-            await using var stream = await client.GetSegmentStreamAsync(firstSegment, cancellationToken);
+            await using var stream = await client.GetSegmentStreamAsync(firstSegment, true, cancellationToken);
 
             // read up to the first 16KB from the stream
             var totalRead = 0;

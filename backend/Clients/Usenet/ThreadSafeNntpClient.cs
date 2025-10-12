@@ -1,4 +1,5 @@
-﻿using NzbWebDAV.Exceptions;
+﻿using NzbWebDAV.Clients.Usenet.Models;
+using NzbWebDAV.Exceptions;
 using NzbWebDAV.Extensions;
 using NzbWebDAV.Streams;
 using Usenet.Nntp;
@@ -41,7 +42,12 @@ public class ThreadSafeNntpClient : INntpClient
         return Synchronized(() => _client.Date(), cancellationToken);
     }
 
-    public async Task<YencHeaderStream> GetSegmentStreamAsync(string segmentId, CancellationToken cancellationToken)
+    public async Task<YencHeaderStream> GetSegmentStreamAsync
+    (
+        string segmentId,
+        bool includeHeaders,
+        CancellationToken cancellationToken
+    )
     {
         await _semaphore.WaitAsync(cancellationToken);
         return await Task.Run(() =>
@@ -49,10 +55,11 @@ public class ThreadSafeNntpClient : INntpClient
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var articleBody = GetArticleBody(segmentId);
-                var stream = YencStreamDecoder.Decode(articleBody);
+                var article = GetArticle(segmentId, includeHeaders);
+                var stream = YencStreamDecoder.Decode(article.Body);
                 return new YencHeaderStream(
                     stream.Header,
+                    article.Headers,
                     new BufferToEndStream(stream.OnDispose(OnDispose))
                 );
 
@@ -70,7 +77,7 @@ public class ThreadSafeNntpClient : INntpClient
 
     public async Task<YencHeader> GetSegmentYencHeaderAsync(string segmentId, CancellationToken cancellationToken)
     {
-        await using var stream = await GetSegmentStreamAsync(new NntpMessageId(segmentId), cancellationToken);
+        await using var stream = await GetSegmentStreamAsync(new NntpMessageId(segmentId), false, cancellationToken);
         return stream.Header;
     }
 
@@ -105,10 +112,26 @@ public class ThreadSafeNntpClient : INntpClient
         }
     }
 
-    private IEnumerable<string> GetArticleBody(string segmentId)
+    private UsenetArticle GetArticle(string segmentId, bool includeHeaders)
     {
-        return _client.Body(new NntpMessageId(segmentId))?.Article?.Body
-               ?? throw new UsenetArticleNotFoundException(segmentId);
+        if (includeHeaders)
+        {
+            var articleResponse = _client.Article(new NntpMessageId(segmentId));
+            if (articleResponse?.Article?.Body == null) throw new UsenetArticleNotFoundException(segmentId);
+            return new UsenetArticle()
+            {
+                Headers = new UsenetArticleHeaders(articleResponse.Article.Headers),
+                Body = articleResponse.Article.Body
+            };
+        }
+
+        var bodyResponse = _client.Body(new NntpMessageId(segmentId));
+        if (bodyResponse?.Article?.Body == null) throw new UsenetArticleNotFoundException(segmentId);
+        return new UsenetArticle()
+        {
+            Headers = null,
+            Body = bodyResponse.Article.Body
+        };
     }
 
     public void Dispose()

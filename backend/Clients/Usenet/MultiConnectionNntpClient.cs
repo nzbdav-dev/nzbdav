@@ -31,9 +31,9 @@ public class MultiConnectionNntpClient(ConnectionPool<INntpClient> connectionPoo
         return RunWithConnection(connection => connection.DateAsync(cancellationToken), cancellationToken);
     }
 
-    public Task<YencHeaderStream> GetSegmentStreamAsync(string segmentId, CancellationToken cancellationToken)
+    public Task<YencHeaderStream> GetSegmentStreamAsync(string segmentId, bool includeHeaders, CancellationToken cancellationToken)
     {
-        return RunWithConnection(connection => connection.GetSegmentStreamAsync(segmentId, cancellationToken), cancellationToken);
+        return RunWithConnection(connection => connection.GetSegmentStreamAsync(segmentId, includeHeaders, cancellationToken), cancellationToken);
     }
 
     public Task<YencHeader> GetSegmentYencHeaderAsync(string segmentId, CancellationToken cancellationToken)

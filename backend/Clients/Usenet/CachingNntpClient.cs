@@ -15,10 +15,15 @@ public class CachingNntpClient(INntpClient client, MemoryCache cache) : Wrapping
         SlidingExpiration = TimeSpan.FromHours(3)
     };
 
-    public override async Task<YencHeaderStream> GetSegmentStreamAsync(string segmentId, CancellationToken ct)
+    public override async Task<YencHeaderStream> GetSegmentStreamAsync
+    (
+        string segmentId,
+        bool includeHeaders,
+        CancellationToken ct
+    )
     {
         var cacheKey = segmentId;
-        var stream = await _client.GetSegmentStreamAsync(segmentId, ct);
+        var stream = await _client.GetSegmentStreamAsync(segmentId, includeHeaders, ct);
         cache.Set(cacheKey, stream.Header, _cacheOptions);
         return stream;
     }

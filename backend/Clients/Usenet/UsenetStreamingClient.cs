@@ -102,9 +102,9 @@ public class UsenetStreamingClient
         return new NzbFileStream(segmentIds, fileSize, _client, concurrentConnections);
     }
 
-    public Task<YencHeaderStream> GetSegmentStreamAsync(string segmentId, CancellationToken cancellationToken)
+    public Task<YencHeaderStream> GetSegmentStreamAsync(string segmentId, bool includeHeaders, CancellationToken ct)
     {
-        return _client.GetSegmentStreamAsync(segmentId, cancellationToken);
+        return _client.GetSegmentStreamAsync(segmentId, includeHeaders, ct);
     }
 
     public Task<long> GetFileSizeAsync(NzbFile file, CancellationToken cancellationToken)
