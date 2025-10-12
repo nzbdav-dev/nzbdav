@@ -42,6 +42,16 @@ public class ThreadSafeNntpClient : INntpClient
         return Synchronized(() => _client.Date(), cancellationToken);
     }
 
+    public Task<UsenetArticleHeaders> GetArticleHeadersAsync(string segmentId, CancellationToken cancellationToken)
+    {
+        return Synchronized(() =>
+        {
+            var headResponse = _client.Head(new NntpMessageId(segmentId));
+            if (headResponse?.Article?.Headers == null) throw new UsenetArticleNotFoundException(segmentId);
+            return new UsenetArticleHeaders(headResponse.Article.Headers);
+        }, cancellationToken);
+    }
+
     public async Task<YencHeaderStream> GetSegmentStreamAsync
     (
         string segmentId,

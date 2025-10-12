@@ -1,4 +1,5 @@
 ﻿using NzbWebDAV.Clients.Usenet.Connections;
+using NzbWebDAV.Clients.Usenet.Models;
 using NzbWebDAV.Streams;
 using NzbWebDAV.Utils;
 using Usenet.Exceptions;
@@ -30,6 +31,11 @@ public class MultiConnectionNntpClient(ConnectionPool<INntpClient> connectionPoo
     public Task<NntpDateResponse> DateAsync(CancellationToken cancellationToken)
     {
         return RunWithConnection(connection => connection.DateAsync(cancellationToken), cancellationToken);
+    }
+
+    public Task<UsenetArticleHeaders> GetArticleHeadersAsync(string segmentId, CancellationToken cancellationToken)
+    {
+        return RunWithConnection(connection => connection.GetArticleHeadersAsync(segmentId, cancellationToken), cancellationToken);
     }
 
     public Task<YencHeaderStream> GetSegmentStreamAsync(string segmentId, bool includeHeaders, CancellationToken cancellationToken)

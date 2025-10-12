@@ -1,4 +1,5 @@
-﻿using NzbWebDAV.Streams;
+﻿using NzbWebDAV.Clients.Usenet.Models;
+using NzbWebDAV.Streams;
 using Usenet.Nntp.Responses;
 using Usenet.Nzb;
 using Usenet.Yenc;
@@ -25,6 +26,11 @@ public abstract class WrappingNntpClient(INntpClient client) : INntpClient
     public virtual Task<NntpDateResponse> DateAsync(CancellationToken cancellationToken)
     {
         return client.DateAsync(cancellationToken);
+    }
+
+    public Task<UsenetArticleHeaders> GetArticleHeadersAsync(string segmentId, CancellationToken cancellationToken)
+    {
+        return client.GetArticleHeadersAsync(segmentId, cancellationToken);
     }
 
     public virtual Task<YencHeaderStream> GetSegmentStreamAsync

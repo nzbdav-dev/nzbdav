@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Caching.Memory;
 using NzbWebDAV.Clients.Usenet.Connections;
+using NzbWebDAV.Clients.Usenet.Models;
 using NzbWebDAV.Config;
 using NzbWebDAV.Exceptions;
 using NzbWebDAV.Extensions;
@@ -110,6 +111,11 @@ public class UsenetStreamingClient
     public Task<long> GetFileSizeAsync(NzbFile file, CancellationToken cancellationToken)
     {
         return _client.GetFileSizeAsync(file, cancellationToken);
+    }
+
+    public Task<UsenetArticleHeaders> GetArticleHeadersAsync(string segmentId, CancellationToken cancellationToken)
+    {
+        return _client.GetArticleHeadersAsync(segmentId, cancellationToken);
     }
 
     private ConnectionPool<INntpClient> CreateNewConnectionPool

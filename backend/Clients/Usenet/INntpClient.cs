@@ -1,4 +1,5 @@
-﻿using NzbWebDAV.Streams;
+﻿using NzbWebDAV.Clients.Usenet.Models;
+using NzbWebDAV.Streams;
 using Usenet.Nntp.Responses;
 using Usenet.Nzb;
 using Usenet.Yenc;
@@ -13,6 +14,7 @@ public interface INntpClient: IDisposable
     Task<YencHeaderStream> GetSegmentStreamAsync(string segmentId, bool includeHeaders, CancellationToken ct);
     Task<YencHeader> GetSegmentYencHeaderAsync(string segmentId, CancellationToken cancellationToken);
     Task<long> GetFileSizeAsync(NzbFile file, CancellationToken cancellationToken);
+    Task<UsenetArticleHeaders> GetArticleHeadersAsync(string segmentId, CancellationToken cancellationToken);
     Task<NntpDateResponse> DateAsync(CancellationToken cancellationToken);
     Task WaitForReady(CancellationToken cancellationToken);
 }
