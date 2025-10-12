@@ -9,15 +9,14 @@ namespace NzbWebDAV.Database;
 public sealed class DavDatabaseContext() : DbContext(Options.Value)
 {
     public static string ConfigPath => Environment.GetEnvironmentVariable("CONFIG_PATH") ?? "/config";
+    public static string DatabaseFilePath => Path.Join(ConfigPath, "db.sqlite");
 
-    private static readonly Lazy<DbContextOptions<DavDatabaseContext>> Options = new(() =>
-    {
-        var databaseFilePath = Path.Join(ConfigPath, "db.sqlite");
-        return new DbContextOptionsBuilder<DavDatabaseContext>()
-            .UseSqlite($"Data Source={databaseFilePath}")
+    private static readonly Lazy<DbContextOptions<DavDatabaseContext>> Options = new(
+        () => new DbContextOptionsBuilder<DavDatabaseContext>()
+            .UseSqlite($"Data Source={DatabaseFilePath}")
             .AddInterceptors(new SqliteForeignKeyEnabler())
-            .Options;
-    });
+            .Options
+    );
 
     // database sets
     public DbSet<Account> Accounts => Set<Account>();
