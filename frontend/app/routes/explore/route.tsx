@@ -7,6 +7,7 @@ import { useCallback } from "react";
 import { lookup as getMimeType } from 'mime-types';
 import { getDownloadKey } from "~/auth/downloads.server";
 import { Loading } from "../_index/components/loading/loading";
+import { formatFileSize } from "~/utils/file-size";
 
 export type ExplorePageData = {
     parentDirectories: string[],
@@ -77,7 +78,10 @@ function Body(props: ExplorePageData) {
                     {items.filter(x => !x.isDirectory).map((x, index) =>
                         <a key={`${index}_file_item`} href={getFilePath(x as ExploreFile)} className={getClassName(x)}>
                             <div className={getIcon(x as ExploreFile)} />
-                            <div className={styles["item-name"]}>{x.name}</div>
+                            <div className={styles["item-info"]}>
+                                <div className={styles["item-name"]}>{x.name}</div>
+                                <div className={styles["item-size"]}>{formatFileSize(x.size)}</div>
+                            </div>
                         </a>
                     )}
                 </div>

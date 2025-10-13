@@ -4,7 +4,9 @@ declare const styles: {
   readonly "file-icon": string;
   readonly "image-icon": string;
   readonly "item": string;
+  readonly "item-info": string;
   readonly "item-name": string;
+  readonly "item-size": string;
   readonly "video-icon": string;
   readonly "loading": string;
   readonly "hidden": string;

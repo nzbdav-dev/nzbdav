@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { TriCheckbox, type TriCheckboxState } from "../tri-checkbox/tri-checkbox";
 import { Truncate } from "../truncate/truncate";
 import { StatusBadge } from "../status-badge/status-badge";
+import { formatFileSize } from "~/utils/file-size";
 
 export type PageTableProps = {
     striped?: boolean,
@@ -88,14 +89,4 @@ export function CategoryBadge({ category }: { category: string }) {
     if (categoryLower === 'movies') variant = 'primary';
     if (categoryLower === 'tv') variant = 'info';
     return <Badge bg={variant} style={{ width: '85px' }}>{categoryLower}</Badge>
-}
-
-export function formatFileSize(bytes: number) {
-    var suffix = "B";
-    if (bytes >= 1024) { bytes /= 1024; suffix = "KB"; }
-    if (bytes >= 1024) { bytes /= 1024; suffix = "MB"; }
-    if (bytes >= 1024) { bytes /= 1024; suffix = "GB"; }
-    if (bytes >= 1024) { bytes /= 1024; suffix = "TB"; }
-    if (bytes >= 1024) { bytes /= 1024; suffix = "PB"; }
-    return `${bytes.toFixed(2)} ${suffix}`;
 }
