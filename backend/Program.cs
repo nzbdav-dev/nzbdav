@@ -71,7 +71,8 @@ class Program
             .AddSingleton(websocketManager)
             .AddSingleton<UsenetStreamingClient>()
             .AddSingleton<QueueManager>()
-            .AddSingleton(new ArrMonitoringService(configManager))
+            .AddSingleton<ArrMonitoringService>()
+            .AddSingleton<HealthCheckService>()
             .AddScoped<DavDatabaseContext>()
             .AddScoped<DavDatabaseClient>()
             .AddScoped<DatabaseStore>()
@@ -100,8 +101,12 @@ class Program
                 opts.Events.OnValidateCredentials = (context) => ValidateCredentials(context, configManager);
             });
 
-        // run
+        // force instantiation of services
         var app = builder.Build();
+        app.Services.GetRequiredService<ArrMonitoringService>();
+        app.Services.GetRequiredService<HealthCheckService>();
+
+        // run
         app.UseSerilogRequestLogging();
         app.UseMiddleware<ExceptionMiddleware>();
         app.UseWebSockets();

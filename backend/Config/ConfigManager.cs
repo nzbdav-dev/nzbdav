@@ -163,6 +163,14 @@ public class ConfigManager
         return (configValue != null ? bool.Parse(configValue) : defaultValue);
     }
 
+    public int GetMaxRepairConnections()
+    {
+        return int.Parse(
+            StringUtil.EmptyToNull(GetConfigValue("repair.connections"))
+            ?? "0"
+        );
+    }
+
     public ArrConfig GetArrConfig()
     {
         var defaultValue = new ArrConfig();
