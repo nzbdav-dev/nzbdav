@@ -109,6 +109,8 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
                 .IsUnique();
 
             e.HasIndex(i => new { i.IdPrefix, i.Type });
+
+            e.HasIndex(i => new { i.Type, i.NextHealthCheck, i.ReleaseDate, i.Id });
         });
 
         // DavNzbFile
@@ -199,11 +201,11 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
             e.Property(i => i.PauseUntil)
                 .ValueGeneratedNever();
 
-            e.HasIndex(i => new { i.FileName })
-                .IsUnique();
-
             e.Property(i => i.JobName)
                 .IsRequired();
+
+            e.HasIndex(i => new { i.FileName })
+                .IsUnique();
 
             e.HasIndex(i => new { i.Priority })
                 .IsUnique(false);
