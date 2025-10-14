@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using System.Net.Http.Json;
 using System.Text.Json;
 using NzbWebDAV.Clients.RadarrSonarr.BaseModels;
 using NzbWebDAV.Config;
@@ -11,8 +12,13 @@ public abstract class ArrClient(string host, string apiKey)
     private string ApiKey { get; } = apiKey;
     private const string BasePath = "/api/v3";
 
+    public abstract Task<bool> RemoveAndSearch(string symlinkPath);
+
     public Task<List<ArrRootFolder>> GetRootFolders() =>
         Get<List<ArrRootFolder>>($"/rootfolder");
+
+    public Task<ArrCommand> RefreshMonitoredDownloads() =>
+        CommandAsync(new { name = "RefreshMonitoredDownloads" });
 
     public Task<ArrQueueStatus> GetQueueStatusAsync() =>
         Get<ArrQueueStatus>($"/queue/status");
@@ -28,6 +34,9 @@ public abstract class ArrClient(string host, string apiKey)
             ? Delete($"/queue/{id}", new DeleteQueueRecordRequest(request).GetQueryParams())
             : Task.FromResult(HttpStatusCode.OK);
 
+    public Task<ArrCommand> CommandAsync(object command) =>
+        Post<ArrCommand>($"/command", command);
+
     protected async Task<T> Get<T>(string path)
     {
         using var httpClient = GetHttpClient();
@@ -35,7 +44,15 @@ public abstract class ArrClient(string host, string apiKey)
         return await JsonSerializer.DeserializeAsync<T>(response) ?? throw new NullReferenceException();
     }
 
-    private async Task<HttpStatusCode> Delete(string path, Dictionary<string, string>? queryParams = null)
+    protected async Task<T> Post<T>(string path, object body)
+    {
+        using var httpClient = GetHttpClient();
+        using var response = await httpClient.PostAsJsonAsync(GetRequestUri(path), body);
+        await using var stream = await response.Content.ReadAsStreamAsync();
+        return await JsonSerializer.DeserializeAsync<T>(stream) ?? throw new NullReferenceException();
+    }
+
+    protected async Task<HttpStatusCode> Delete(string path, Dictionary<string, string>? queryParams = null)
     {
         using var httpClient = GetHttpClient();
         using var response = await httpClient.DeleteAsync(GetRequestUri(path, queryParams));

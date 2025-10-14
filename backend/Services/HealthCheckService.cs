@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using NzbWebDAV.Clients.RadarrSonarr;
 using NzbWebDAV.Clients.Usenet;
 using NzbWebDAV.Clients.Usenet.Connections;
 using NzbWebDAV.Config;
@@ -21,6 +22,10 @@ public class HealthCheckService
     private readonly UsenetStreamingClient _usenetClient;
     private readonly WebsocketManager _websocketManager;
     private readonly CancellationToken _cancellationToken = SigtermUtil.GetCancellationToken();
+
+    private const string NoCorrespondingArrInstance =
+        "Deleted unhealthy symlink and webdav-item. " +
+        "Could not find a corresponding Radarr/Sonarr instance to trigger a new search.";
 
     public HealthCheckService
     (
@@ -75,7 +80,7 @@ public class HealthCheckService
             }
             catch (Exception e)
             {
-                Log.Error($"Unexpected error performing background health checks: {e.Message}");
+                Log.Error(e, $"Unexpected error performing background health checks: {e.Message}");
                 await Task.Delay(TimeSpan.FromSeconds(5), _cancellationToken);
             }
         }
@@ -126,7 +131,7 @@ public class HealthCheckService
             davItem.NextHealthCheck = davItem.ReleaseDate + 2 * (davItem.LastHealthCheck - davItem.ReleaseDate);
             dbClient.Ctx.HealthCheckResults.Add(new HealthCheckResult()
             {
-                Id = new Guid(),
+                Id = Guid.NewGuid(),
                 DavItemId = davItem.Id,
                 Path = davItem.Path,
                 CreatedAt = DateTimeOffset.UtcNow,
@@ -139,6 +144,7 @@ public class HealthCheckService
         }
         catch (UsenetArticleNotFoundException)
         {
+            // when usenet article is missing, perform repairs
             _ = _websocketManager.SendMessage(WebsocketTopic.HealthItemProgress, $"{davItem.Id}|100");
             _ = _websocketManager.SendMessage(WebsocketTopic.HealthItemStatus, $"{davItem.Id}|unhealthy");
             await Repair(davItem, dbClient, ct);
@@ -175,27 +181,104 @@ public class HealthCheckService
 
     private async Task Repair(DavItem davItem, DavDatabaseClient dbClient, CancellationToken ct)
     {
-        Log.Warning($"Repairing database item: {davItem.Path}");
-        var symlink = OrganizedSymlinksUtil.GetSymlink(davItem, _configManager);
-
-        // for unlinked files, we can simply delete the unhealthy item
-        if (symlink == null)
+        try
         {
+            var symlink = OrganizedSymlinksUtil.GetSymlink(davItem, _configManager);
+
+            // if the unhealthy item is unlinked/orphaned,
+            // then we can simply delete it.
+            if (symlink == null)
+            {
+                dbClient.Ctx.Items.Remove(davItem);
+                dbClient.Ctx.HealthCheckResults.Add(new HealthCheckResult()
+                {
+                    Id = Guid.NewGuid(),
+                    DavItemId = davItem.Id,
+                    Path = davItem.Path,
+                    CreatedAt = DateTimeOffset.UtcNow,
+                    Result = HealthCheckResult.HealthResult.Unhealthy,
+                    RepairStatus = HealthCheckResult.RepairAction.Deleted,
+                    Message = null
+                });
+                await dbClient.Ctx.SaveChangesAsync(ct);
+                return;
+            }
+
+            // if the unhealthy item is symlinked within the organized media-library
+            // then we must find the corresponding arr instance and trigger a new search.
+            foreach (var arrClient in _configManager.GetArrConfig().GetArrClients())
+            {
+                var rootFolders = await arrClient.GetRootFolders();
+                if (!rootFolders.Any(x => symlink.StartsWith(x.Path!))) continue;
+
+                // if we found corresponding sonarr instance,
+                // then do nothing for now. It is not yet implemented.
+                if (arrClient is SonarrClient)
+                {
+                    Log.Warning($"Found corresponding arr instance for repair: {arrClient.Host}");
+                    return;
+                }
+
+                // if we found a corresponding radarr instance,
+                // then remove and search.
+                if (await arrClient.RemoveAndSearch(symlink))
+                {
+                    dbClient.Ctx.Items.Remove(davItem);
+                    dbClient.Ctx.HealthCheckResults.Add(new HealthCheckResult()
+                    {
+                        Id = Guid.NewGuid(),
+                        DavItemId = davItem.Id,
+                        Path = davItem.Path,
+                        CreatedAt = DateTimeOffset.UtcNow,
+                        Result = HealthCheckResult.HealthResult.Unhealthy,
+                        RepairStatus = HealthCheckResult.RepairAction.Repaired,
+                        Message = null
+                    });
+                    await dbClient.Ctx.SaveChangesAsync(ct);
+                    return;
+                }
+
+                // if we could not find corresponding media-item to remove-and-search
+                // within the found arr instance, then break out of this loop so that
+                // we can fall back to the behavior below of deleting both the symlink
+                // and the dav-item.
+                break;
+            }
+
+            // if we could not find a corresponding arr instance
+            // then we can delete both the item and the symlink.
+            File.Delete(symlink);
             dbClient.Ctx.Items.Remove(davItem);
             dbClient.Ctx.HealthCheckResults.Add(new HealthCheckResult()
             {
-                Id = new Guid(),
+                Id = Guid.NewGuid(),
                 DavItemId = davItem.Id,
                 Path = davItem.Path,
                 CreatedAt = DateTimeOffset.UtcNow,
                 Result = HealthCheckResult.HealthResult.Unhealthy,
                 RepairStatus = HealthCheckResult.RepairAction.Deleted,
-                Message = null
+                Message = NoCorrespondingArrInstance
             });
             await dbClient.Ctx.SaveChangesAsync(ct);
-            return;
         }
-
-        Log.Warning($"Symlink found in organized media library: {symlink}");
+        catch (Exception e)
+        {
+            // if an error is encountered during repairs,
+            // then mark the item as unhealthy
+            var utcNow = DateTimeOffset.UtcNow;
+            davItem.LastHealthCheck = utcNow;
+            davItem.NextHealthCheck = null;
+            dbClient.Ctx.HealthCheckResults.Add(new HealthCheckResult()
+            {
+                Id = Guid.NewGuid(),
+                DavItemId = davItem.Id,
+                Path = davItem.Path,
+                CreatedAt = utcNow,
+                Result = HealthCheckResult.HealthResult.Unhealthy,
+                RepairStatus = HealthCheckResult.RepairAction.ActionNeeded,
+                Message = e.Message
+            });
+            await dbClient.Ctx.SaveChangesAsync(ct);
+        }
     }
 }
