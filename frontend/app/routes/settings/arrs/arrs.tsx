@@ -53,6 +53,10 @@ const queueStatusMessages = [
         searchTerm: "Episode file already imported"
     },
     {
+        display: "No audio tracks detected",
+        searchTerm: "No audio tracks detected"
+    },
+    {
         display: "Unable to determine if file is a sample",
         searchTerm: "Unable to determine if file is a sample"
     },
