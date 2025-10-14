@@ -124,6 +124,16 @@ public class HealthCheckService
             // update the database
             davItem.LastHealthCheck = DateTimeOffset.UtcNow;
             davItem.NextHealthCheck = davItem.ReleaseDate + 2 * (davItem.LastHealthCheck - davItem.ReleaseDate);
+            dbClient.Ctx.HealthCheckResults.Add(new HealthCheckResult()
+            {
+                Id = new Guid(),
+                DavItemId = davItem.Id,
+                Path = davItem.Path,
+                CreatedAt = DateTimeOffset.UtcNow,
+                Result = HealthCheckResult.HealthResult.Healthy,
+                RepairStatus = HealthCheckResult.RepairAction.None,
+                Message = null
+            });
             await dbClient.Ctx.SaveChangesAsync(ct);
             return true;
         }
@@ -166,84 +176,26 @@ public class HealthCheckService
     private async Task Repair(DavItem davItem, DavDatabaseClient dbClient, CancellationToken ct)
     {
         Log.Warning($"Repairing database item: {davItem.Path}");
-        var symlink = OrganizedSymlinks.GetSymlink(davItem, _configManager);
+        var symlink = OrganizedSymlinksUtil.GetSymlink(davItem, _configManager);
 
         // for unlinked files, we can simply delete the unhealthy item
         if (symlink == null)
         {
-            Log.Warning($"Item is not linked to organized media library. Deleting: {davItem.Path}");
-            // dbClient.Ctx.Items.Remove(davItem);
+            dbClient.Ctx.Items.Remove(davItem);
+            dbClient.Ctx.HealthCheckResults.Add(new HealthCheckResult()
+            {
+                Id = new Guid(),
+                DavItemId = davItem.Id,
+                Path = davItem.Path,
+                CreatedAt = DateTimeOffset.UtcNow,
+                Result = HealthCheckResult.HealthResult.Unhealthy,
+                RepairStatus = HealthCheckResult.RepairAction.Deleted,
+                Message = null
+            });
+            await dbClient.Ctx.SaveChangesAsync(ct);
             return;
         }
 
         Log.Warning($"Symlink found in organized media library: {symlink}");
-    }
-
-    private static class OrganizedSymlinks
-    {
-        private static readonly Dictionary<Guid, string> Cache = new();
-
-        public static string? GetSymlink(DavItem targetDavItem, ConfigManager configManager)
-        {
-            return !TryGetSymlinkFromCache(targetDavItem, configManager, out var symlinkFromCache)
-                ? SearchForSymlink(targetDavItem, configManager)
-                : symlinkFromCache;
-        }
-
-        private static bool TryGetSymlinkFromCache
-        (
-            DavItem targetDavItem,
-            ConfigManager configManager,
-            out string? symlink
-        )
-        {
-            return Cache.TryGetValue(targetDavItem.Id, out symlink)
-                   && Verify(symlink, targetDavItem, configManager);
-        }
-
-        private static bool Verify(string symlink, DavItem targetDavItem, ConfigManager configManager)
-        {
-            return GetSymlinkTargets([symlink], configManager)
-                .Select(x => x.Target)
-                .FirstOrDefault() == targetDavItem.Id;
-        }
-
-        private static string? SearchForSymlink(DavItem targetDavItem, ConfigManager configManager)
-        {
-            var libraryRoot = configManager.GetLibraryDir()!;
-            var allSymlinkPaths = Directory.EnumerateFileSystemEntries(libraryRoot, "*", SearchOption.AllDirectories);
-            var allSymlinks = GetSymlinkTargets(allSymlinkPaths, configManager);
-
-            string? result = null;
-            foreach (var symlink in allSymlinks)
-            {
-                Cache[targetDavItem.Id] = symlink.FileInfo.FullName;
-                if (symlink.Target == targetDavItem.Id)
-                    result = symlink.FileInfo.FullName;
-            }
-
-            return result;
-        }
-
-        private static IEnumerable<(FileInfo FileInfo, Guid Target)> GetSymlinkTargets
-        (
-            IEnumerable<string> symlinkPaths,
-            ConfigManager configManager
-        )
-        {
-            var mountDir = configManager.GetRcloneMountDir();
-            return symlinkPaths
-                .Select(x => new FileInfo(x))
-                .Where(x => x.Attributes.HasFlag(FileAttributes.ReparsePoint))
-                .Select(x => (FileInfo: x, Target: x.LinkTarget))
-                .Where(x => x.Target is not null)
-                .Select(x => (x.FileInfo, Target: x.Target!))
-                .Where(x => x.Target.StartsWith(mountDir))
-                .Select(x => (x.FileInfo, Target: x.Target.RemovePrefix(mountDir)))
-                .Select(x => (x.FileInfo, Target: x.Target.StartsWith("/") ? x.Target : $"/{x.Target}"))
-                .Where(x => x.Target.StartsWith("/.ids"))
-                .Select(x => (x.FileInfo, Target: Path.GetFileNameWithoutExtension(x.Target)))
-                .Select(x => (x.FileInfo, Target: Guid.Parse(x.Target)));
-        }
     }
 }

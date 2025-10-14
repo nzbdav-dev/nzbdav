@@ -3,6 +3,7 @@ using NzbWebDAV.Config;
 using NzbWebDAV.Database;
 using NzbWebDAV.Database.Models;
 using NzbWebDAV.Extensions;
+using NzbWebDAV.Utils;
 using NzbWebDAV.Websocket;
 using Serilog;
 
@@ -105,20 +106,8 @@ public class RemoveUnlinkedFilesTask(
 
     private HashSet<Guid> GetLinkedIds()
     {
-        var mountDir = configManager.GetRcloneMountDir();
-        var libraryRoot = configManager.GetLibraryDir();
-        return Directory.EnumerateFileSystemEntries(libraryRoot, "*", SearchOption.AllDirectories)
-            .Select(x => new FileInfo(x))
-            .Where(x => x.Attributes.HasFlag(FileAttributes.ReparsePoint))
-            .Select(x => x.LinkTarget)
-            .Where(x => x is not null)
-            .Select(x => x!)
-            .Where(x => x.StartsWith(mountDir))
-            .Select(x => x.RemovePrefix(mountDir))
-            .Select(x => x.StartsWith("/") ? x : $"/{x}")
-            .Where(x => x.StartsWith("/.ids"))
-            .Select(Path.GetFileNameWithoutExtension)
-            .Select(Guid.Parse)
+        return OrganizedSymlinksUtil.GetLibrarySymlinkTargets(configManager)
+            .Select(x => x.Target)
             .ToHashSet();
     }
 
