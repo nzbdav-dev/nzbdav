@@ -25,6 +25,7 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
     public DbSet<DavRarFile> RarFiles => Set<DavRarFile>();
     public DbSet<QueueItem> QueueItems => Set<QueueItem>();
     public DbSet<HistoryItem> HistoryItems => Set<HistoryItem>();
+    public DbSet<HealthCheckResult> HealthCheckResults => Set<HealthCheckResult>();
     public DbSet<ConfigItem> ConfigItems => Set<ConfigItem>();
 
     // tables
@@ -268,6 +269,50 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
                 .IsUnique(false);
 
             e.HasIndex(i => new { i.Category, i.DownloadDirId })
+                .IsUnique(false);
+        });
+
+        // HealthCheckResult
+        b.Entity<HealthCheckResult>(e =>
+        {
+            e.ToTable("HealthCheckResults");
+            e.HasKey(i => i.Id);
+
+            e.Property(i => i.Id)
+                .ValueGeneratedNever()
+                .IsRequired();
+
+            e.Property(i => i.CreatedAt)
+                .ValueGeneratedNever()
+                .IsRequired()
+                .HasConversion(
+                    x => x.ToUnixTimeSeconds(),
+                    x => DateTimeOffset.FromUnixTimeSeconds(x)
+                );
+
+            e.Property(i => i.DavItemId)
+                .ValueGeneratedNever()
+                .IsRequired();
+
+            e.Property(i => i.Path)
+                .IsRequired();
+
+            e.Property(i => i.Result)
+                .HasConversion<int>()
+                .IsRequired();
+
+            e.Property(i => i.RepairStatus)
+                .HasConversion<int>()
+                .IsRequired();
+
+            e.Property(i => i.Message)
+                .IsRequired(false);
+
+            e.HasIndex(i => new { i.Result, i.RepairStatus, i.CreatedAt })
+                .IsUnique(false);
+
+            e.HasIndex(h => h.DavItemId)
+                .HasFilter("\"RepairStatus\" = 3")
                 .IsUnique(false);
         });
 

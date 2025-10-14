@@ -58,11 +58,8 @@ public class HealthCheckService
                 await using var dbContext = new DavDatabaseContext();
                 var dbClient = new DavDatabaseClient(dbContext);
                 var currentDateTime = DateTimeOffset.UtcNow;
-                var davItem = await dbClient.Ctx.Items
-                    .Where(x => x.Type == DavItem.ItemType.NzbFile || x.Type == DavItem.ItemType.RarFile)
+                var davItem = await GetHealthCheckQueueItems(dbClient)
                     .Where(x => x.NextHealthCheck == null || x.NextHealthCheck < currentDateTime)
-                    .OrderBy(x => x.NextHealthCheck)
-                    .ThenByDescending(x => x.ReleaseDate)
                     .FirstOrDefaultAsync(cts.Token);
 
                 // if there is no item to health-check, don't do anything
@@ -82,6 +79,17 @@ public class HealthCheckService
                 await Task.Delay(TimeSpan.FromSeconds(5), _cancellationToken);
             }
         }
+    }
+
+    public static IOrderedQueryable<DavItem> GetHealthCheckQueueItems(DavDatabaseClient dbClient)
+    {
+        var actionNeeded = HealthCheckResult.RepairAction.ActionNeeded;
+        var healthCheckResults = dbClient.Ctx.HealthCheckResults;
+        return dbClient.Ctx.Items
+            .Where(x => x.Type == DavItem.ItemType.NzbFile || x.Type == DavItem.ItemType.RarFile)
+            .Where(x => !healthCheckResults.Any(h => h.DavItemId == x.Id && h.RepairStatus == actionNeeded))
+            .OrderBy(x => x.NextHealthCheck)
+            .ThenByDescending(x => x.ReleaseDate);
     }
 
     private async Task<bool> PerformHealthCheck
