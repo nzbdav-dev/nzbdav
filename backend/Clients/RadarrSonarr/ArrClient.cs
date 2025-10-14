@@ -11,6 +11,9 @@ public abstract class ArrClient(string host, string apiKey)
     private string ApiKey { get; } = apiKey;
     private const string BasePath = "/api/v3";
 
+    public Task<List<ArrRootFolder>> GetRootFolders() =>
+        Get<List<ArrRootFolder>>($"/rootfolder");
+
     public Task<ArrQueueStatus> GetQueueStatusAsync() =>
         Get<ArrQueueStatus>($"/queue/status");
 
