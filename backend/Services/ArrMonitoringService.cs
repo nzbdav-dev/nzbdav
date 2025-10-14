@@ -28,18 +28,17 @@ public class ArrMonitoringService
     {
         while (!_cancellationToken.IsCancellationRequested)
         {
-            var arrConfig = _configManager.GetArrConfig();
-
-            // handle stuck queue items according to the config
-            if (arrConfig.QueueRules.Any(x => x.Action != ArrConfig.QueueAction.DoNothing))
-            {
-                foreach (var radarr in arrConfig.RadarrInstances)
-                    await HandleStuckQueueItems(arrConfig, new RadarrClient(radarr.Host, radarr.ApiKey));
-                foreach (var sonarr in arrConfig.SonarrInstances)
-                    await HandleStuckQueueItems(arrConfig, new SonarrClient(sonarr.Host, sonarr.ApiKey));
-            }
-
+            // Ensure delay runs on each iteration
             await Task.Delay(TimeSpan.FromSeconds(10), _cancellationToken);
+
+            // if all queue-actions are disabled, then do nothing
+            var arrConfig = _configManager.GetArrConfig();
+            if (arrConfig.QueueRules.All(x => x.Action == ArrConfig.QueueAction.DoNothing))
+                continue;
+
+            // otherwise, handle stuck queue items according to the config
+            foreach (var arrClient in arrConfig.GetArrClients())
+                await HandleStuckQueueItems(arrConfig, arrClient);
         }
     }
 

@@ -1,10 +1,18 @@
-﻿namespace NzbWebDAV.Config;
+﻿using NzbWebDAV.Clients.RadarrSonarr;
+
+namespace NzbWebDAV.Config;
 
 public class ArrConfig
 {
     public List<ConnectionDetails> RadarrInstances { get; set; } = [];
     public List<ConnectionDetails> SonarrInstances { get; set; } = [];
     public List<QueueRule> QueueRules { get; set; } = [];
+
+    // ReSharper disable once InvokeAsExtensionMethod
+    public IEnumerable<ArrClient> GetArrClients() => Enumerable.Concat(
+        RadarrInstances.Select(ArrClient (x) => new RadarrClient(x.Host, x.ApiKey)),
+        SonarrInstances.Select(ArrClient (x) => new SonarrClient(x.Host, x.ApiKey))
+    );
 
     public class ConnectionDetails
     {
