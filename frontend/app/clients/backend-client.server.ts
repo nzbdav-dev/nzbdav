@@ -183,6 +183,26 @@ class BackendClient {
         const data = await response.json();
         return data.status;
     }
+
+    public async getHealthCheckQueue(pageSize?: number): Promise<HealthCheckQueueResponse> {
+        let url = process.env.BACKEND_URL + "/api/get-health-check-queue";
+
+        if (pageSize !== undefined) {
+            url += `?pageSize=${pageSize}`;
+        }
+
+        const apiKey = process.env.FRONTEND_BACKEND_API_KEY || "";
+        const response = await fetch(url, {
+            method: "GET",
+            headers: { "x-api-key": apiKey }
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to get health check queue: ${(await response.json()).error}`);
+        }
+        const data = await response.json();
+        return data;
+    }
 }
 
 export const backendClient = new BackendClient();
@@ -236,4 +256,17 @@ export type TestUsenetConnectionRequest = {
     useSsl: string,
     user: string,
     pass: string
+}
+
+export type HealthCheckQueueResponse = {
+    items: HealthCheckQueueItem[]
+}
+
+export type HealthCheckQueueItem = {
+    id: string,
+    name: string,
+    path: string,
+    releaseDate: string | null,
+    lastHealthCheck: string | null,
+    nextHealthCheck: string | null,
 }
