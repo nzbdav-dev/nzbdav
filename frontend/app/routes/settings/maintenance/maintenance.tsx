@@ -72,7 +72,7 @@ export function Maintenance({ savedConfig }: MaintenanceProps) {
                     <ul className={styles.list}>
                         <li className={styles["list-item"]}>
                             You must first configure the Library Directory setting before running this task.
-                            Head over to the Library tab.
+                            Head over to the Repairs tab.
                         </li>
                     </ul>
                 </Alert>

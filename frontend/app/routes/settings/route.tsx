@@ -6,7 +6,6 @@ import { isUsenetSettingsUpdated, UsenetSettings } from "./usenet/usenet";
 import React, { useEffect } from "react";
 import { isSabnzbdSettingsUpdated, isSabnzbdSettingsValid, SabnzbdSettings } from "./sabnzbd/sabnzbd";
 import { isWebdavSettingsUpdated, isWebdavSettingsValid, WebdavSettings } from "./webdav/webdav";
-import { isLibrarySettingsUpdated, LibrarySettings } from "./library/library";
 import { isArrsSettingsUpdated, isArrsSettingsValid, ArrsSettings } from "./arrs/arrs";
 import { Maintenance } from "./maintenance/maintenance";
 import { isRepairsSettingsUpdated, isRepairsSettingsValid, RepairsSettings } from "./repairs/repairs";
@@ -34,10 +33,8 @@ const defaultConfig = {
     "media.library-dir": "",
     "arr.instances": "{\"RadarrInstances\":[],\"SonarrInstances\":[],\"QueueRules\":[]}",
     "repair.connections": "",
-    "repair.delete-unlinked-files": "false",
+    "repair.enable": "false",
 }
-
-const advancedTabs = ["library", "maintenance"];
 
 export async function loader({ request }: Route.LoaderArgs) {
     // fetch the config items
@@ -68,23 +65,20 @@ function Body(props: BodyProps) {
     const [isUsenetSettingsReadyToSave, setIsUsenetSettingsReadyToSave] = React.useState(false);
     const [isSaving, setIsSaving] = React.useState(false);
     const [isSaved, setIsSaved] = React.useState(false);
-    const [showAdvanced, setShowAdvanced] = React.useState(false);
     const [activeTab, setActiveTab] = React.useState('usenet');
 
     // derived variables
     const iseUsenetUpdated = isUsenetSettingsUpdated(config, newConfig);
     const isSabnzbdUpdated = isSabnzbdSettingsUpdated(config, newConfig);
     const isWebdavUpdated = isWebdavSettingsUpdated(config, newConfig);
-    const isLibraryUpdated = isLibrarySettingsUpdated(config, newConfig);
     const isArrsUpdated = isArrsSettingsUpdated(config, newConfig);
     const isRepairsUpdated = isRepairsSettingsUpdated(config, newConfig);
-    const isUpdated = iseUsenetUpdated || isSabnzbdUpdated || isWebdavUpdated || isLibraryUpdated || isArrsUpdated || isRepairsUpdated;
+    const isUpdated = iseUsenetUpdated || isSabnzbdUpdated || isWebdavUpdated || isArrsUpdated || isRepairsUpdated;
 
     const usenetTitle = iseUsenetUpdated ? "✏️ Usenet" : "Usenet";
     const sabnzbdTitle = isSabnzbdUpdated ? "✏️ SABnzbd " : "SABnzbd";
     const webdavTitle = isWebdavUpdated ? "✏️ WebDAV" : "WebDAV";
     const arrsTitle = isArrsUpdated ? "✏️ Radarr/Sonarr" : "Radarr/Sonarr";
-    const libraryTitle = isLibraryUpdated ? "✏️ Library" : "Library";
     const repairsTitle = isRepairsUpdated ? "✏️ Repairs" : "Repairs";
 
     const saveButtonLabel = isSaving ? "Saving..."
@@ -101,23 +95,7 @@ function Body(props: BodyProps) {
         : "secondary";
     const isSaveButtonDisabled = saveButtonLabel !== "Save";
 
-    // effects
-    useEffect(() => {
-        if (!showAdvanced && advancedTabs.includes(activeTab)) {
-            setActiveTab("usenet");
-        }
-    }, [showAdvanced, activeTab, setActiveTab])
-
     // events
-    const onSelectTab = React.useCallback((tab: string | null) => {
-        if (tab === "*") {
-            setShowAdvanced(true);
-            setActiveTab("library")
-        } else {
-            setActiveTab(tab!);
-        }
-    }, [setShowAdvanced, setActiveTab]);
-
     const onClear = React.useCallback(() => {
         setNewConfig(config);
         setIsSaved(false);
@@ -150,7 +128,7 @@ function Body(props: BodyProps) {
         <div className={styles.container}>
             <Tabs
                 activeKey={activeTab}
-                onSelect={onSelectTab}
+                onSelect={x => setActiveTab(x!)}
                 className={styles.tabs}
             >
                 <Tab eventKey="usenet" title={usenetTitle}>
@@ -168,31 +146,11 @@ function Body(props: BodyProps) {
                 <Tab eventKey="repairs" title={repairsTitle}>
                     <RepairsSettings config={newConfig} setNewConfig={setNewConfig} />
                 </Tab>
-                {!showAdvanced &&
-                    <Tab eventKey="*" title={"🚀"}>
-                    </Tab>
-                }
-                {showAdvanced &&
-                    <Tab eventKey="library" title={libraryTitle}>
-                        <LibrarySettings savedConfig={config} config={newConfig} setNewConfig={setNewConfig} />
-                    </Tab>
-                }
-                {showAdvanced &&
-                    <Tab eventKey="maintenance" title="Maintenance">
-                        <Maintenance savedConfig={config} />
-                    </Tab>
-                }
+                <Tab eventKey="maintenance" title="Maintenance">
+                    <Maintenance savedConfig={config} />
+                </Tab>
             </Tabs>
             <hr />
-
-            <Form.Check
-                style={{ marginBottom: '20px' }}
-                type="checkbox"
-                id="advanced-settings-checkbox"
-                label="Show Advanced Settings"
-                checked={showAdvanced}
-                onChange={(e) => setShowAdvanced(Boolean(e.target.checked))} />
-
             {isUpdated && <Button
                 className={styles.button}
                 variant="secondary"
