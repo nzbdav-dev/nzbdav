@@ -1,0 +1,7 @@
+.container {
+    min-width: 100%;
+    min-height: 100%;
+    padding: 30px 35px 20px 35px;
+    color: #93a1a1;
+    font-size: 16px;
+}
