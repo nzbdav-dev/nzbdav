@@ -211,15 +211,7 @@ public class HealthCheckService
                 var rootFolders = await arrClient.GetRootFolders();
                 if (!rootFolders.Any(x => symlink.StartsWith(x.Path!))) continue;
 
-                // if we found corresponding sonarr instance,
-                // then do nothing for now. It is not yet implemented.
-                if (arrClient is SonarrClient)
-                {
-                    Log.Warning($"Found corresponding arr instance for repair: {arrClient.Host}");
-                    return;
-                }
-
-                // if we found a corresponding radarr instance,
+                // if we found a corresponding arr instance,
                 // then remove and search.
                 if (await arrClient.RemoveAndSearch(symlink))
                 {
