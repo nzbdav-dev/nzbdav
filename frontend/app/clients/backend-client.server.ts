@@ -203,6 +203,26 @@ class BackendClient {
         const data = await response.json();
         return data;
     }
+
+    public async getHealthCheckHistory(pageSize?: number): Promise<HealthCheckHistoryResponse> {
+        let url = process.env.BACKEND_URL + "/api/get-health-check-history";
+
+        if (pageSize !== undefined) {
+            url += `?pageSize=${pageSize}`;
+        }
+
+        const apiKey = process.env.FRONTEND_BACKEND_API_KEY || "";
+        const response = await fetch(url, {
+            method: "GET",
+            headers: { "x-api-key": apiKey }
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to get health check history: ${(await response.json()).error}`);
+        }
+        const data = await response.json();
+        return data;
+    }
 }
 
 export const backendClient = new BackendClient();
@@ -269,4 +289,37 @@ export type HealthCheckQueueItem = {
     releaseDate: string | null,
     lastHealthCheck: string | null,
     nextHealthCheck: string | null,
+}
+
+export type HealthCheckHistoryResponse = {
+    stats: HealthCheckStats[],
+    items: HealthCheckResult[]
+}
+
+export type HealthCheckStats = {
+    result: HealthResult,
+    repairStatus: RepairAction,
+    count: number
+}
+
+export type HealthCheckResult = {
+    id: string,
+    createdAt: string,
+    davItemId: string,
+    path: string,
+    result: HealthResult,
+    repairStatus: RepairAction,
+    message: string | null
+}
+
+export enum HealthResult {
+    Healthy = 0,
+    Unhealthy = 1,
+}
+
+export enum RepairAction {
+    None = 0,
+    Repaired = 1,
+    Deleted = 2,
+    ActionNeeded = 3,
 }
