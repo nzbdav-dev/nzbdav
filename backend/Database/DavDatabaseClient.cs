@@ -150,6 +150,26 @@ public sealed class DavDatabaseClient(DavDatabaseContext ctx)
         public long TotalSize { get; init; }
     }
 
+    // health check
+    public async Task<List<HealthCheckStats>> GetHealthCheckStatsAsync
+    (
+        DateTimeOffset from,
+        DateTimeOffset to,
+        CancellationToken ct = default
+    )
+    {
+        return await Ctx.HealthCheckResults
+            .Where(h => h.CreatedAt >= from && h.CreatedAt <= to)
+            .GroupBy(h => new { h.Result, h.RepairStatus })
+            .Select(g => new HealthCheckStats
+            {
+                Result = g.Key.Result,
+                RepairStatus = g.Key.RepairStatus,
+                Count = g.Count()
+            })
+            .ToListAsync(ct);
+    }
+
     // completed-symlinks
     public async Task<List<DavItem>> GetCompletedSymlinkCategoryChildren(string category,
         CancellationToken ct = default)

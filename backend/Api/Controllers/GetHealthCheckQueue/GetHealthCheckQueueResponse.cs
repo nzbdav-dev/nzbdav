@@ -6,6 +6,7 @@ public class GetHealthCheckQueueResponse : BaseApiResponse
 
     public class HealthCheckQueueItem
     {
+        public required string Id { get; init; }
         public required string Name { get; init; }
         public required string Path { get; init; }
         public required DateTimeOffset? ReleaseDate { get; init; }

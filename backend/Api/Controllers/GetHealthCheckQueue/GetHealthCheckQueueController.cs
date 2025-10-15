@@ -19,6 +19,7 @@ public class GetHealthCheckQueueController(DavDatabaseClient dbClient) : BaseApi
         {
             Items = davItems.Select(x => new GetHealthCheckQueueResponse.HealthCheckQueueItem()
             {
+                Id = x.Id.ToString(),
                 Name = x.Name,
                 Path = x.Path,
                 ReleaseDate = x.ReleaseDate,
