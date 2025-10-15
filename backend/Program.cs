@@ -54,20 +54,20 @@ class Program
         // run database migration, if necessary.
         if (args.Contains("--db-migration"))
         {
-            Log.Information("Beginning database migration");
+            Log.Debug("Beginning database migration");
             try
             {
                 // Clear any stale migration locks first
-                Log.Information("Clearing any stale migration locks...");
+                Log.Debug("Clearing any stale migration locks...");
                 await databaseContext.Database.ExecuteSqlRawAsync("DELETE FROM __EFMigrationsLock WHERE 1=1;");
-                Log.Information("Migration locks cleared");
+                Log.Debug("Migration locks cleared");
             }
             catch (Exception ex)
             {
                 Log.Warning(ex, "Could not clear migration locks (table may not exist yet): {Message}", ex.Message);
             }
 
-            Log.Information("Starting database migration with 60 second timeout...");
+            Log.Debug("Starting database migration with 60 second timeout...");
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             using var combinedCts = CancellationTokenSource.CreateLinkedTokenSource(
                 SigtermUtil.GetCancellationToken(),

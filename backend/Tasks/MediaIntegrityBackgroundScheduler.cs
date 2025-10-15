@@ -35,17 +35,17 @@ public class MediaIntegrityBackgroundScheduler : IDisposable
         var integrityEnabled = _configManager.IsIntegrityCheckingEnabled();
         var scheduledEnabled = _configManager.IsScheduledIntegrityCheckingEnabled();
 
-        Log.Information("MediaIntegrityBackgroundScheduler initializing: integrity.enabled={IntegrityEnabled}, integrity.scheduled_enabled={ScheduledEnabled}",
+        Log.Debug("MediaIntegrityBackgroundScheduler initializing: integrity.enabled={IntegrityEnabled}, integrity.scheduled_enabled={ScheduledEnabled}",
             integrityEnabled, scheduledEnabled);
 
         if (integrityEnabled && scheduledEnabled)
         {
-            Log.Information("Starting background integrity scheduler");
+            Log.Debug("Starting background integrity scheduler");
             _ = StartSchedulerAsync();
         }
         else
         {
-            Log.Information("Background integrity scheduler not started - integrity checking or scheduled checking is disabled");
+            Log.Debug("Background integrity scheduler not started - integrity checking or scheduled checking is disabled");
         }
 
         _configManager.OnConfigChanged += (_, args) =>
@@ -86,12 +86,12 @@ public class MediaIntegrityBackgroundScheduler : IDisposable
     {
         var schedulerCancelToken = _cancellationTokenSource.Token;
 
-        Log.Information("Background integrity scheduler starting - waiting 2 minutes for backend initialization");
+        Log.Debug("Background integrity scheduler starting - waiting 2 minutes for backend initialization");
 
         // Wait 2 minutes for backend to start before starting the scheduler
         await Task.Delay(TimeSpan.FromMinutes(2), schedulerCancelToken);
 
-        Log.Information("Background integrity scheduler active - beginning check loop");
+        Log.Debug("Background integrity scheduler active - beginning check loop");
 
         while (!schedulerCancelToken.IsCancellationRequested)
         {
