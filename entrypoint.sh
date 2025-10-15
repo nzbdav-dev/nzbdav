@@ -52,6 +52,9 @@ if ! id appuser >/dev/null 2>&1; then
     adduser -D -H -u "$PUID" -G appgroup appuser
 fi
 
+# Change permissions on /config directory to the given PUID and PGID
+chown -R $PUID:$PGID /config
+
 # Set environment variables
 if [ -z "${BACKEND_URL}" ]; then
     export BACKEND_URL="http://localhost:8080"
@@ -61,8 +64,15 @@ if [ -z "${FRONTEND_BACKEND_API_KEY}" ]; then
     export FRONTEND_BACKEND_API_KEY=$(head -c 32 /dev/urandom | hexdump -ve '1/1 "%.2x"')
 fi
 
-# Change permissions on /config directory to the given PUID and PGID
-chown $PUID:$PGID /config
+# Generate or load persistent session key for frontend authentication
+SESSION_KEY_FILE="/config/session.key"
+if [ -f "$SESSION_KEY_FILE" ]; then
+    export SESSION_KEY=$(cat "$SESSION_KEY_FILE")
+else
+    export SESSION_KEY=$(head -c 64 /dev/urandom | hexdump -ve '1/1 "%.2x"')
+    echo "$SESSION_KEY" > "$SESSION_KEY_FILE"
+    chmod 600 "$SESSION_KEY_FILE"
+fi
 
 # Run backend database migration
 cd /app/backend
