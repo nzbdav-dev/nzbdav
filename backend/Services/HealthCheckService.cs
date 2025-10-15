@@ -1,5 +1,4 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using NzbWebDAV.Clients.RadarrSonarr;
 using NzbWebDAV.Clients.Usenet;
 using NzbWebDAV.Clients.Usenet.Connections;
 using NzbWebDAV.Config;
@@ -46,15 +45,15 @@ public class HealthCheckService
         {
             try
             {
-                // if max-repair-connections isn't configured, don't do anything
-                var maxRepairConnections = _configManager.GetMaxRepairConnections();
-                if (maxRepairConnections == 0)
+                // if the repair-job is disabled, then don't do anything
+                if (!_configManager.IsRepairJobEnabled())
                 {
                     await Task.Delay(TimeSpan.FromSeconds(5), _cancellationToken);
                     continue;
                 }
 
                 // set reserved-connections context
+                var maxRepairConnections = _configManager.GetMaxRepairConnections();
                 using var cts = CancellationTokenSource.CreateLinkedTokenSource(_cancellationToken);
                 var reservedConnections = _configManager.GetMaxConnections() - maxRepairConnections;
                 using var _ = cts.Token.SetScopedContext(new ReservedConnectionsContext(reservedConnections));

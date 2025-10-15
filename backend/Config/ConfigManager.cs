@@ -171,6 +171,17 @@ public class ConfigManager
         );
     }
 
+    public bool IsRepairJobEnabled()
+    {
+        var defaultValue = false;
+        var configValue = StringUtil.EmptyToNull(GetConfigValue("repair.enable"));
+        var isRepairJobEnabled = (configValue != null ? bool.Parse(configValue) : defaultValue);
+        return isRepairJobEnabled
+               && GetMaxConnections() > 0
+               && GetLibraryDir() != null
+               && GetArrConfig().GetInstanceCount() > 0;
+    }
+
     public ArrConfig GetArrConfig()
     {
         var defaultValue = new ArrConfig();

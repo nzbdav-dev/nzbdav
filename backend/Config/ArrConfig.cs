@@ -14,6 +14,9 @@ public class ArrConfig
         SonarrInstances.Select(ArrClient (x) => new SonarrClient(x.Host, x.ApiKey))
     );
 
+    public int GetInstanceCount() =>
+        RadarrInstances.Count + SonarrInstances.Count;
+
     public class ConnectionDetails
     {
         public required string Host { get; set; }
