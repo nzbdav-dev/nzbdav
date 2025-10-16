@@ -23,7 +23,8 @@ public class AddFileController(
     public async Task<AddFileResponse> AddFileAsync(AddFileRequest request)
     {
         // load the document
-        var documentBytes = Encoding.UTF8.GetBytes(request.NzbFileContents);
+        var nzbFileContents = NormalizeNzbContents(request.NzbFileContents);
+        var documentBytes = Encoding.UTF8.GetBytes(nzbFileContents);
         using var memoryStream = new MemoryStream(documentBytes);
         var document = await NzbDocument.LoadAsync(memoryStream);
 
@@ -34,7 +35,7 @@ public class AddFileController(
             CreatedAt = DateTime.Now,
             FileName = request.FileName,
             JobName = Path.GetFileNameWithoutExtension(request.FileName),
-            NzbContents = request.NzbFileContents,
+            NzbContents = nzbFileContents,
             NzbFileSize = documentBytes.Length,
             TotalSegmentBytes = document.Files.SelectMany(x => x.Segments).Select(x => x.Size).Sum(),
             Category = request.Category,
@@ -59,5 +60,12 @@ public class AddFileController(
     {
         var request = await AddFileRequest.New(httpContext);
         return Ok(await AddFileAsync(request));
+    }
+
+    private static string NormalizeNzbContents(string nzbContents)
+    {
+        return nzbContents
+            .Replace("https://www.newzbin.com/DTD/2003/nzb", "http://www.newzbin.com/DTD/2003/nzb")
+            .Replace("date=\"\"", "date=\"0\"");
     }
 }
