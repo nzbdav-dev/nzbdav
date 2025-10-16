@@ -1,6 +1,7 @@
 import type { Route } from "./+types/route";
 import styles from "./route.module.css"
 import { backendClient } from "~/clients/backend-client.server";
+import { HealthStats } from "./components/health-stats/health-stats";
 
 export async function loader() {
     const [queueData, historyData] = await Promise.all([
@@ -20,7 +21,9 @@ export default function Health({ loaderData }: Route.ComponentProps) {
 
     return (
         <div className={styles.container}>
-            {/* Health content placeholder */}
+            <div className={styles.section}>
+                <HealthStats stats={historyStats} />
+            </div>
         </div>
     );
 }
