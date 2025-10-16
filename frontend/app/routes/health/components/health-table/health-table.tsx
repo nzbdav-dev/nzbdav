@@ -4,10 +4,11 @@ import styles from "./health-table.module.css";
 import { Truncate } from "~/routes/queue/components/truncate/truncate";
 
 export type HealthTableProps = {
+    isEnabled: boolean,
     healthCheckItems: HealthCheckQueueItem[],
 }
 
-export function HealthTable({ healthCheckItems }: HealthTableProps) {
+export function HealthTable({ isEnabled, healthCheckItems }: HealthTableProps) {
 
     return (
         <div className={styles.container}>
@@ -18,7 +19,15 @@ export function HealthTable({ healthCheckItems }: HealthTableProps) {
                 </div>
             </div>
 
-            {healthCheckItems.length === 0 ? (
+            {!isEnabled ? (
+                <div className={styles.emptyState}>
+                    <div className={styles.emptyIcon}>🩺💙💪</div>
+                    <div className={styles.emptyTitle}>Enable Repairs In Settings</div>
+                    <div className={styles.emptyDescription}>
+                        Once you enable repairs, all mounted usenet files will be queued for continuous health monitoring
+                    </div>
+                </div>
+            ) : healthCheckItems.length === 0 ? (
                 <div className={styles.emptyState}>
                     <div className={styles.emptyIcon}>🩺💙💪</div>
                     <div className={styles.emptyTitle}>No Items To Health-Check</div>

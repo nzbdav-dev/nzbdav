@@ -5,20 +5,26 @@ import { HealthTable } from "./components/health-table/health-table";
 import { HealthStats } from "./components/health-stats/health-stats";
 
 export async function loader() {
-    const [queueData, historyData] = await Promise.all([
+    const enabledKey = 'repair.enable';
+    const [queueData, historyData, config] = await Promise.all([
         backendClient.getHealthCheckQueue(10),
-        backendClient.getHealthCheckHistory()
+        backendClient.getHealthCheckHistory(),
+        backendClient.getConfig([enabledKey])
     ]);
 
     return {
         queueItems: queueData.items,
         historyStats: historyData.stats,
-        historyItems: historyData.items
+        historyItems: historyData.items,
+        isEnabled: config
+            .filter(x => x.configName === enabledKey)
+            .filter(x => x.configValue.toLowerCase() === "true")
+            .length > 0
     };
 }
 
 export default function Health({ loaderData }: Route.ComponentProps) {
-    const { queueItems, historyStats, historyItems } = loaderData;
+    const { queueItems, historyStats, historyItems, isEnabled } = loaderData;
 
     return (
         <div className={styles.container}>
@@ -26,7 +32,7 @@ export default function Health({ loaderData }: Route.ComponentProps) {
                 <HealthStats stats={historyStats} />
             </div>
             <div className={styles.section}>
-                <HealthTable healthCheckItems={queueItems} />
+                <HealthTable isEnabled={isEnabled} healthCheckItems={queueItems} />
             </div>
         </div>
     );
