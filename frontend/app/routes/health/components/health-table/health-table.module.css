@@ -1,0 +1,205 @@
+.container {
+    width: 100%;
+    background: hsl(192, 90%, 6%);
+    border-radius: 10px;
+    padding: var(--container-padding);
+    padding-bottom: 0;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    --container-padding: 24px;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.title {
+    color: hsl(180, 30%, 70%);
+    margin: 0;
+    font-size: 1.5em;
+    font-weight: 600;
+}
+
+.count {
+    color: hsl(180, 7%, 55%);
+    font-size: 0.9em;
+    font-weight: 500;
+    background: hsl(196.8, 25%, 14.51%);
+    padding: 6px 12px;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.tableContainer {
+    min-height: 200px;
+    margin-left: calc(-1 * var(--container-padding));
+    margin-right: calc(-1 * var(--container-padding));
+}
+
+.table {
+    margin: 0;
+    color: hsl(180, 7%, 70%);
+
+    /* table headers */
+    thead th {
+        background-color: hsl(192, 100%, 11%) !important;
+        color: hsl(180, 7%, 85%) !important;
+        border: none;
+        padding: 16px 12px;
+        font-weight: 600;
+        font-size: 0.9em;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        white-space: nowrap;
+        text-align: center;
+        width: 100px;
+
+        &:first-child {
+            text-align: left;
+            padding-left: var(--container-padding);
+            width: 50%;
+        }
+    }
+
+    /* table body */
+    tbody td {
+        border: none;
+        background-color: unset;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        padding: 16px 12px;
+        vertical-align: middle;
+        max-width: 200px;
+
+        &:first-child {
+            padding-left: var(--container-padding);
+        }
+    }
+}
+
+.table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.nameContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.name {
+    font-weight: 500;
+    color: hsl(180, 7%, 85%);
+    font-size: 0.95em;
+    line-height: 1.3;
+    word-break: break-all;
+}
+
+.path {
+    font-size: 0.8em;
+    color: hsl(180, 7%, 55%);
+    font-style: italic;
+    word-break: break-all;
+    line-height: 1.3;
+}
+
+.dateCell {
+    font-size: 0.85em;
+    color: hsl(180, 7%, 60%);
+    text-align: center;
+}
+
+.emptyState {
+    text-align: center;
+    padding: 60px 20px;
+    color: hsl(180, 7%, 55%);
+}
+
+.emptyIcon {
+    font-size: 3em;
+    margin-bottom: 16px;
+    opacity: 0.6;
+}
+
+.emptyTitle {
+    font-size: 1.2em;
+    font-weight: 600;
+    color: hsl(180, 7%, 70%);
+    margin-bottom: 8px;
+}
+
+.emptyDescription {
+    font-size: 0.9em;
+    line-height: 1.5;
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+.dateDetailsTable {
+    margin-top: 12px;
+    background: hsl(196.8, 25%, 14.51%);
+    border-radius: 8px;
+    padding: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.dateDetailsRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.dateDetailsRow:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.dateDetailsRow:first-child {
+    padding-top: 0;
+}
+
+.dateDetailsLabel {
+    font-size: 0.85em;
+    font-weight: 500;
+    color: hsl(180, 7%, 70%);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    min-width: 80px;
+}
+
+.dateDetailsValue {
+    font-size: 0.9em;
+    color: hsl(180, 7%, 85%);
+    text-align: right;
+    word-break: break-word;
+    flex: 1;
+    margin-left: 12px;
+}
+
+.mobile {
+    display: none;
+}
+
+/* mobile */
+@media not (min-width: 900px) {
+    .desktop {
+        display: none;
+    }
+
+    .mobile {
+        display: block;
+    }
+
+    .table thead tr th:first-child {
+        width: unset;
+    }
+
+    .table td:first-child {
+        padding: var(--container-padding) var(--container-padding);
+    }
+}

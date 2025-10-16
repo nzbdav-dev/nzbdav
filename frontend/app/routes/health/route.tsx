@@ -1,6 +1,7 @@
 import type { Route } from "./+types/route";
 import styles from "./route.module.css"
 import { backendClient } from "~/clients/backend-client.server";
+import { HealthTable } from "./components/health-table/health-table";
 import { HealthStats } from "./components/health-stats/health-stats";
 
 export async function loader() {
@@ -23,6 +24,9 @@ export default function Health({ loaderData }: Route.ComponentProps) {
         <div className={styles.container}>
             <div className={styles.section}>
                 <HealthStats stats={historyStats} />
+            </div>
+            <div className={styles.section}>
+                <HealthTable healthCheckItems={queueItems} />
             </div>
         </div>
     );
