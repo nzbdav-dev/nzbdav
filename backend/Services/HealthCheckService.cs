@@ -93,7 +93,8 @@ public class HealthCheckService
             .Where(x => x.Type == DavItem.ItemType.NzbFile || x.Type == DavItem.ItemType.RarFile)
             .Where(x => !healthCheckResults.Any(h => h.DavItemId == x.Id && h.RepairStatus == actionNeeded))
             .OrderBy(x => x.NextHealthCheck)
-            .ThenByDescending(x => x.ReleaseDate);
+            .ThenByDescending(x => x.ReleaseDate)
+            .ThenBy(x => x.Id);
     }
 
     private async Task<bool> PerformHealthCheck
