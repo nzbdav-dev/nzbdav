@@ -124,12 +124,11 @@ public class HealthCheckService
             // perform health check
             await _usenetClient.CheckAllSegmentsAsync(segments, concurrency, progressHook, ct);
             _ = _websocketManager.SendMessage(WebsocketTopic.HealthItemProgress, $"{davItem.Id}|100");
-            _ = _websocketManager.SendMessage(WebsocketTopic.HealthItemStatus, $"{davItem.Id}|healthy");
 
             // update the database
             davItem.LastHealthCheck = DateTimeOffset.UtcNow;
             davItem.NextHealthCheck = davItem.ReleaseDate + 2 * (davItem.LastHealthCheck - davItem.ReleaseDate);
-            dbClient.Ctx.HealthCheckResults.Add(new HealthCheckResult()
+            dbClient.Ctx.HealthCheckResults.Add(SendStatus(new HealthCheckResult()
             {
                 Id = Guid.NewGuid(),
                 DavItemId = davItem.Id,
@@ -138,7 +137,7 @@ public class HealthCheckService
                 Result = HealthCheckResult.HealthResult.Healthy,
                 RepairStatus = HealthCheckResult.RepairAction.None,
                 Message = null
-            });
+            }));
             await dbClient.Ctx.SaveChangesAsync(ct);
             return true;
         }
@@ -146,7 +145,6 @@ public class HealthCheckService
         {
             // when usenet article is missing, perform repairs
             _ = _websocketManager.SendMessage(WebsocketTopic.HealthItemProgress, $"{davItem.Id}|100");
-            _ = _websocketManager.SendMessage(WebsocketTopic.HealthItemStatus, $"{davItem.Id}|unhealthy");
             await Repair(davItem, dbClient, ct);
             return false;
         }
@@ -190,7 +188,7 @@ public class HealthCheckService
             if (symlink == null)
             {
                 dbClient.Ctx.Items.Remove(davItem);
-                dbClient.Ctx.HealthCheckResults.Add(new HealthCheckResult()
+                dbClient.Ctx.HealthCheckResults.Add(SendStatus(new HealthCheckResult()
                 {
                     Id = Guid.NewGuid(),
                     DavItemId = davItem.Id,
@@ -199,7 +197,7 @@ public class HealthCheckService
                     Result = HealthCheckResult.HealthResult.Unhealthy,
                     RepairStatus = HealthCheckResult.RepairAction.Deleted,
                     Message = null
-                });
+                }));
                 await dbClient.Ctx.SaveChangesAsync(ct);
                 return;
             }
@@ -216,7 +214,7 @@ public class HealthCheckService
                 if (await arrClient.RemoveAndSearch(symlink))
                 {
                     dbClient.Ctx.Items.Remove(davItem);
-                    dbClient.Ctx.HealthCheckResults.Add(new HealthCheckResult()
+                    dbClient.Ctx.HealthCheckResults.Add(SendStatus(new HealthCheckResult()
                     {
                         Id = Guid.NewGuid(),
                         DavItemId = davItem.Id,
@@ -225,7 +223,7 @@ public class HealthCheckService
                         Result = HealthCheckResult.HealthResult.Unhealthy,
                         RepairStatus = HealthCheckResult.RepairAction.Repaired,
                         Message = null
-                    });
+                    }));
                     await dbClient.Ctx.SaveChangesAsync(ct);
                     return;
                 }
@@ -241,7 +239,7 @@ public class HealthCheckService
             // then we can delete both the item and the symlink.
             File.Delete(symlink);
             dbClient.Ctx.Items.Remove(davItem);
-            dbClient.Ctx.HealthCheckResults.Add(new HealthCheckResult()
+            dbClient.Ctx.HealthCheckResults.Add(SendStatus(new HealthCheckResult()
             {
                 Id = Guid.NewGuid(),
                 DavItemId = davItem.Id,
@@ -250,7 +248,7 @@ public class HealthCheckService
                 Result = HealthCheckResult.HealthResult.Unhealthy,
                 RepairStatus = HealthCheckResult.RepairAction.Deleted,
                 Message = NoCorrespondingArrInstance
-            });
+            }));
             await dbClient.Ctx.SaveChangesAsync(ct);
         }
         catch (Exception e)
@@ -260,7 +258,7 @@ public class HealthCheckService
             var utcNow = DateTimeOffset.UtcNow;
             davItem.LastHealthCheck = utcNow;
             davItem.NextHealthCheck = null;
-            dbClient.Ctx.HealthCheckResults.Add(new HealthCheckResult()
+            dbClient.Ctx.HealthCheckResults.Add(SendStatus(new HealthCheckResult()
             {
                 Id = Guid.NewGuid(),
                 DavItemId = davItem.Id,
@@ -269,8 +267,18 @@ public class HealthCheckService
                 Result = HealthCheckResult.HealthResult.Unhealthy,
                 RepairStatus = HealthCheckResult.RepairAction.ActionNeeded,
                 Message = e.Message
-            });
+            }));
             await dbClient.Ctx.SaveChangesAsync(ct);
         }
+    }
+
+    private HealthCheckResult SendStatus(HealthCheckResult result)
+    {
+        _ = _websocketManager.SendMessage
+        (
+            WebsocketTopic.HealthItemStatus,
+            $"{result.DavItemId}|{(int)result.Result}|{(int)result.RepairStatus}"
+        );
+        return result;
     }
 }
