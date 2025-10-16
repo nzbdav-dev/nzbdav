@@ -185,6 +185,11 @@
     display: none;
 }
 
+.dateBadge {
+    font-size: 13px;
+    text-shadow: 0 0 4px rgba(0, 0, 0, 0.4);
+}
+
 /* mobile */
 @media not (min-width: 900px) {
     .desktop {

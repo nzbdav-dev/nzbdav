@@ -6,7 +6,7 @@ import { HealthStats } from "./components/health-stats/health-stats";
 
 export async function loader() {
     const [queueData, historyData] = await Promise.all([
-        backendClient.getHealthCheckQueue(),
+        backendClient.getHealthCheckQueue(10),
         backendClient.getHealthCheckHistory()
     ]);
 

@@ -38,7 +38,7 @@ export function HealthStats({ stats }: HealthStatsProps) {
     return (
         <div className={styles.container}>
             <div className={styles.header}>
-                <h3 className={styles.title}>System Health Overview</h3>
+                <h3 className={styles.title}>Health Overview</h3>
                 <div className={styles.statusIndicator}>
                     <span className={styles.statusLabel}>Last 30 Days</span>
                 </div>

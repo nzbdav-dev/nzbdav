@@ -1,4 +1,4 @@
-import { Table } from "react-bootstrap";
+import { Table, Badge } from "react-bootstrap";
 import type { HealthCheckQueueItem } from "~/clients/backend-client.server";
 import styles from "./health-table.module.css";
 import { Truncate } from "~/routes/queue/components/truncate/truncate";
@@ -50,13 +50,13 @@ export function HealthTable({ healthCheckItems }: HealthTableProps) {
                                         </div>
                                     </td>
                                     <td className={`${styles.dateCell} ${styles.desktop}`}>
-                                        {formatDate(item.releaseDate, 'Unknown')}
+                                        {formatDateBadge(item.releaseDate, 'Unknown', 'info')}
                                     </td>
                                     <td className={`${styles.dateCell} ${styles.desktop}`}>
-                                        {formatDate(item.lastHealthCheck, 'Never 🚨')}
+                                        {formatDateBadge(item.lastHealthCheck, 'Never', 'warning')}
                                     </td>
                                     <td className={`${styles.dateCell} ${styles.desktop}`}>
-                                        {formatDate(item.nextHealthCheck, 'ASAP 🏃')}
+                                        {formatDateBadge(item.nextHealthCheck, 'ASAP', 'success')}
                                     </td>
                                 </tr>
                             ))}
@@ -74,19 +74,19 @@ function DateDetailsTable({ item }: { item: HealthCheckQueueItem }) {
             <div className={styles.dateDetailsRow}>
                 <div className={styles.dateDetailsLabel}>Release Date</div>
                 <div className={styles.dateDetailsValue}>
-                    {formatDate(item.releaseDate, 'Unknown')}
+                    {formatDateBadge(item.releaseDate, 'Unknown', 'info')}
                 </div>
             </div>
             <div className={styles.dateDetailsRow}>
                 <div className={styles.dateDetailsLabel}>Last Health Check</div>
                 <div className={styles.dateDetailsValue}>
-                    {formatDate(item.lastHealthCheck, 'Never')}
+                    {formatDateBadge(item.lastHealthCheck, 'Never', 'warning')}
                 </div>
             </div>
             <div className={styles.dateDetailsRow}>
                 <div className={styles.dateDetailsLabel}>Next Health Check</div>
                 <div className={styles.dateDetailsValue}>
-                    {formatDate(item.nextHealthCheck, 'ASAP')}
+                    {formatDateBadge(item.nextHealthCheck, 'ASAP', 'success')}
                 </div>
             </div>
         </div>
@@ -99,4 +99,9 @@ function formatDate(dateString: string | null, fallback: string) {
     } catch {
         return fallback;
     }
+};
+
+function formatDateBadge(dateString: string | null, fallback: string, variant: 'info' | 'warning' | 'success') {
+    const dateText = formatDate(dateString, fallback);
+    return <Badge bg={variant} className={styles.dateBadge}>{dateText}</Badge>;
 };
