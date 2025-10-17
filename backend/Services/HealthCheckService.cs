@@ -74,8 +74,7 @@ public class HealthCheckService
                 }
 
                 // perform the health check
-                var result = await PerformHealthCheck(davItem, dbClient, maxRepairConnections, cts.Token);
-                if (!result) return;
+                await PerformHealthCheck(davItem, dbClient, maxRepairConnections, cts.Token);
             }
             catch (Exception e)
             {
@@ -97,7 +96,7 @@ public class HealthCheckService
             .ThenBy(x => x.Id);
     }
 
-    private async Task<bool> PerformHealthCheck
+    private async Task PerformHealthCheck
     (
         DavItem davItem,
         DavDatabaseClient dbClient,
@@ -140,14 +139,12 @@ public class HealthCheckService
                 Message = null
             }));
             await dbClient.Ctx.SaveChangesAsync(ct);
-            return true;
         }
         catch (UsenetArticleNotFoundException)
         {
             // when usenet article is missing, perform repairs
             _ = _websocketManager.SendMessage(WebsocketTopic.HealthItemProgress, $"{davItem.Id}|100");
             await Repair(davItem, dbClient, ct);
-            return false;
         }
     }
 
