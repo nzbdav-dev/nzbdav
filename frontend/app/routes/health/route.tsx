@@ -94,11 +94,16 @@ export default function Health({ loaderData }: Route.ComponentProps) {
 
     const onHealthItemProgress = useCallback((message: string) => {
         const [davItemId, progress] = message.split('|');
-        setQueueItems(x => x.map(item =>
-            item.id === davItemId
-                ? { ...item, progress: Number(progress) }
-                : item
-        ));
+        setQueueItems(queueItems => {
+            var index = queueItems.findIndex(x => x.id === davItemId);
+            if (index === -1) return queueItems;
+            return queueItems
+                .filter((_, i) => i >= index)
+                .map(item => item.id === davItemId
+                    ? { ...item, progress: Number(progress) }
+                    : item
+                )
+        });
     }, [setQueueItems]);
 
     // websocket
