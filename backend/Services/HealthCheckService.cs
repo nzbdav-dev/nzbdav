@@ -122,7 +122,8 @@ public class HealthCheckService
             };
 
             // perform health check
-            await _usenetClient.CheckAllSegmentsAsync(segments, concurrency, progressHook, ct);
+            var progress = progressHook.ToPercentage(segments.Count);
+            await _usenetClient.CheckAllSegmentsAsync(segments, concurrency, progress, ct);
             _ = _websocketManager.SendMessage(WebsocketTopic.HealthItemProgress, $"{davItem.Id}|100");
 
             // update the database
