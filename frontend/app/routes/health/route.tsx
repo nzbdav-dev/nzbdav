@@ -5,6 +5,7 @@ import { HealthTable } from "./components/health-table/health-table";
 import { HealthStats } from "./components/health-stats/health-stats";
 import { useCallback, useEffect, useState } from "react";
 import { receiveMessage } from "~/utils/websocket-util";
+import { Alert } from "react-bootstrap";
 
 const topicNames = {
     healthItemStatus: 'hs',
@@ -24,6 +25,7 @@ export async function loader() {
     ]);
 
     return {
+        uncheckedCount: queueData.uncheckedCount,
         queueItems: queueData.items,
         historyStats: historyData.stats,
         historyItems: historyData.items,
@@ -38,6 +40,7 @@ export default function Health({ loaderData }: Route.ComponentProps) {
     const { isEnabled } = loaderData;
     const [historyStats, setHistoryStats] = useState(loaderData.historyStats);
     const [queueItems, setQueueItems] = useState(loaderData.queueItems);
+    const [uncheckedCount, setUncheckedCount] = useState(loaderData.uncheckedCount);
 
     // effects
     useEffect(() => {
@@ -47,6 +50,7 @@ export default function Health({ loaderData }: Route.ComponentProps) {
             if (response.ok) {
                 const healthCheckQueue = await response.json();
                 setQueueItems(healthCheckQueue.items);
+                setUncheckedCount(healthCheckQueue.uncheckedCount);
             }
         };
         refetchData();
@@ -56,7 +60,7 @@ export default function Health({ loaderData }: Route.ComponentProps) {
     const onHealthItemStatus = useCallback(async (message: string) => {
         const [davItemId, healthResult, repairAction] = message.split('|');
         setQueueItems(x => x.filter(item => item.id !== davItemId));
-
+        setUncheckedCount(x => x - 1);
         setHistoryStats(x => {
             const healthResultNum = Number(healthResult);
             const repairActionNum = Number(repairAction);
@@ -128,6 +132,22 @@ export default function Health({ loaderData }: Route.ComponentProps) {
             <div className={styles.section}>
                 <HealthStats stats={historyStats} />
             </div>
+            {isEnabled && uncheckedCount > 20 &&
+                <Alert className={styles.alert} variant={'warning'}>
+                    <b>Attention</b>
+                    <ul className={styles.list}>
+                        <li className={styles.listItem}>
+                            You have ~{uncheckedCount} files whose health has never been determined.
+                        </li>
+                        <li className={styles.listItem}>
+                            The queue will run an initial health check of these files.
+                        </li>
+                        <li className={styles.listItem}>
+                            Under normal operation, health checks will occur much less frequently.
+                        </li>
+                    </ul>
+                </Alert>
+            }
             <div className={styles.section}>
                 <HealthTable isEnabled={isEnabled} healthCheckItems={queueItems.filter((_, index) => index < 10)} />
             </div>

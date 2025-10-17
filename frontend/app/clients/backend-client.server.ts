@@ -279,6 +279,7 @@ export type TestUsenetConnectionRequest = {
 }
 
 export type HealthCheckQueueResponse = {
+    uncheckedCount: number,
     items: HealthCheckQueueItem[]
 }
 
