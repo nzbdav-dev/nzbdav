@@ -34,20 +34,20 @@ export function StatusBadge({ status, percentage, error }: StatusBadgeProps) {
     return (
         <OverlayTrigger placement="top" overlay={overlay} trigger="click">
             <div className={styles.container}>
-                <Badge className={badgeClass} color={color} percentNum={percentNum}>{badgeText}</Badge>
+                <ProgressBadge className={badgeClass} color={color} percentNum={percentNum}>{badgeText}</ProgressBadge>
             </div>
         </OverlayTrigger>
     );
 }
 
-type BadgeProps = {
+type ProgressBadgeProps = {
     className?: string,
     color: string,
     percentNum: number,
     children?: React.ReactNode
 }
 
-function Badge(props: BadgeProps) {
+export function ProgressBadge(props: ProgressBadgeProps) {
     const isHealthCheck = props.percentNum > 100;
 
     const progressClassName = isHealthCheck

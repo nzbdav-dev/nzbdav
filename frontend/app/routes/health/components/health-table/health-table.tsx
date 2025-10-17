@@ -2,6 +2,8 @@ import { Table, Badge } from "react-bootstrap";
 import type { HealthCheckQueueItem } from "~/clients/backend-client.server";
 import styles from "./health-table.module.css";
 import { Truncate } from "~/routes/queue/components/truncate/truncate";
+import { ProgressBadge } from "~/routes/queue/components/status-badge/status-badge";
+import { progress } from "~/routes/queue/components/status-badge/status-badge.module.css";
 
 export type HealthTableProps = {
     isEnabled: boolean,
@@ -65,7 +67,10 @@ export function HealthTable({ isEnabled, healthCheckItems }: HealthTableProps) {
                                         {formatDateBadge(item.lastHealthCheck, 'Never', 'warning')}
                                     </td>
                                     <td className={`${styles.dateCell} ${styles.desktop}`}>
-                                        {formatDateBadge(item.nextHealthCheck, 'ASAP', 'success')}
+                                        {item.progress > 0
+                                            ? <ProgressBadge className={styles.dateBadge} color={"#333"} percentNum={100 + item.progress}>{item.progress}%</ProgressBadge>
+                                            : formatDateBadge(item.nextHealthCheck, 'ASAP', 'success')
+                                        }
                                     </td>
                                 </tr>
                             ))}
@@ -95,7 +100,10 @@ function DateDetailsTable({ item }: { item: HealthCheckQueueItem }) {
             <div className={styles.dateDetailsRow}>
                 <div className={styles.dateDetailsLabel}>Next Health Check</div>
                 <div className={styles.dateDetailsValue}>
-                    {formatDateBadge(item.nextHealthCheck, 'ASAP', 'success')}
+                    {item.progress > 0
+                        ? <ProgressBadge className={styles.dateBadge} color={"#333"} percentNum={100 + item.progress}>{item.progress}%</ProgressBadge>
+                        : formatDateBadge(item.nextHealthCheck, 'ASAP', 'success')
+                    }
                 </div>
             </div>
         </div>

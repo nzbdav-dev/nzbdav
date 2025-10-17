@@ -289,6 +289,7 @@ export type HealthCheckQueueItem = {
     releaseDate: string | null,
     lastHealthCheck: string | null,
     nextHealthCheck: string | null,
+    progress: number,
 }
 
 export type HealthCheckHistoryResponse = {

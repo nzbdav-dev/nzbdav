@@ -18,7 +18,7 @@ const topicSubscriptions = {
 export async function loader() {
     const enabledKey = 'repair.enable';
     const [queueData, historyData, config] = await Promise.all([
-        backendClient.getHealthCheckQueue(10),
+        backendClient.getHealthCheckQueue(30),
         backendClient.getHealthCheckHistory(),
         backendClient.getConfig([enabledKey])
     ]);
@@ -39,24 +39,60 @@ export default function Health({ loaderData }: Route.ComponentProps) {
     const [historyStats, setHistoryStats] = useState(loaderData.historyStats);
     const [queueItems, setQueueItems] = useState(loaderData.queueItems);
 
+    // effects
+    useEffect(() => {
+        if (queueItems.length >= 15) return;
+        const refetchData = async () => {
+            var response = await fetch('/api/get-health-check-queue?pageSize=30');
+            if (response.ok) {
+                const healthCheckQueue = await response.json();
+                setQueueItems(healthCheckQueue.items);
+            }
+        };
+        refetchData();
+    }, [queueItems, setQueueItems])
+
     // events
-    const onHealthItemStatus = useCallback((message: string) => {
+    const onHealthItemStatus = useCallback(async (message: string) => {
         const [davItemId, healthResult, repairAction] = message.split('|');
         setQueueItems(x => x.filter(item => item.id !== davItemId));
 
-        // todo: if none of the stats match. we need to add a new stat group
-        setHistoryStats(x => x.map(stat =>
-            stat.result == Number(healthResult) && stat.repairStatus == Number(repairAction)
-                ? { ...stat, count: stat.count + 1 }
-                : stat
-        ))
+        setHistoryStats(x => {
+            const healthResultNum = Number(healthResult);
+            const repairActionNum = Number(repairAction);
+
+            // attempt to find and update a matching statistic
+            let updated = false;
+            const newStats = x.map(stat => {
+                if (stat.result === healthResultNum && stat.repairStatus === repairActionNum) {
+                    updated = true;
+                    return { ...stat, count: stat.count + 1 };
+                }
+                return stat;
+            });
+
+            // if no statistic was updated, add a new one
+            if (!updated) {
+                return [
+                    ...x,
+                    {
+                        result: healthResultNum,
+                        repairStatus: repairActionNum,
+                        count: 1
+                    }
+                ];
+            }
+
+            // if an update occurred, return the modified array
+            return newStats;
+        });
     }, [setQueueItems, setHistoryStats]);
 
     const onHealthItemProgress = useCallback((message: string) => {
         const [davItemId, progress] = message.split('|');
         setQueueItems(x => x.map(item =>
             item.id === davItemId
-                ? { ...item, nextHealthCheck: progress }
+                ? { ...item, progress: Number(progress) }
                 : item
         ));
     }, [setQueueItems]);
@@ -93,7 +129,7 @@ export default function Health({ loaderData }: Route.ComponentProps) {
                 <HealthStats stats={historyStats} />
             </div>
             <div className={styles.section}>
-                <HealthTable isEnabled={isEnabled} healthCheckItems={queueItems} />
+                <HealthTable isEnabled={isEnabled} healthCheckItems={queueItems.filter((_, index) => index < 10)} />
             </div>
         </div>
     );

@@ -186,8 +186,9 @@
 }
 
 .dateBadge {
-    font-size: 13px;
-    text-shadow: 0 0 4px rgba(0, 0, 0, 0.4);
+    font-size: 13px !important;
+    text-shadow: 0 0 4px rgba(0, 0, 0, 0.4) !important;
+    width: 85px;
 }
 
 /* mobile */
