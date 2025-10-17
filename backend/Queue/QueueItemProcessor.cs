@@ -175,7 +175,7 @@ public class QueueItemProcessor(
     {
         var groups = fileInfos
             .DistinctBy(x => x.FileName)
-            .GroupBy(x => GetGroup(x.FileName));
+            .GroupBy(GetGroup);
 
         foreach (var group in groups)
         {
@@ -196,10 +196,10 @@ public class QueueItemProcessor(
 
         yield break;
 
-        string GetGroup(string x) => false ? "impossible"
-            : FilenameUtil.Is7zFile(x) ? "7z"
-            : FilenameUtil.IsRarFile(x) ? "rar"
-            : FilenameUtil.IsMultipartMkv(x) ? "multipart-mkv"
+        string GetGroup(GetFileInfosStep.FileInfo x) => false ? "impossible"
+            : FilenameUtil.Is7zFile(x.FileName) ? "7z"
+            : x.IsRar || FilenameUtil.IsRarFile(x.FileName) ? "rar"
+            : FilenameUtil.IsMultipartMkv(x.FileName) ? "multipart-mkv"
             : "other";
     }
 

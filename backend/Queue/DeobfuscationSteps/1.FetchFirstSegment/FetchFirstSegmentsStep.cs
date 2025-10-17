@@ -81,10 +81,22 @@ public static class FetchFirstSegmentsStep
 
     public class NzbFileWithFirstSegment
     {
+        private static readonly byte[] Rar4Magic = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x00];
+        private static readonly byte[] Rar5Magic = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00];
+
         public required NzbFile NzbFile { get; init; }
         public required YencHeader? Header { get; init; }
         public required byte[]? First16KB { get; init; }
         public required bool MissingFirstSegment { get; init; }
         public required DateTimeOffset ReleaseDate { get; init; }
+
+        public bool HasRar4Magic() => HasMagic(Rar4Magic);
+        public bool HasRar5Magic() => HasMagic(Rar5Magic);
+
+        private bool HasMagic(byte[] sequence)
+        {
+            return First16KB?.Length >= sequence.Length &&
+                   First16KB.AsSpan(0, sequence.Length).SequenceEqual(sequence);
+        }
     }
 }

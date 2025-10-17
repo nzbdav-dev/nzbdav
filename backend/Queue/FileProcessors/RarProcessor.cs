@@ -24,13 +24,16 @@ public class RarProcessor(
         {
             await using var stream = await GetNzbFileStream();
             await using var cancellableStream = new CancellableStream(stream, ct);
+            var headers = await Task.Run(() => GetRarHeaders(cancellableStream));
+            var archiveHeader = headers.FirstOrDefault(x => x.HeaderType == HeaderType.Archive);
             return new Result()
             {
                 NzbFile = fileInfo.NzbFile,
                 PartSize = cancellableStream.Length,
                 ArchiveName = GetArchiveName(),
-                PartNumber = GetPartNumber(),
-                StoredFileSegments = (await Task.Run(() => GetRarHeaders(cancellableStream)))
+                PartNumber = GetPartNumber(archiveHeader),
+                StoredFileSegments = headers
+                    .Where(x => x.HeaderType == HeaderType.File)
                     .Select(x => new StoredFileSegment()
                     {
                         PathWithinArchive = x.GetFileName(),
@@ -54,8 +57,13 @@ public class RarProcessor(
         return sansExtension;
     }
 
-    private int GetPartNumber()
+    private int GetPartNumber(IRarHeader? archiveHeader)
     {
+        // read from archive-header if possible
+        var archiveVolumeNumber = archiveHeader?.GetVolumeNumber();
+        if (archiveVolumeNumber != null) return archiveVolumeNumber!.Value;
+        if (archiveHeader?.GetIsFirstVolume() == true) return -1;
+
         // handle the `.partXXX.rar` format
         var partMatch = Regex.Match(fileInfo.FileName, @"\.part(\d+)\.rar$", RegexOptions.IgnoreCase);
         if (partMatch.Success) return int.Parse(partMatch.Groups[1].Value);
@@ -65,7 +73,10 @@ public class RarProcessor(
         if (rMatch.Success) return int.Parse(rMatch.Groups[1].Value);
 
         // handle the `.rar` format.
-        return -1;
+        if (fileInfo.FileName.EndsWith(".rar", StringComparison.OrdinalIgnoreCase)) return -1;
+
+        // we were unable to determine the part number.
+        throw new Exception("Could not determine part number for RAR file.");
     }
 
     private List<IRarHeader> GetRarHeaders(Stream stream)
@@ -76,6 +87,13 @@ public class RarProcessor(
         foreach (var header in headerFactory.ReadHeaders(stream))
         {
             ct.ThrowIfCancellationRequested();
+
+            // Add archive headers
+            if (header.HeaderType == HeaderType.Archive)
+            {
+                headers.Add(header);
+                continue;
+            }
 
             // we only care about file headers
             if (header.HeaderType != HeaderType.File || header.IsDirectory() || header.GetFileName() == "QO") continue;

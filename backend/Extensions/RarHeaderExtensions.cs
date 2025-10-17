@@ -33,4 +33,14 @@ public static class RarHeaderExtensions
     {
         return (bool)header.GetReflectionProperty("IsDirectory")!;
     }
+
+    public static int? GetVolumeNumber(this IRarHeader header)
+    {
+        return (int?)header.GetReflectionProperty("VolumeNumber");
+    }
+
+    public static bool GetIsFirstVolume(this IRarHeader header)
+    {
+        return (bool)header.GetReflectionProperty("IsFirstVolume")!;
+    }
 }

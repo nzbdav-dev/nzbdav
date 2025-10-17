@@ -59,7 +59,8 @@ public static class GetFileInfosStep
             NzbFile = file.NzbFile,
             FileName = filename,
             ReleaseDate = file.ReleaseDate,
-            FileSize = (long?)fileDesc?.FileLength
+            FileSize = (long?)fileDesc?.FileLength,
+            IsRar = file.HasRar4Magic() || file.HasRar5Magic(),
         };
     }
 
@@ -79,5 +80,6 @@ public static class GetFileInfosStep
         public required string FileName { get; init; }
         public required DateTimeOffset ReleaseDate { get; init; }
         public long? FileSize { get; init; }
+        public bool IsRar { get; init; }
     }
 }
