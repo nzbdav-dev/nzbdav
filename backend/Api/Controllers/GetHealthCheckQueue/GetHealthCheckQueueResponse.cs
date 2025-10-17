@@ -3,6 +3,7 @@
 public class GetHealthCheckQueueResponse : BaseApiResponse
 {
     public List<HealthCheckQueueItem> Items { get; init; } = [];
+    public int UncheckedCount { get; init; }
 
     public class HealthCheckQueueItem
     {
