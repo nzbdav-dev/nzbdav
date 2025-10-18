@@ -43,7 +43,7 @@ export function HealthTable({ isEnabled, healthCheckItems }: HealthTableProps) {
                         <thead className={styles.desktop}>
                             <tr>
                                 <th>Name</th>
-                                <th className={styles.desktop}>Release Date</th>
+                                <th className={styles.desktop}>Created</th>
                                 <th className={styles.desktop}>Last Check</th>
                                 <th className={styles.desktop}>Next Check</th>
                             </tr>
@@ -86,7 +86,7 @@ function DateDetailsTable({ item }: { item: HealthCheckQueueItem }) {
     return (
         <div className={styles.dateDetailsTable}>
             <div className={styles.dateDetailsRow}>
-                <div className={styles.dateDetailsLabel}>Release Date</div>
+                <div className={styles.dateDetailsLabel}>Created</div>
                 <div className={styles.dateDetailsValue}>
                     {formatDateBadge(item.releaseDate, 'Unknown', 'info')}
                 </div>
