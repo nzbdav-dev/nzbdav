@@ -112,9 +112,14 @@ function DateDetailsTable({ item }: { item: HealthCheckQueueItem }) {
 
 function formatDate(dateString: string | null, fallback: string) {
     try {
-        return dateString ? new Date(dateString).toLocaleDateString() : fallback;
+        if (!dateString) return fallback;
+        const now = new Date();
+        const datetime = new Date(dateString);
+        return isSameDate(datetime, now)
+            ? datetime.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+            : datetime.toLocaleDateString();
     } catch {
-        return fallback;
+        return 'Unknown';
     }
 };
 
@@ -122,3 +127,11 @@ function formatDateBadge(dateString: string | null, fallback: string, variant: '
     const dateText = formatDate(dateString, fallback);
     return <Badge bg={variant} className={styles.dateBadge}>{dateText}</Badge>;
 };
+
+function isSameDate(one: Date, two: Date) {
+    return (
+        one.getFullYear() === two.getFullYear() &&
+        one.getMonth() === two.getMonth() &&
+        one.getDate() === two.getDate()
+    );
+}
