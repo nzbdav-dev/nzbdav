@@ -6,13 +6,17 @@ using NzbWebDAV.Config;
 
 namespace NzbWebDAV.Clients.RadarrSonarr;
 
-public abstract class ArrClient(string host, string apiKey)
+public class ArrClient(string host, string apiKey)
 {
     public string Host { get; } = host;
     private string ApiKey { get; } = apiKey;
     private const string BasePath = "/api/v3";
 
-    public abstract Task<bool> RemoveAndSearch(string symlinkPath);
+    public Task<ArrApiInfoResponse> GetApiInfo() =>
+        GetRoot<ArrApiInfoResponse>($"/api");
+
+    public virtual Task<bool> RemoveAndSearch(string symlinkPath) =>
+        throw new InvalidOperationException();
 
     public Task<List<ArrRootFolder>> GetRootFolders() =>
         Get<List<ArrRootFolder>>($"/rootfolder");
@@ -37,10 +41,13 @@ public abstract class ArrClient(string host, string apiKey)
     public Task<ArrCommand> CommandAsync(object command) =>
         Post<ArrCommand>($"/command", command);
 
-    protected async Task<T> Get<T>(string path)
+    protected Task<T> Get<T>(string path) =>
+        GetRoot<T>($"{BasePath}{path}");
+
+    protected async Task<T> GetRoot<T>(string rootPath)
     {
         using var httpClient = GetHttpClient();
-        await using var response = await httpClient.GetStreamAsync($"{Host}{BasePath}{path}");
+        await using var response = await httpClient.GetStreamAsync($"{Host}{rootPath}");
         return await JsonSerializer.DeserializeAsync<T>(response) ?? throw new NullReferenceException();
     }
 
