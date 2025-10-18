@@ -22,10 +22,6 @@ public class HealthCheckService
     private readonly WebsocketManager _websocketManager;
     private readonly CancellationToken _cancellationToken = SigtermUtil.GetCancellationToken();
 
-    private const string NoCorrespondingArrInstance =
-        "Deleted unhealthy symlink and webdav-item. " +
-        "Could not find a corresponding Radarr/Sonarr instance to trigger a new search.";
-
     public HealthCheckService
     (
         ConfigManager configManager,
@@ -136,7 +132,7 @@ public class HealthCheckService
                 CreatedAt = DateTimeOffset.UtcNow,
                 Result = HealthCheckResult.HealthResult.Healthy,
                 RepairStatus = HealthCheckResult.RepairAction.None,
-                Message = null
+                Message = "File is healthy."
             }));
             await dbClient.Ctx.SaveChangesAsync(ct);
         }
@@ -194,7 +190,11 @@ public class HealthCheckService
                     CreatedAt = DateTimeOffset.UtcNow,
                     Result = HealthCheckResult.HealthResult.Unhealthy,
                     RepairStatus = HealthCheckResult.RepairAction.Deleted,
-                    Message = null
+                    Message = string.Join(" ", [
+                        "File had missing articles",
+                        "Could not find corresponding symlink within Library Dir.",
+                        "Deleted file."
+                    ])
                 }));
                 await dbClient.Ctx.SaveChangesAsync(ct);
                 return;
@@ -220,7 +220,11 @@ public class HealthCheckService
                         CreatedAt = DateTimeOffset.UtcNow,
                         Result = HealthCheckResult.HealthResult.Unhealthy,
                         RepairStatus = HealthCheckResult.RepairAction.Repaired,
-                        Message = null
+                        Message = string.Join(" ", [
+                            "File had missing articles.",
+                            "Corresponding symlink found within Library Dir.",
+                            "Triggered new Arr search."
+                        ])
                     }));
                     await dbClient.Ctx.SaveChangesAsync(ct);
                     return;
@@ -245,7 +249,12 @@ public class HealthCheckService
                 CreatedAt = DateTimeOffset.UtcNow,
                 Result = HealthCheckResult.HealthResult.Unhealthy,
                 RepairStatus = HealthCheckResult.RepairAction.Deleted,
-                Message = NoCorrespondingArrInstance
+                Message = string.Join(" ", [
+                    "File had missing articles.",
+                    "Corresponding symlink found within Library Dir.",
+                    "Could not find corresponding Radarr/Sonarr media-item to trigger a new search.",
+                    "Deleted file."
+                ])
             }));
             await dbClient.Ctx.SaveChangesAsync(ct);
         }
@@ -264,7 +273,7 @@ public class HealthCheckService
                 CreatedAt = utcNow,
                 Result = HealthCheckResult.HealthResult.Unhealthy,
                 RepairStatus = HealthCheckResult.RepairAction.ActionNeeded,
-                Message = e.Message
+                Message = $"Error performing file repair: {e.Message}"
             }));
             await dbClient.Ctx.SaveChangesAsync(ct);
         }
