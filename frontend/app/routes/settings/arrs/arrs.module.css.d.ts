@@ -11,5 +11,6 @@ declare const styles: {
   readonly alertMessage: string;
   readonly listItem: string;
   readonly statusMessage: string;
+  readonly testButton: string;
 };
 export default styles;

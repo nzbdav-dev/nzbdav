@@ -87,3 +87,7 @@
 .statusMessage {
     margin-bottom: 5px;
 }
+
+.testButton {
+    white-space: nowrap;
+}

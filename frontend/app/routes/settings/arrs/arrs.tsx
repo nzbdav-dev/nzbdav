@@ -1,6 +1,6 @@
-import { Button, Form, Card } from "react-bootstrap";
+import { Button, Form, Card, InputGroup, Spinner } from "react-bootstrap";
 import styles from "./arrs.module.css"
-import { type Dispatch, type SetStateAction, useState, useCallback } from "react";
+import { type Dispatch, type SetStateAction, useState, useCallback, useEffect } from "react";
 
 type ArrsSettingsProps = {
     config: Record<string, string>
@@ -149,6 +149,7 @@ export function ArrsSettings({ config, setNewConfig }: ArrsSettingsProps) {
         })
     }, [arrConfig, updateConfig])
 
+
     return (
         <div className={styles.container}>
             <div className={styles.section}>
@@ -162,7 +163,14 @@ export function ArrsSettings({ config, setNewConfig }: ArrsSettingsProps) {
                     <p className={styles.alertMessage}>No Radarr instances configured. Click on the "Add" button to get started.</p>
                 ) : (
                     arrConfig.RadarrInstances.map((instance: any, index: number) =>
-                        renderInstanceForm(instance, index, 'radarr', updateRadarrInstance, removeRadarrInstance)
+                        <InstanceForm
+                            key={index}
+                            instance={instance}
+                            index={index}
+                            type="radarr"
+                            onUpdate={updateRadarrInstance}
+                            onRemove={removeRadarrInstance}
+                        />
                     )
                 )}
             </div>
@@ -178,7 +186,14 @@ export function ArrsSettings({ config, setNewConfig }: ArrsSettingsProps) {
                     <p className={styles.alertMessage}>No Sonarr instances configured. Click on the "Add" button to get started.</p>
                 ) : (
                     arrConfig.SonarrInstances.map((instance: any, index: number) =>
-                        renderInstanceForm(instance, index, 'sonarr', updateSonarrInstance, removeSonarrInstance)
+                        <InstanceForm
+                            key={index}
+                            instance={instance}
+                            index={index}
+                            type="sonarr"
+                            onUpdate={updateSonarrInstance}
+                            onRemove={removeSonarrInstance}
+                        />
                     )
                 )}
             </div>
@@ -214,15 +229,52 @@ export function ArrsSettings({ config, setNewConfig }: ArrsSettingsProps) {
     );
 }
 
-function renderInstanceForm(
-    instance: ConnectionDetails,
-    index: number,
-    type: 'radarr' | 'sonarr',
-    onUpdate: (index: number, field: keyof ConnectionDetails, value: string) => void,
-    onRemove: (index: number) => void
-) {
+interface InstanceFormProps {
+    instance: ConnectionDetails;
+    index: number;
+    type: 'radarr' | 'sonarr';
+    onUpdate: (index: number, field: keyof ConnectionDetails, value: string) => void;
+    onRemove: (index: number) => void;
+}
+
+function InstanceForm({ instance, index, type, onUpdate, onRemove }: InstanceFormProps) {
+    const [connectionState, setConnectionState] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
+
+    useEffect(() => {
+        setConnectionState('idle');
+    }, [instance.Host, instance.ApiKey]);
+
+    const testConnection = useCallback(async (host: string, apiKey: string) => {
+        if (!host.trim() || !apiKey.trim()) {
+            return;
+        }
+
+        setConnectionState('testing');
+
+        try {
+            const formData = new FormData();
+            formData.append('host', host);
+            formData.append('apiKey', apiKey);
+
+            const response = await fetch('/api/test-arr-connection', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (result.status && result.connected) {
+                setConnectionState('success');
+            } else {
+                setConnectionState('error');
+            }
+        } catch (error) {
+            setConnectionState('error');
+        }
+    }, []);
+
     return (
-        <Card key={index} className={styles.instanceCard}>
+        <Card className={styles.instanceCard}>
             <button
                 className={styles.closeButton}
                 onClick={() => onRemove(index)}
@@ -233,12 +285,32 @@ function renderInstanceForm(
             <Card.Body>
                 <Form.Group>
                     <Form.Label>Host</Form.Label>
-                    <Form.Control
-                        type="text"
-                        className={styles.input}
-                        placeholder={type === "radarr" ? "http://localhost:7878" : "http://localhost:8989"}
-                        value={instance.Host}
-                        onChange={e => onUpdate(index, 'Host', e.target.value)} />
+                    <InputGroup className={styles.input}>
+                        <Form.Control
+                            type="text"
+                            placeholder={type === "radarr" ? "http://localhost:7878" : "http://localhost:8989"}
+                            value={instance.Host}
+                            onChange={e => onUpdate(index, 'Host', e.target.value)} />
+                        {instance.Host.trim() && instance.ApiKey.trim() && (
+                            <Button
+                                variant={connectionState === 'success' ? 'success' :
+                                    connectionState === 'error' ? 'danger' : 'secondary'}
+                                onClick={() => testConnection(instance.Host, instance.ApiKey)}
+                                disabled={connectionState === 'testing'}
+                                className={styles.testButton}
+                            >
+                                {
+                                    connectionState === 'testing' ? (
+                                        <Spinner animation="border" size="sm" />
+                                    ) : connectionState === 'success' ? (
+                                        <span style={{ color: 'white' }}>✓</span>
+                                    ) : connectionState === 'error' ? (
+                                        <span style={{ color: 'white' }}>✗</span>
+                                    ) : ('?')
+                                }
+                            </Button>
+                        )}
+                    </InputGroup>
                 </Form.Group>
                 <Form.Group>
                     <Form.Label>API Key</Form.Label>
