@@ -37,6 +37,10 @@ const queueStatusMessages = [
         searchTerm: "was not found in the grabbed release"
     },
     {
+        display: "Episode was unexpected considering the folder name",
+        searchTerm: "was unexpected considering the"
+    },
+    {
         display: "Not an upgrade for existing episode file(s)",
         searchTerm: "Not an upgrade for existing episode file(s)"
     },
@@ -55,6 +59,10 @@ const queueStatusMessages = [
     {
         display: "No audio tracks detected",
         searchTerm: "No audio tracks detected"
+    },
+    {
+        display: "Invalid season or episode",
+        searchTerm: "Invalid season or episode"
     },
     {
         display: "Unable to determine if file is a sample",
