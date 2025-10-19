@@ -121,7 +121,8 @@ public class QueueManager : IDisposable
         {
             inProgressQueueItem.ProgressPercentage = progress;
             var message = $"{queueItem.Id}|{progress}";
-            debounce(() => _websocketManager.SendMessage(WebsocketTopic.QueueItemProgress, message));
+            if (progress is 100 or 200) _websocketManager.SendMessage(WebsocketTopic.QueueItemProgress, message);
+            else debounce(() => _websocketManager.SendMessage(WebsocketTopic.QueueItemProgress, message));
         };
         return inProgressQueueItem;
     }
