@@ -6,6 +6,7 @@ type User = {
   username: string;
 };
 
+const oneYear = 60 * 60 * 24 * 365; // seconds
 export const sessionStorage = createCookieSessionStorage({
   cookie: {
     name: "__session",
@@ -14,6 +15,7 @@ export const sessionStorage = createCookieSessionStorage({
     sameSite: "strict",
     secrets: [process?.env?.SESSION_KEY || crypto.randomBytes(64).toString('hex')],
     secure: ["true", "yes"].includes(process?.env?.SECURE_COOKIES || ""),
+    maxAge: oneYear,
   },
 });
 
