@@ -120,6 +120,7 @@ public class HealthCheckService
             var progress = progressHook.ToPercentage(segments.Count);
             await _usenetClient.CheckAllSegmentsAsync(segments, concurrency, progress, ct);
             _ = _websocketManager.SendMessage(WebsocketTopic.HealthItemProgress, $"{davItem.Id}|100");
+            _ = _websocketManager.SendMessage(WebsocketTopic.HealthItemProgress, $"{davItem.Id}|done");
 
             // update the database
             davItem.LastHealthCheck = DateTimeOffset.UtcNow;
@@ -140,6 +141,7 @@ public class HealthCheckService
         {
             // when usenet article is missing, perform repairs
             _ = _websocketManager.SendMessage(WebsocketTopic.HealthItemProgress, $"{davItem.Id}|100");
+            _ = _websocketManager.SendMessage(WebsocketTopic.HealthItemProgress, $"{davItem.Id}|done");
             await Repair(davItem, dbClient, ct);
         }
     }
