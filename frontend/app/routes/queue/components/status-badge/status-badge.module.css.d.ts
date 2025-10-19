@@ -3,8 +3,9 @@ declare const styles: {
   readonly "badge": string;
   readonly "badge-text": string;
   readonly "progress": string;
-  readonly "healthcheck-progress": string;
+  readonly "healthcheckProgress": string;
   readonly "failure-badge": string;
+  readonly "gray": string;
 };
 export = styles;
 

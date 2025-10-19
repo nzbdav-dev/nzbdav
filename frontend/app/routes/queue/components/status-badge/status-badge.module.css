@@ -30,10 +30,14 @@
     width: 0;
     height: 100%;
     background-color: rgba(var(--bs-primary-rgb));
-    transition: width 500ms ease-in-out;
+    transition: width 500ms ease-in-out, background-color 500ms ease-in-out;
+
+    &.gray {
+        background-color: #333;
+    }
 }
 
-.healthcheck-progress {
+.healthcheckProgress {
     background-color: #60aa4a;
 }
 

@@ -22,7 +22,8 @@ export function StatusBadge({ status, percentage, error }: StatusBadgeProps) {
 
     // determine badge text
     let badgeText = statusLower;
-    if (statusLower === "downloading" || percentNum > 0) badgeText = `${percentNum % 100}%`;
+    if (statusLower === "downloading" || percentNum > 0)
+        badgeText = `${percentNum > 100 ? percentNum - 100 : percentNum}%`;
 
     // determine class name
     if (error?.startsWith("Article with message-id")) error = "Missing articles";
@@ -50,17 +51,24 @@ type ProgressBadgeProps = {
 export function ProgressBadge(props: ProgressBadgeProps) {
     const isHealthCheck = props.percentNum > 100;
 
-    const progressClassName = isHealthCheck
-        ? styles.progress + " " + styles["healthcheck-progress"]
+    const progressOneClass = isHealthCheck
+        ? `${styles.progress} ${styles.gray}`
         : styles.progress;
 
-    const style = (props.percentNum >= 0)
-        ? { width: `${props.percentNum % 100}%` }
+    const progressOneStyle = (props.percentNum >= 0)
+        ? { width: `${Math.min(props.percentNum, 100)}%` }
+        : undefined;
+
+    const progressTwoClass = `${styles.progress} ${styles.healthcheckProgress}`;
+
+    const progressTwoStyle = isHealthCheck
+        ? { width: `${Math.min(props.percentNum - 100, 100)}%` }
         : undefined;
 
     return (
         <div {...className([styles.badge, props.className])} style={{ backgroundColor: props.color }}>
-            <div className={progressClassName} style={style} />
+            <div className={progressOneClass} style={progressOneStyle} />
+            <div className={progressTwoClass} style={progressTwoStyle} />
             <div className={styles["badge-text"]}>{props.children}</div>
         </div>
     );
