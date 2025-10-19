@@ -94,6 +94,7 @@ export default function Health({ loaderData }: Route.ComponentProps) {
 
     const onHealthItemProgress = useCallback((message: string) => {
         const [davItemId, progress] = message.split('|');
+        if (progress === "done") return;
         setQueueItems(queueItems => {
             var index = queueItems.findIndex(x => x.id === davItemId);
             if (index === -1) return queueItems;

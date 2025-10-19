@@ -3,7 +3,6 @@ import type { HealthCheckQueueItem } from "~/clients/backend-client.server";
 import styles from "./health-table.module.css";
 import { Truncate } from "~/routes/queue/components/truncate/truncate";
 import { ProgressBadge } from "~/routes/queue/components/status-badge/status-badge";
-import { progress } from "~/routes/queue/components/status-badge/status-badge.module.css";
 
 export type HealthTableProps = {
     isEnabled: boolean,
