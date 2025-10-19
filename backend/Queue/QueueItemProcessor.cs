@@ -142,7 +142,7 @@ public class QueueItemProcessor(
         if (configManager.IsEnsureArticleExistenceEnabled())
         {
             var articlesToCheck = fileInfos
-                .Where(x => FilenameUtil.IsImportantFileType(x.FileName))
+                .Where(x => x.IsRar || FilenameUtil.IsImportantFileType(x.FileName))
                 .SelectMany(x => x.NzbFile.GetSegmentIds())
                 .ToList();
             var part3Progress = progress
