@@ -36,7 +36,9 @@ public static class RarHeaderExtensions
 
     public static int? GetVolumeNumber(this IRarHeader header)
     {
-        return (int?)header.GetReflectionProperty("VolumeNumber");
+        return header.HeaderType == HeaderType.Archive
+            ? (int?)header.GetReflectionProperty("VolumeNumber")
+            : (short)header.GetReflectionProperty("VolumeNumber")!;
     }
 
     public static bool GetIsFirstVolume(this IRarHeader header)

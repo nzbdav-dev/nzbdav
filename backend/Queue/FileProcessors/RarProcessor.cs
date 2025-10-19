@@ -25,13 +25,12 @@ public class RarProcessor(
             await using var stream = await GetNzbFileStream();
             await using var cancellableStream = new CancellableStream(stream, ct);
             var headers = await Task.Run(() => GetRarHeaders(cancellableStream));
-            var archiveHeader = headers.FirstOrDefault(x => x.HeaderType == HeaderType.Archive);
             return new Result()
             {
                 NzbFile = fileInfo.NzbFile,
                 PartSize = cancellableStream.Length,
                 ArchiveName = GetArchiveName(),
-                PartNumber = GetPartNumber(archiveHeader),
+                PartNumber = GetPartNumber(headers),
                 StoredFileSegments = headers
                     .Where(x => x.HeaderType == HeaderType.File)
                     .Select(x => new StoredFileSegment()
@@ -57,12 +56,11 @@ public class RarProcessor(
         return sansExtension;
     }
 
-    private int GetPartNumber(IRarHeader? archiveHeader)
+    private int GetPartNumber(List<IRarHeader> rarHeaders)
     {
         // read from archive-header if possible
-        var archiveVolumeNumber = archiveHeader?.GetVolumeNumber();
-        if (archiveVolumeNumber != null) return archiveVolumeNumber!.Value;
-        if (archiveHeader?.GetIsFirstVolume() == true) return -1;
+        var partNumberFromHeaders = GetPartNumberFromHeaders(rarHeaders);
+        if (partNumberFromHeaders != null) return partNumberFromHeaders!.Value;
 
         // handle the `.partXXX.rar` format
         var partMatch = Regex.Match(fileInfo.FileName, @"\.part(\d+)\.rar$", RegexOptions.IgnoreCase);
@@ -79,6 +77,22 @@ public class RarProcessor(
         throw new Exception("Could not determine part number for RAR file.");
     }
 
+    private static int? GetPartNumberFromHeaders(List<IRarHeader> headers)
+    {
+        headers = headers.Where(x => x.HeaderType is HeaderType.Archive or HeaderType.EndArchive).ToList();
+
+        var archiveHeader = headers.FirstOrDefault(x => x.HeaderType is HeaderType.Archive);
+        var archiveVolumeNumber = archiveHeader?.GetVolumeNumber();
+        if (archiveVolumeNumber != null) return archiveVolumeNumber!.Value;
+        if (archiveHeader?.GetIsFirstVolume() == true) return -1;
+
+        var endHeader = headers.FirstOrDefault(x => x.HeaderType == HeaderType.EndArchive);
+        var endVolumeNumber = endHeader?.GetVolumeNumber();
+        if (endVolumeNumber != null) return endVolumeNumber!.Value;
+
+        return null;
+    }
+
     private List<IRarHeader> GetRarHeaders(Stream stream)
     {
         ct.ThrowIfCancellationRequested();
@@ -89,7 +103,7 @@ public class RarProcessor(
             ct.ThrowIfCancellationRequested();
 
             // Add archive headers
-            if (header.HeaderType == HeaderType.Archive)
+            if (header.HeaderType is HeaderType.Archive or HeaderType.EndArchive)
             {
                 headers.Add(header);
                 continue;
@@ -105,10 +119,6 @@ public class RarProcessor(
 
             // add the headers
             headers.Add(header);
-
-            // break early if we think there are no more headers.
-            var left = stream.Length - (header.GetDataStartPosition() + header.GetCompressedSize());
-            if (left < 1000) break;
         }
 
         return headers;
