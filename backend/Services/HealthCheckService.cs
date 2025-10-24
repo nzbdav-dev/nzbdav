@@ -85,7 +85,9 @@ public class HealthCheckService
         var actionNeeded = HealthCheckResult.RepairAction.ActionNeeded;
         var healthCheckResults = dbClient.Ctx.HealthCheckResults;
         return dbClient.Ctx.Items
-            .Where(x => x.Type == DavItem.ItemType.NzbFile || x.Type == DavItem.ItemType.RarFile)
+            .Where(x => x.Type == DavItem.ItemType.NzbFile
+                        || x.Type == DavItem.ItemType.RarFile
+                        || x.Type == DavItem.ItemType.MultipartFile)
             .Where(x => !healthCheckResults.Any(h => h.DavItemId == x.Id && h.RepairStatus == actionNeeded))
             .OrderBy(x => x.NextHealthCheck)
             .ThenByDescending(x => x.ReleaseDate)
@@ -168,6 +170,14 @@ public class HealthCheckService
                 .Where(x => x.Id == davItem.Id)
                 .FirstOrDefaultAsync(ct);
             return rarFile?.RarParts?.SelectMany(x => x.SegmentIds)?.ToList() ?? [];
+        }
+
+        if (davItem.Type == DavItem.ItemType.MultipartFile)
+        {
+            var multipartFile = await dbClient.Ctx.MultipartFiles
+                .Where(x => x.Id == davItem.Id)
+                .FirstOrDefaultAsync(ct);
+            return multipartFile?.Metadata?.FileParts?.SelectMany(x => x.SegmentIds)?.ToList() ?? [];
         }
 
         return [];

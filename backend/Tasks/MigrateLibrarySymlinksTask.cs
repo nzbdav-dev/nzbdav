@@ -69,6 +69,7 @@ public class MigrateLibrarySymlinksTask(
         {
             DatabaseStoreNzbFile nzbFile => nzbFile.DavItem,
             DatabaseStoreRarFile rarFile => rarFile.DavItem,
+            DatabaseStoreMultipartFile multipartFile => multipartFile.DavItem,
             _ => null
         };
 

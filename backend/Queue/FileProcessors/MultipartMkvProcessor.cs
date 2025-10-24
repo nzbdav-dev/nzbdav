@@ -2,6 +2,7 @@
 using NzbWebDAV.Clients.Usenet;
 using NzbWebDAV.Database.Models;
 using NzbWebDAV.Extensions;
+using NzbWebDAV.Models;
 using NzbWebDAV.Queue.DeobfuscationSteps._3.GetFileInfos;
 
 namespace NzbWebDAV.Queue.FileProcessors;
@@ -27,16 +28,15 @@ public class MultipartMkvProcessor : BaseProcessor
     public override async Task<BaseProcessor.Result?> ProcessAsync()
     {
         var sortedFileInfos = _fileInfos.OrderBy(f => GetPartNumber(f.FileName)).ToList();
-        var fileParts = new List<DavRarFile.RarPart>();
+        var fileParts = new List<DavMultipartFile.FilePart>();
         foreach (var fileInfo in sortedFileInfos)
         {
             var partSize = fileInfo.FileSize ?? await _client.GetFileSizeAsync(fileInfo.NzbFile, _ct);
-            fileParts.Add(new DavRarFile.RarPart
+            fileParts.Add(new DavMultipartFile.FilePart
             {
                 SegmentIds = fileInfo.NzbFile.GetSegmentIds(),
-                PartSize = partSize,
-                Offset = 0,
-                ByteCount = partSize
+                SegmentIdByteRange = LongRange.FromStartAndSize(0, partSize),
+                FilePartByteRange = LongRange.FromStartAndSize(0, partSize),
             });
         }
 
@@ -63,7 +63,7 @@ public class MultipartMkvProcessor : BaseProcessor
     public new class Result : BaseProcessor.Result
     {
         public required string Filename { get; init; }
-        public required List<DavRarFile.RarPart> Parts { get; init; } = [];
+        public required List<DavMultipartFile.FilePart> Parts { get; init; } = [];
         public required DateTimeOffset ReleaseDate { get; init; }
     }
 }

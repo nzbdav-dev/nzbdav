@@ -61,7 +61,7 @@ public class DatabaseStoreCollection(
         if (davItem is null) return DavStatusCode.NotFound;
 
         // If the item is a file, simply delete it and we're done.
-        if (davItem.Type is DavItem.ItemType.NzbFile or DavItem.ItemType.RarFile)
+        if (davItem.Type is DavItem.ItemType.NzbFile or DavItem.ItemType.RarFile or DavItem.ItemType.MultipartFile)
         {
             dbClient.Ctx.Items.Remove(davItem);
             await dbClient.Ctx.SaveChangesAsync();
@@ -101,6 +101,9 @@ public class DatabaseStoreCollection(
                     davItem, httpContext, dbClient, usenetClient, configManager),
             DavItem.ItemType.RarFile =>
                 new DatabaseStoreRarFile(
+                    davItem, httpContext, dbClient, usenetClient, configManager),
+            DavItem.ItemType.MultipartFile =>
+                new DatabaseStoreMultipartFile(
                     davItem, httpContext, dbClient, usenetClient, configManager),
             _ => throw new ArgumentException("Unrecognized directory child type.")
         };

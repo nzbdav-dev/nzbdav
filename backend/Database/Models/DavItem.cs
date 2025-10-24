@@ -56,6 +56,7 @@ public class DavItem
         NzbFile = 3,
         RarFile = 4,
         IdsRoot = 5,
+        MultipartFile = 6,
     }
 
     // navigation helpers

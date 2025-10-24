@@ -23,6 +23,7 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
     public DbSet<DavItem> Items => Set<DavItem>();
     public DbSet<DavNzbFile> NzbFiles => Set<DavNzbFile>();
     public DbSet<DavRarFile> RarFiles => Set<DavRarFile>();
+    public DbSet<DavMultipartFile> MultipartFiles => Set<DavMultipartFile>();
     public DbSet<QueueItem> QueueItems => Set<QueueItem>();
     public DbSet<HistoryItem> HistoryItems => Set<HistoryItem>();
     public DbSet<HealthCheckResult> HealthCheckResults => Set<HealthCheckResult>();
@@ -159,6 +160,31 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
             e.HasOne(f => f.DavItem)
                 .WithOne()
                 .HasForeignKey<DavRarFile>(f => f.Id)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // DavMultipartFile
+        b.Entity<DavMultipartFile>(e =>
+        {
+            e.ToTable("DavMultipartFiles");
+            e.HasKey(f => f.Id);
+
+            e.Property(i => i.Id)
+                .ValueGeneratedNever();
+
+            e.Property(f => f.Metadata)
+                .HasConversion(new ValueConverter<DavMultipartFile.Meta, string>
+                (
+                    v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
+                    v => JsonSerializer.Deserialize<DavMultipartFile.Meta>(v, (JsonSerializerOptions?)null) ??
+                         new DavMultipartFile.Meta()
+                ))
+                .HasColumnType("TEXT") // store raw JSON
+                .IsRequired();
+
+            e.HasOne(f => f.DavItem)
+                .WithOne()
+                .HasForeignKey<DavMultipartFile>(f => f.Id)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

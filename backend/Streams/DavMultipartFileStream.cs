@@ -4,8 +4,8 @@ using NzbWebDAV.Extensions;
 
 namespace NzbWebDAV.Streams;
 
-public class RarFileStream(
-    DavRarFile.RarPart[] rarParts,
+public class DavMultipartFileStream(
+    DavMultipartFile.FilePart[] fileParts,
     UsenetStreamingClient usenet,
     int concurrentConnections
 ) : Stream
@@ -58,7 +58,7 @@ public class RarFileStream(
     public override bool CanRead => true;
     public override bool CanSeek => true;
     public override bool CanWrite => false;
-    public override long Length { get; } = rarParts.Select(x => x.ByteCount).Sum();
+    public override long Length { get; } = fileParts.Select(x => x.FilePartByteRange.Count).Sum();
 
     public override long Position
     {
@@ -67,13 +67,13 @@ public class RarFileStream(
     }
 
 
-    private (int rarPartIndex, long rarPartOffset) SeekRarPart(long byteOffset)
+    private (int filePartIndex, long filePartOffset) SeekFilePart(long byteOffset)
     {
         long offset = 0;
-        for (var i = 0; i < rarParts.Length; i++)
+        for (var i = 0; i < fileParts.Length; i++)
         {
-            var rarPart = rarParts[i];
-            var nextOffset = offset + rarPart.ByteCount;
+            var filePart = fileParts[i];
+            var nextOffset = offset + filePart.FilePartByteRange.Count;
             if (byteOffset < nextOffset)
                 return (i, offset);
             offset = nextOffset;
@@ -85,20 +85,20 @@ public class RarFileStream(
     private CombinedStream GetFileStream(long rangeStart, CancellationToken cancellationToken)
     {
         if (rangeStart == 0) return GetCombinedStream(0, 0, cancellationToken);
-        var (rarPartIndex, rarPartOffset) = SeekRarPart(rangeStart);
-        var stream = GetCombinedStream(rarPartIndex, rangeStart - rarPartOffset, cancellationToken);
+        var (filePartIndex, filePartOffset) = SeekFilePart(rangeStart);
+        var stream = GetCombinedStream(filePartIndex, rangeStart - filePartOffset, cancellationToken);
         return stream;
     }
 
-    private CombinedStream GetCombinedStream(int firstRarPartIndex, long additionalOffset, CancellationToken ct)
+    private CombinedStream GetCombinedStream(int firstFilePartIndex, long additionalOffset, CancellationToken ct)
     {
-        var streams = rarParts[firstRarPartIndex..]
+        var streams = fileParts[firstFilePartIndex..]
             .Select((x, i) =>
             {
                 var offset = (i == 0) ? additionalOffset : 0;
-                var stream = usenet.GetFileStream(x.SegmentIds, x.PartSize, concurrentConnections);
-                stream.Seek(x.Offset + offset, SeekOrigin.Begin);
-                return Task.FromResult(stream.LimitLength(x.ByteCount - offset));
+                var stream = usenet.GetFileStream(x.SegmentIds, x.SegmentIdByteRange.Count, concurrentConnections);
+                stream.Seek(x.FilePartByteRange.StartInclusive + offset, SeekOrigin.Begin);
+                return Task.FromResult(stream.LimitLength(x.FilePartByteRange.Count - offset));
             });
         return new CombinedStream(streams);
     }

@@ -35,20 +35,23 @@ public class MultipartMkvAggregator
                 id: Guid.NewGuid(),
                 parent: parentDirectory,
                 name: name,
-                fileSize: fileParts.Sum(x => x.ByteCount),
-                type: DavItem.ItemType.RarFile,
+                fileSize: fileParts.Sum(x => x.FilePartByteRange.Count),
+                type: DavItem.ItemType.MultipartFile,
                 releaseDate: multipartMkvFile.ReleaseDate,
                 lastHealthCheck: checkedFullHealth ? DateTimeOffset.UtcNow : null
             );
 
-            var davRarFile = new DavRarFile()
+            var davMultipartFile = new DavMultipartFile()
             {
                 Id = davItem.Id,
-                RarParts = fileParts.ToArray(),
+                Metadata = new DavMultipartFile.Meta()
+                {
+                    FileParts = fileParts.ToArray()
+                }
             };
 
             dbClient.Ctx.Items.Add(davItem);
-            dbClient.Ctx.RarFiles.Add(davRarFile);
+            dbClient.Ctx.MultipartFiles.Add(davMultipartFile);
         }
     }
 }

@@ -78,7 +78,7 @@ public class SevenZipProcessor : BaseProcessor
         return string.IsNullOrEmpty(match.Groups[2].Value) ? -1 : int.Parse(match.Groups[2].Value);
     }
 
-    private List<DavRarFile.RarPart> GetSevenZipParts
+    private List<DavMultipartFile.FilePart> GetSevenZipParts
     (
         SevenZipUtil.SevenZipEntry sevenZipEntry,
         MultipartFile multipartFile
@@ -112,12 +112,11 @@ public class SevenZipProcessor : BaseProcessor
                     : multipartFile.FileParts[index].PartSize;
                 var partByteCount = partEndExclusive - partStartInclusive;
 
-                return new DavRarFile.RarPart()
+                return new DavMultipartFile.FilePart()
                 {
                     SegmentIds = multipartFile.FileParts[index].NzbFile.GetSegmentIds(),
-                    PartSize = multipartFile.FileParts[index].PartSize,
-                    Offset = partStartInclusive,
-                    ByteCount = partByteCount
+                    SegmentIdByteRange = LongRange.FromStartAndSize(0, multipartFile.FileParts[index].PartSize),
+                    FilePartByteRange = LongRange.FromStartAndSize(partStartInclusive, partByteCount),
                 };
             })
             .ToList();
@@ -131,7 +130,7 @@ public class SevenZipProcessor : BaseProcessor
     public class SevenZipFile
     {
         public required string PathWithinArchive { get; init; }
-        public required List<DavRarFile.RarPart> Parts { get; init; }
+        public required List<DavMultipartFile.FilePart> Parts { get; init; }
         public required DateTimeOffset ReleaseDate { get; init; }
     }
 }

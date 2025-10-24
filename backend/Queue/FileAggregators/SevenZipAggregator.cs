@@ -5,8 +5,7 @@ using NzbWebDAV.Utils;
 
 namespace NzbWebDAV.Queue.FileAggregators;
 
-public class SevenZipAggregator
-(
+public class SevenZipAggregator(
     DavDatabaseClient dbClient,
     DavItem mountDirectory,
     bool checkedFullHealth
@@ -43,20 +42,23 @@ public class SevenZipAggregator
                 id: Guid.NewGuid(),
                 parent: parentDirectory,
                 name: name,
-                fileSize: sevenZipParts.Sum(x => x.ByteCount),
-                type: DavItem.ItemType.RarFile,
+                fileSize: sevenZipParts.Sum(x => x.FilePartByteRange.Count),
+                type: DavItem.ItemType.MultipartFile,
                 releaseDate: sevenZipFile.ReleaseDate,
                 lastHealthCheck: checkedFullHealth ? DateTimeOffset.UtcNow : null
             );
 
-            var davRarFile = new DavRarFile()
+            var davMultipartFile = new DavMultipartFile()
             {
                 Id = davItem.Id,
-                RarParts = sevenZipParts.ToArray(),
+                Metadata = new DavMultipartFile.Meta()
+                {
+                    FileParts = sevenZipParts.ToArray()
+                }
             };
 
             dbClient.Ctx.Items.Add(davItem);
-            dbClient.Ctx.RarFiles.Add(davRarFile);
+            dbClient.Ctx.MultipartFiles.Add(davMultipartFile);
         }
     }
 }

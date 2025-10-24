@@ -97,6 +97,8 @@ public class DatabaseStoreSymlinkCollection(
                 new DatabaseStoreSymlinkFile(davItem, configManager),
             DavItem.ItemType.RarFile =>
                 new DatabaseStoreSymlinkFile(davItem, configManager),
+            DavItem.ItemType.MultipartFile =>
+                new DatabaseStoreSymlinkFile(davItem, configManager),
             _ => throw new ArgumentException("Unrecognized directory child type.")
         };
     }

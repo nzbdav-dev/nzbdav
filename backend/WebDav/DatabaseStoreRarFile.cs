@@ -4,6 +4,7 @@ using NzbWebDAV.Clients.Usenet;
 using NzbWebDAV.Config;
 using NzbWebDAV.Database;
 using NzbWebDAV.Database.Models;
+using NzbWebDAV.Models;
 using NzbWebDAV.Streams;
 using NzbWebDAV.WebDav.Base;
 
@@ -32,6 +33,11 @@ public class DatabaseStoreRarFile(
         var id = davRarFile.Id;
         var rarFile = await dbClient.Ctx.RarFiles.Where(x => x.Id == id).FirstOrDefaultAsync(ct);
         if (rarFile is null) throw new FileNotFoundException($"Could not find nzb file with id: {id}");
-        return new RarFileStream(rarFile.RarParts, usenetClient, configManager.GetConnectionsPerStream());
+        return new DavMultipartFileStream
+        (
+            rarFile.ToDavMultipartFileMeta().FileParts,
+            usenetClient,
+            configManager.GetConnectionsPerStream()
+        );
     }
 }

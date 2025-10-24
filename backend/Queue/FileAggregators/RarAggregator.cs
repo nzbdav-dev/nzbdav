@@ -1,6 +1,7 @@
 ﻿using NzbWebDAV.Database;
 using NzbWebDAV.Database.Models;
 using NzbWebDAV.Extensions;
+using NzbWebDAV.Models;
 using NzbWebDAV.Queue.FileProcessors;
 using NzbWebDAV.Utils;
 
@@ -23,7 +24,7 @@ public class RarAggregator(DavDatabaseClient dbClient, DavItem mountDirectory, b
 
     private void ProcessArchive(List<RarProcessor.Result> archiveParts)
     {
-        var archiveFiles = new Dictionary<string, List<DavRarFile.RarPart>>();
+        var archiveFiles = new Dictionary<string, List<DavMultipartFile.FilePart>>();
         foreach (var archivePart in archiveParts)
         {
             foreach (var fileSegment in archivePart.StoredFileSegments)
@@ -31,12 +32,11 @@ public class RarAggregator(DavDatabaseClient dbClient, DavItem mountDirectory, b
                 if (!archiveFiles.ContainsKey(fileSegment.PathWithinArchive))
                     archiveFiles.Add(fileSegment.PathWithinArchive, []);
 
-                archiveFiles[fileSegment.PathWithinArchive].Add(new DavRarFile.RarPart()
+                archiveFiles[fileSegment.PathWithinArchive].Add(new DavMultipartFile.FilePart()
                 {
                     SegmentIds = archivePart.NzbFile.GetSegmentIds(),
-                    PartSize = archivePart.PartSize,
-                    Offset = fileSegment.Offset,
-                    ByteCount = fileSegment.ByteCount,
+                    SegmentIdByteRange = LongRange.FromStartAndSize(0, archivePart.PartSize),
+                    FilePartByteRange = LongRange.FromStartAndSize(fileSegment.Offset, fileSegment.ByteCount),
                 });
             }
         }
@@ -44,7 +44,7 @@ public class RarAggregator(DavDatabaseClient dbClient, DavItem mountDirectory, b
         foreach (var archiveFile in archiveFiles)
         {
             var pathWithinArchive = archiveFile.Key;
-            var rarParts = archiveFile.Value.ToArray();
+            var fileParts = archiveFile.Value.ToArray();
             var parentDirectory = EnsureExtractPath(pathWithinArchive);
             var name = Path.GetFileName(pathWithinArchive);
 
@@ -57,20 +57,23 @@ public class RarAggregator(DavDatabaseClient dbClient, DavItem mountDirectory, b
                 id: Guid.NewGuid(),
                 parent: parentDirectory,
                 name: name,
-                fileSize: rarParts.Sum(x => x.ByteCount),
-                type: DavItem.ItemType.RarFile,
+                fileSize: fileParts.Sum(x => x.FilePartByteRange.Count),
+                type: DavItem.ItemType.MultipartFile,
                 releaseDate: archiveParts.First().ReleaseDate,
                 lastHealthCheck: checkedFullHealth ? DateTimeOffset.UtcNow : null
             );
 
-            var davRarFile = new DavRarFile()
+            var davMultipartFile = new DavMultipartFile()
             {
                 Id = davItem.Id,
-                RarParts = rarParts,
+                Metadata = new DavMultipartFile.Meta()
+                {
+                    FileParts = fileParts,
+                }
             };
 
             dbClient.Ctx.Items.Add(davItem);
-            dbClient.Ctx.RarFiles.Add(davRarFile);
+            dbClient.Ctx.MultipartFiles.Add(davMultipartFile);
         }
     }
 }

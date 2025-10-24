@@ -17,7 +17,9 @@ public class GetHealthCheckQueueController(DavDatabaseClient dbClient) : BaseApi
             .ToListAsync();
 
         var uncheckedCount = await dbClient.Ctx.Items
-            .Where(x => x.Type == DavItem.ItemType.NzbFile || x.Type == DavItem.ItemType.RarFile)
+            .Where(x => x.Type == DavItem.ItemType.NzbFile
+                        || x.Type == DavItem.ItemType.RarFile
+                        || x.Type == DavItem.ItemType.MultipartFile)
             .Where(x => x.NextHealthCheck == null)
             .CountAsync();
 
