@@ -15,17 +15,20 @@ public class SevenZipProcessor : BaseProcessor
 {
     private readonly List<GetFileInfosStep.FileInfo> _fileInfos;
     private readonly UsenetStreamingClient _client;
+    private readonly string? _archivePassword;
     private readonly CancellationToken _ct;
 
     public SevenZipProcessor
     (
         List<GetFileInfosStep.FileInfo> fileInfos,
         UsenetStreamingClient client,
+        string? archivePassword,
         CancellationToken ct
     )
     {
         _fileInfos = fileInfos;
         _client = client;
+        _archivePassword = archivePassword;
         _ct = ct;
     }
 
@@ -33,11 +36,18 @@ public class SevenZipProcessor : BaseProcessor
     {
         var multipartFile = await GetMultipartFile();
         await using var stream = new MultipartFileStream(multipartFile, _client);
-        var sevenZipEntries = await SevenZipUtil.GetSevenZipEntriesAsync(stream, _ct);
+        var sevenZipEntries = await SevenZipUtil.GetSevenZipEntriesAsync(stream, _archivePassword, _ct);
         if (sevenZipEntries.Any(x => x.CompressionType != CompressionType.None))
         {
             const string message = "Only uncompressed 7z files are supported.";
             throw new Unsupported7zCompressionMethodException(message);
+        }
+
+        if (sevenZipEntries.Any(x => x.IsEncrypted && x.IsSolid))
+        {
+            // TODO: Add support for solid 7z archives
+            const string message = "Password-protected 7z archives cannot be solid.";
+            throw new NonRetryableDownloadException(message);
         }
 
         return new Result()
@@ -45,7 +55,7 @@ public class SevenZipProcessor : BaseProcessor
             SevenZipFiles = sevenZipEntries.Select(x => new SevenZipFile()
             {
                 PathWithinArchive = x.PathWithinArchive,
-                Parts = GetSevenZipParts(x, multipartFile),
+                DavMultipartFileMeta = GetDavMultipartFileMeta(x, multipartFile),
                 ReleaseDate = _fileInfos.First().ReleaseDate,
             }).ToList(),
         };
@@ -78,7 +88,7 @@ public class SevenZipProcessor : BaseProcessor
         return string.IsNullOrEmpty(match.Groups[2].Value) ? -1 : int.Parse(match.Groups[2].Value);
     }
 
-    private List<DavMultipartFile.FilePart> GetSevenZipParts
+    private DavMultipartFile.Meta GetDavMultipartFileMeta
     (
         SevenZipUtil.SevenZipEntry sevenZipEntry,
         MultipartFile multipartFile
@@ -100,7 +110,7 @@ public class SevenZipProcessor : BaseProcessor
 
         var endIndexExclusive = endIndexInclusive + 1;
         var indexCount = endIndexExclusive - startIndexInclusive;
-        return Enumerable
+        var fileParts = Enumerable
             .Range(startIndexInclusive, indexCount)
             .Select(index =>
             {
@@ -119,7 +129,13 @@ public class SevenZipProcessor : BaseProcessor
                     FilePartByteRange = LongRange.FromStartAndSize(partStartInclusive, partByteCount),
                 };
             })
-            .ToList();
+            .ToArray();
+
+        return new DavMultipartFile.Meta()
+        {
+            AesParams = sevenZipEntry.AesParams,
+            FileParts = fileParts,
+        };
     }
 
     public new class Result : BaseProcessor.Result
@@ -130,7 +146,7 @@ public class SevenZipProcessor : BaseProcessor
     public class SevenZipFile
     {
         public required string PathWithinArchive { get; init; }
-        public required List<DavMultipartFile.FilePart> Parts { get; init; }
+        public required DavMultipartFile.Meta DavMultipartFileMeta { get; init; }
         public required DateTimeOffset ReleaseDate { get; init; }
     }
 }

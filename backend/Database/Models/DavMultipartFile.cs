@@ -12,6 +12,7 @@ public class DavMultipartFile
 
     public class Meta
     {
+        public AesParams? AesParams { get; set; }
         public FilePart[] FileParts { get; set; } = [];
     }
 

@@ -29,7 +29,7 @@ public class SevenZipAggregator(
         foreach (var sevenZipFile in sevenZipFiles)
         {
             var pathWithinArchive = sevenZipFile.PathWithinArchive;
-            var sevenZipParts = sevenZipFile.Parts;
+            var davMultipartFileMeta = sevenZipFile.DavMultipartFileMeta;
             var parentDirectory = EnsureExtractPath(pathWithinArchive);
             var name = Path.GetFileName(pathWithinArchive);
 
@@ -42,7 +42,8 @@ public class SevenZipAggregator(
                 id: Guid.NewGuid(),
                 parent: parentDirectory,
                 name: name,
-                fileSize: sevenZipParts.Sum(x => x.FilePartByteRange.Count),
+                fileSize: davMultipartFileMeta.AesParams?.DecodedSize
+                    ?? davMultipartFileMeta.FileParts.Sum(x => x.FilePartByteRange.Count),
                 type: DavItem.ItemType.MultipartFile,
                 releaseDate: sevenZipFile.ReleaseDate,
                 lastHealthCheck: checkedFullHealth ? DateTimeOffset.UtcNow : null
@@ -51,10 +52,7 @@ public class SevenZipAggregator(
             var davMultipartFile = new DavMultipartFile()
             {
                 Id = davItem.Id,
-                Metadata = new DavMultipartFile.Meta()
-                {
-                    FileParts = sevenZipParts.ToArray()
-                }
+                Metadata = davMultipartFileMeta
             };
 
             dbClient.Ctx.Items.Add(davItem);

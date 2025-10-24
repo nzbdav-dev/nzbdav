@@ -4,39 +4,46 @@ using NzbWebDAV.Models;
 using NzbWebDAV.Streams;
 using SharpCompress.Archives.SevenZip;
 using SharpCompress.Common;
+using SharpCompress.Readers;
 
 namespace NzbWebDAV.Utils;
 
 public static class SevenZipUtil
 {
-    public static async Task<List<SevenZipEntry>> GetSevenZipEntriesAsync(Stream stream, CancellationToken ct)
+    public static async Task<List<SevenZipEntry>> GetSevenZipEntriesAsync
+    (
+        Stream stream,
+        string? password,
+        CancellationToken ct
+    )
     {
         await using var cancellableStream = new CancellableStream(stream, ct);
-        return await Task.Run(() => GetSevenZipEntries(cancellableStream), ct);
+        return await Task.Run(() => GetSevenZipEntries(cancellableStream, password), ct);
     }
 
-    public static List<SevenZipEntry> GetSevenZipEntries(Stream stream)
+    public static List<SevenZipEntry> GetSevenZipEntries(Stream stream, string? password = null)
     {
-        try
-        {
-            using var archive = SevenZipArchive.Open(stream);
-            return archive.Entries
-                .Where(x => !x.IsDirectory)
-                .Select((entry, index) => new SevenZipEntry(entry, archive, index))
-                .ToList();
-        }
-        catch (CryptographicException e)
-        {
-            throw new PasswordProtected7zException("Password-protected 7z archives are not supported");
-        }
+        using var archive = SevenZipArchive.Open(stream, new ReaderOptions() { Password = password });
+        return archive.Entries
+            .Where(x => !x.IsDirectory)
+            .Select((entry, index) => new SevenZipEntry(entry, archive, index, password))
+            .ToList();
     }
 
-    public class SevenZipEntry(SevenZipArchiveEntry entry, SevenZipArchive archive, int index)
+    public class SevenZipEntry(SevenZipArchiveEntry entry, SevenZipArchive archive, int index, string? password)
     {
+        public SevenZipArchiveEntry Entry => entry;
         public string PathWithinArchive { get; } = entry.Key!;
         public CompressionType CompressionType { get; } = entry.GetCompressionType();
+        public bool IsEncrypted { get; } = entry.IsEncrypted;
+        public bool IsSolid { get; } = entry.IsSolid;
+
+        public AesParams? AesParams { get; } =
+            AesParams.FromCoderInfo(entry.GetAesCoderInfoProps(), password, entry.Size);
+
+        public long FolderStartByteOffset { get; } = entry.GetFolderStartByteOffset();
 
         public LongRange ByteRangeWithinArchive { get; } =
-            LongRange.FromStartAndSize(archive.GetEntryStartByteOffset(index), entry.Size);
+            LongRange.FromStartAndSize(archive.GetEntryStartByteOffset(index), archive.GetPackSize(index));
     }
 }

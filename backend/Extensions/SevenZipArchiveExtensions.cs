@@ -11,4 +11,11 @@ public static class SevenZipArchiveExtensions
         var packStreamStartPositions = (List<long>?)database?.GetReflectionField("_packStreamStartPositions");
         return dataStartPosition!.Value + packStreamStartPositions![index];
     }
+
+    public static long GetPackSize(this SevenZipArchive archive, int index)
+    {
+        var database = archive?.GetReflectionField("_database");
+        var packSizes = (List<long>?)database?.GetReflectionField("_packSizes");
+        return packSizes![index];
+    }
 }

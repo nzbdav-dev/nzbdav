@@ -32,10 +32,13 @@ public class DatabaseStoreMultipartFile(
         var id = davMultipartFile.Id;
         var multipartFile = await dbClient.Ctx.MultipartFiles.Where(x => x.Id == id).FirstOrDefaultAsync(ct);
         if (multipartFile is null) throw new FileNotFoundException($"Could not find nzb file with id: {id}");
-        return new DavMultipartFileStream(
+        var packedStream = new DavMultipartFileStream(
             multipartFile.Metadata.FileParts,
             usenetClient,
             configManager.GetConnectionsPerStream()
         );
+        return multipartFile.Metadata.AesParams != null
+            ? new AesDecoderStream(packedStream, multipartFile.Metadata.AesParams)
+            : packedStream;
     }
 }

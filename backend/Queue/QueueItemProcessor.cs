@@ -109,6 +109,7 @@ public class QueueItemProcessor(
         var documentBytes = Encoding.UTF8.GetBytes(queueItem.NzbContents);
         using var stream = new MemoryStream(documentBytes);
         var nzb = await NzbDocument.LoadAsync(stream);
+        var archivePassword = nzb.MetaData.GetValueOrDefault("password")?.FirstOrDefault();
         var nzbFiles = nzb.Files.Where(x => x.Segments.Count > 0).ToList();
 
         // part 1 -- get name and size of each nzb file
@@ -123,7 +124,7 @@ public class QueueItemProcessor(
             segments, par2FileDescriptors);
 
         // part 2 -- perform file processing
-        var fileProcessors = GetFileProcessors(fileInfos).ToList();
+        var fileProcessors = GetFileProcessors(fileInfos, archivePassword).ToList();
         var part2Progress = progress
             .Offset(50)
             .Scale(50, 100)
@@ -171,7 +172,11 @@ public class QueueItemProcessor(
         });
     }
 
-    private IEnumerable<BaseProcessor> GetFileProcessors(List<GetFileInfosStep.FileInfo> fileInfos)
+    private IEnumerable<BaseProcessor> GetFileProcessors
+    (
+        List<GetFileInfosStep.FileInfo> fileInfos,
+        string? archivePassword
+    )
     {
         var groups = fileInfos
             .DistinctBy(x => x.FileName)
@@ -180,7 +185,7 @@ public class QueueItemProcessor(
         foreach (var group in groups)
         {
             if (group.Key == "7z")
-                yield return new SevenZipProcessor(group.ToList(), usenetClient, ct);
+                yield return new SevenZipProcessor(group.ToList(), usenetClient, archivePassword, ct);
 
             else if (group.Key == "rar")
                 foreach (var fileInfo in group)
