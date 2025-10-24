@@ -58,7 +58,7 @@ public class QueueItemProcessor(
         {
             try
             {
-                Log.Error($"Failed to process job, `{queueItem.JobName}` -- {e.Message} -- {e}");
+                Log.Error($"Failed to process job, `{queueItem.JobName}` -- {e.Message}");
                 dbClient.Ctx.ChangeTracker.Clear();
                 queueItem.PauseUntil = DateTime.Now.AddMinutes(1);
                 dbClient.Ctx.QueueItems.Attach(queueItem);
