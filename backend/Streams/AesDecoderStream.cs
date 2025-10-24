@@ -14,6 +14,7 @@ namespace NzbWebDAV.Streams
         private int _mEnding;
         private int _mUnderflow;
         private bool _isDisposed;
+        private long? pendingSeekPosition = null;
 
         // store for reinitializing on Seek
         private readonly byte[] _mKey;
@@ -65,7 +66,7 @@ namespace NzbWebDAV.Streams
 
         public override long Position
         {
-            get => _mWritten;
+            get => pendingSeekPosition ?? _mWritten;
             set => Seek(value, SeekOrigin.Begin);
         }
 
@@ -81,6 +82,13 @@ namespace NzbWebDAV.Streams
 
         public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken ct)
         {
+            // perform any pending seeks
+            if (pendingSeekPosition != null)
+            {
+                await SeekAsync(pendingSeekPosition.Value, ct);
+                pendingSeekPosition = null;
+            }
+
             if (count == 0 || _mWritten == _mLimit)
                 return 0;
 
@@ -125,9 +133,6 @@ namespace NzbWebDAV.Streams
 
         public override long Seek(long offset, SeekOrigin origin)
         {
-            if (!CanSeek)
-                throw new NotSupportedException();
-
             long target;
             switch (origin)
             {
@@ -147,22 +152,28 @@ namespace NzbWebDAV.Streams
             if (target < 0 || target > _mLimit)
                 throw new ArgumentOutOfRangeException(nameof(offset), "Seek position outside stream limits");
 
+            pendingSeekPosition = target;
+            return target;
+        }
+
+        private async Task SeekAsync(long offset, CancellationToken ct)
+        {
             // Align to AES block size (16)
             var blockSize = 16;
-            var blockIndex = target / blockSize;
-            var blockOffset = target % blockSize;
+            var blockIndex = offset / blockSize;
+            var blockOffset = offset % blockSize;
 
             // We need previous block to get proper IV
-            long cipherPos = blockIndex > 0 ? (blockIndex - 1) * blockSize : 0;
+            var cipherPos = blockIndex > 0 ? (blockIndex - 1) * blockSize : 0;
 
             // Seek underlying stream
             _mStream.Seek(cipherPos, SeekOrigin.Begin);
 
             // Read previous block as IV (or original IV for block 0)
-            byte[] iv = new byte[16];
+            var iv = new byte[16];
             if (blockIndex > 0)
             {
-                int bytesRead = _mStream.Read(iv, 0, 16);
+                var bytesRead = await _mStream.ReadAsync(iv.AsMemory(0, 16), ct);
                 if (bytesRead != 16)
                     throw new EndOfStreamException("Unable to read previous block for IV");
             }
@@ -184,19 +195,18 @@ namespace NzbWebDAV.Streams
             _mOffset = 0;
             _mEnding = 0;
             _mUnderflow = 0;
-            _mWritten = target - blockOffset; // position of start of current block
+            _mWritten = offset - blockOffset; // position of start of current block
 
             // Preload and decrypt up to the block containing target
-            int decrypted = 0;
             if (blockOffset > 0)
             {
                 var tempCipher = new byte[blockSize];
-                int bytes = _mStream.Read(tempCipher, 0, blockSize);
+                var bytes = await _mStream.ReadAsync(tempCipher.AsMemory(0, blockSize), ct);
                 if (bytes != blockSize)
                     throw new EndOfStreamException();
 
                 var tempPlain = new byte[blockSize];
-                decrypted = _mDecoder.TransformBlock(tempCipher, 0, blockSize, tempPlain, 0);
+                var decrypted = _mDecoder.TransformBlock(tempCipher, 0, blockSize, tempPlain, 0);
 
                 // cache the remainder into mBuffer for next reads
                 Buffer.BlockCopy(tempPlain, (int)blockOffset, _mBuffer, 0, decrypted - (int)blockOffset);
@@ -204,8 +214,6 @@ namespace NzbWebDAV.Streams
                 _mEnding = decrypted - (int)blockOffset;
                 _mWritten += blockOffset;
             }
-
-            return target;
         }
 
         private int HandleUnderflow(byte[] buffer, int offset, int count)
