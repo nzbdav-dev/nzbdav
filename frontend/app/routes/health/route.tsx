@@ -13,7 +13,7 @@ const topicNames = {
 }
 const topicSubscriptions = {
     [topicNames.healthItemStatus]: 'event',
-    [topicNames.healthItemProgress]: 'state',
+    [topicNames.healthItemProgress]: 'event',
 }
 
 export async function loader() {
