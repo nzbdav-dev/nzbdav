@@ -49,6 +49,10 @@ const queueStatusMessages = [
         searchTerm: "Not an upgrade for existing movie file"
     },
     {
+        display: "Not a Custom Format upgrade",
+        searchTerm: "Not a Custom Format upgrade"
+    },
+    {
         display: "No files found are eligible for import",
         searchTerm: "No files found are eligible for import"
     },
