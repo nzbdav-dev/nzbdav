@@ -85,7 +85,7 @@ namespace NzbWebDAV.Streams
             // perform any pending seeks
             if (pendingSeekPosition != null)
             {
-                await SeekAsync(pendingSeekPosition.Value, ct);
+                if (!await SeekAsync(pendingSeekPosition.Value, ct)) return 0;
                 pendingSeekPosition = null;
             }
 
@@ -107,8 +107,7 @@ namespace NzbWebDAV.Streams
                     var read = await _mStream
                         .ReadAsync(_mBuffer.AsMemory(_mEnding, _mBuffer.Length - _mEnding), ct)
                         .ConfigureAwait(false);
-                    if (read == 0)
-                        throw new EndOfStreamException();
+                    if (read == 0) return 0;
                     _mEnding += read;
                 } while (_mEnding - _mOffset < 16);
             }
@@ -156,7 +155,7 @@ namespace NzbWebDAV.Streams
             return target;
         }
 
-        private async Task SeekAsync(long offset, CancellationToken ct)
+        private async Task<bool> SeekAsync(long offset, CancellationToken ct)
         {
             // Align to AES block size (16)
             var blockSize = 16;
@@ -174,6 +173,7 @@ namespace NzbWebDAV.Streams
             if (blockIndex > 0)
             {
                 var bytesRead = await _mStream.ReadAsync(iv.AsMemory(0, 16), ct);
+                if (bytesRead == 0) return false;
                 if (bytesRead != 16)
                     throw new EndOfStreamException("Unable to read previous block for IV");
             }
@@ -214,6 +214,8 @@ namespace NzbWebDAV.Streams
                 _mEnding = decrypted - (int)blockOffset;
                 _mWritten += blockOffset;
             }
+
+            return true;
         }
 
         private int HandleUnderflow(byte[] buffer, int offset, int count)
