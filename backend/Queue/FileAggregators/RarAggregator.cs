@@ -14,37 +14,32 @@ public class RarAggregator(DavDatabaseClient dbClient, DavItem mountDirectory, b
 
     public override void UpdateDatabase(List<BaseProcessor.Result> processorResults)
     {
-        var orderedArchiveParts = processorResults
+        var fileSegments = processorResults
             .OfType<RarProcessor.Result>()
+            .SelectMany(x => x.StoredFileSegments)
             .OrderBy(x => x.PartNumber)
             .ToList();
 
-        ProcessArchive(orderedArchiveParts);
+        ProcessArchive(fileSegments);
     }
 
-    private void ProcessArchive(List<RarProcessor.Result> archiveParts)
+    private void ProcessArchive(List<RarProcessor.StoredFileSegment> fileSegments)
     {
-        var archiveFiles = new Dictionary<string, List<DavMultipartFile.FilePart>>();
-        foreach (var archivePart in archiveParts)
+        var archiveFiles = new Dictionary<string, List<RarProcessor.StoredFileSegment>>();
+        foreach (var fileSegment in fileSegments)
         {
-            foreach (var fileSegment in archivePart.StoredFileSegments)
-            {
-                if (!archiveFiles.ContainsKey(fileSegment.PathWithinArchive))
-                    archiveFiles.Add(fileSegment.PathWithinArchive, []);
+            if (!archiveFiles.ContainsKey(fileSegment.PathWithinArchive))
+                archiveFiles.Add(fileSegment.PathWithinArchive, []);
 
-                archiveFiles[fileSegment.PathWithinArchive].Add(new DavMultipartFile.FilePart()
-                {
-                    SegmentIds = archivePart.NzbFile.GetSegmentIds(),
-                    SegmentIdByteRange = LongRange.FromStartAndSize(0, archivePart.PartSize),
-                    FilePartByteRange = LongRange.FromStartAndSize(fileSegment.Offset, fileSegment.ByteCount),
-                });
-            }
+            archiveFiles[fileSegment.PathWithinArchive].Add(fileSegment);
         }
 
         foreach (var archiveFile in archiveFiles)
         {
             var pathWithinArchive = archiveFile.Key;
             var fileParts = archiveFile.Value.ToArray();
+            var aesParams = fileParts.Select(x => x.AesParams).FirstOrDefault(x => x != null);
+            var fileSize = aesParams?.DecodedSize ?? fileParts.Sum(x => x.ByteRangeWithinPart.Count);
             var parentDirectory = EnsureExtractPath(pathWithinArchive);
             var name = Path.GetFileName(pathWithinArchive);
 
@@ -57,9 +52,9 @@ public class RarAggregator(DavDatabaseClient dbClient, DavItem mountDirectory, b
                 id: Guid.NewGuid(),
                 parent: parentDirectory,
                 name: name,
-                fileSize: fileParts.Sum(x => x.FilePartByteRange.Count),
+                fileSize: fileSize,
                 type: DavItem.ItemType.MultipartFile,
-                releaseDate: archiveParts.First().ReleaseDate,
+                releaseDate: fileParts.First().ReleaseDate,
                 lastHealthCheck: checkedFullHealth ? DateTimeOffset.UtcNow : null
             );
 
@@ -68,7 +63,13 @@ public class RarAggregator(DavDatabaseClient dbClient, DavItem mountDirectory, b
                 Id = davItem.Id,
                 Metadata = new DavMultipartFile.Meta()
                 {
-                    FileParts = fileParts,
+                    AesParams = aesParams,
+                    FileParts = fileParts.Select(x => new DavMultipartFile.FilePart()
+                    {
+                        SegmentIds = x.NzbFile.GetSegmentIds(),
+                        SegmentIdByteRange = LongRange.FromStartAndSize(0, x.PartSize),
+                        FilePartByteRange = x.ByteRangeWithinPart
+                    }).ToArray(),
                 }
             };
 

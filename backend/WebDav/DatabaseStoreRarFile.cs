@@ -4,7 +4,6 @@ using NzbWebDAV.Clients.Usenet;
 using NzbWebDAV.Config;
 using NzbWebDAV.Database;
 using NzbWebDAV.Database.Models;
-using NzbWebDAV.Models;
 using NzbWebDAV.Streams;
 using NzbWebDAV.WebDav.Base;
 

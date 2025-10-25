@@ -189,7 +189,7 @@ public class QueueItemProcessor(
 
             else if (group.Key == "rar")
                 foreach (var fileInfo in group)
-                    yield return new RarProcessor(fileInfo, usenetClient, ct);
+                    yield return new RarProcessor(fileInfo, usenetClient, archivePassword, ct);
 
             else if (group.Key == "multipart-mkv")
                 yield return new MultipartMkvProcessor(group.ToList(), usenetClient, ct);

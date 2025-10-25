@@ -1,11 +1,10 @@
 ﻿using System.Text.RegularExpressions;
 using NzbWebDAV.Clients.Usenet;
-using NzbWebDAV.Exceptions;
 using NzbWebDAV.Extensions;
+using NzbWebDAV.Models;
 using NzbWebDAV.Queue.DeobfuscationSteps._3.GetFileInfos;
 using NzbWebDAV.Streams;
 using NzbWebDAV.Utils;
-using SharpCompress.Common;
 using SharpCompress.Common.Rar.Headers;
 using Usenet.Nzb;
 
@@ -14,28 +13,34 @@ namespace NzbWebDAV.Queue.FileProcessors;
 public class RarProcessor(
     GetFileInfosStep.FileInfo fileInfo,
     UsenetStreamingClient usenet,
+    string? password,
     CancellationToken ct
 ) : BaseProcessor
 {
     public override async Task<BaseProcessor.Result?> ProcessAsync()
     {
         await using var stream = await GetNzbFileStream();
-        var headers = await RarUtil.GetRarHeadersAsync(stream, ct);
+        var headers = await RarUtil.GetRarHeadersAsync(stream, password, ct);
+        var archiveName = GetArchiveName();
+        var partNumber = GetPartNumber(headers);
         return new Result()
         {
-            NzbFile = fileInfo.NzbFile,
-            PartSize = stream.Length,
-            ArchiveName = GetArchiveName(),
-            PartNumber = GetPartNumber(headers),
             StoredFileSegments = headers
                 .Where(x => x.HeaderType == HeaderType.File)
                 .Select(x => new StoredFileSegment()
                 {
+                    NzbFile = fileInfo.NzbFile,
+                    PartSize = stream.Length,
+                    ArchiveName = archiveName,
+                    PartNumber = partNumber,
                     PathWithinArchive = x.GetFileName(),
-                    Offset = x.GetDataStartPosition(),
-                    ByteCount = x.GetAdditionalDataSize(),
+                    ByteRangeWithinPart = LongRange.FromStartAndSize(
+                        x.GetDataStartPosition(),
+                        x.GetAdditionalDataSize()
+                    ),
+                    AesParams = x.GetAesParams(password),
+                    ReleaseDate = fileInfo.ReleaseDate,
                 }).ToArray(),
-            ReleaseDate = fileInfo.ReleaseDate,
         };
     }
 
@@ -92,18 +97,19 @@ public class RarProcessor(
 
     public new class Result : BaseProcessor.Result
     {
-        public required NzbFile NzbFile { get; init; }
-        public required long PartSize { get; init; }
-        public required string ArchiveName { get; init; }
-        public required int PartNumber { get; init; }
         public required StoredFileSegment[] StoredFileSegments { get; init; }
-        public required DateTimeOffset ReleaseDate { get; init; }
     }
 
     public class StoredFileSegment
     {
+        public required NzbFile NzbFile { get; init; }
+        public required long PartSize { get; init; }
+        public required string ArchiveName { get; init; }
+        public required int PartNumber { get; init; }
+        public required DateTimeOffset ReleaseDate { get; init; }
+
         public required string PathWithinArchive { get; init; }
-        public required long Offset { get; init; }
-        public required long ByteCount { get; init; }
+        public required LongRange ByteRangeWithinPart { get; init; }
+        public required AesParams? AesParams { get; init; }
     }
 }

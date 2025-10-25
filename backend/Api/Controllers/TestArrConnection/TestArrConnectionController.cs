@@ -1,7 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using NzbWebDAV.Clients.RadarrSonarr;
-using NzbWebDAV.Clients.Usenet;
-using NzbWebDAV.Exceptions;
 
 namespace NzbWebDAV.Api.Controllers.TestArrConnection;
 

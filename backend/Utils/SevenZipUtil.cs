@@ -1,5 +1,4 @@
-﻿using NzbWebDAV.Exceptions;
-using NzbWebDAV.Extensions;
+﻿using NzbWebDAV.Extensions;
 using NzbWebDAV.Models;
 using NzbWebDAV.Streams;
 using SharpCompress.Archives.SevenZip;
