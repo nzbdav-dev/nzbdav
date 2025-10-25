@@ -1,9 +1,3 @@
-> **Note:**
-> 
-> I have paused development on Nzb DAV in anticipation of switching to [Alt-Mount](https://github.com/javi11/altmount) within the coming weeks/months. If you like this project, be sure to check out Alt-Mount as well! ❤️
-
-------
-
 <p align="center">
   <img width="1101" height="238" alt="image" src="https://github.com/user-attachments/assets/b14165f4-24ff-4abe-8af6-3ca852e781d4" />
 </p>
@@ -14,7 +8,7 @@ NzbDav is a WebDAV server that allows you to mount and browse NZB documents as a
 
 Check the video below for a demo:
 
-https://github.com/user-attachments/assets/d9f8caea-bb65-422e-831d-61d626d5b453
+https://github.com/user-attachments/assets/be3e59bc-99df-440d-8144-43b030a4eaa4
 
 > **Attribution**: The video above contains clips of [Sintel (2010)](https://studio.blender.org/projects/sintel/), by Blender Studios, used under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
 
@@ -24,14 +18,12 @@ https://github.com/user-attachments/assets/d9f8caea-bb65-422e-831d-61d626d5b453
 * 📁 **WebDAV Server** - *Host your virtual file system over HTTP(S)*
 * ☁️ **Mount NZB Documents** - *Mount and browse NZB documents without downloading.*
 * 📽️ **Full Streaming and Seeking Abilities** - *Jump ahead to any point in your video streams.*
-* 🗃️ **Automatic Unrar** - *View, stream, and seek content within RAR archives*
-* 🧩 **SABnzbd-Compatible API** - *Integrate with Sonarr/Radarr and other tools using a compatible API.*
+* 🗃️ **Stream archived contents** - *View, stream, and seek content within RAR and 7z archives.*
+* 🔓 **Stream password-protected content** - *View, stream, and seek within password-protected archives.*
+* 💙 **Healthchecks & Repairs** - *Automatically replace content that has been removed from your usenet provider*
+* 🧩 **SABnzbd-Compatible API** - *Use NzbDav as a drop-in replacement for sabnzbd.*
+* 🙌 **Sonarr/Radarr Integration** - *Configure it once, and leave it unattended.*
 
-# Road Map
-* ✅ **Improved Queue/History UI** - *Real-time queue with download progress. And support for manual queue/history actions (e.g. removals)*
-* 🟫 **Automatic Repairs of Broken Nzbs** - *Periodic checks of Nzb health, triggering automatic \*arr replacements when necessary*
-* 🟫 **Multiple/Backup Usenet Providers** - *Fallback to other usenet providers in cases of missing articles*
-* 🟫 **7z Support** - *Support streaming from uncompressed 7z archives*
 
 # Getting Started
 
