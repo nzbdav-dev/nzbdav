@@ -42,8 +42,8 @@ jobs:
         id: set_vars
         run: |
           MAJOR=0
-          MINOR=3
-          PATCH=$(( ${{ github.run_number }} - 50 ))
+          MINOR=4
+          PATCH=$(( ${{ github.run_number }} - 73 ))
 
           if [[ "${{ github.ref_name }}" == "main" ]]; then
             echo "NZBDAV_VERSION=${MAJOR}.${MINOR}.${PATCH}" >> $GITHUB_OUTPUT
@@ -57,10 +57,12 @@ jobs:
             {
               echo "TAGS<<EOF"
               echo "${GHCR_REPO}:alpha"
+              echo "${GHCR_REPO}:latest"
               echo "${GHCR_REPO}:${MAJOR}.x"
               echo "${GHCR_REPO}:${MAJOR}.${MINOR}.x"
               echo "${GHCR_REPO}:${MAJOR}.${MINOR}.${PATCH}"
               echo "${DOCKERHUB_REPO}:alpha"
+              echo "${DOCKERHUB_REPO}:latest"
               echo "${DOCKERHUB_REPO}:${MAJOR}.x"
               echo "${DOCKERHUB_REPO}:${MAJOR}.${MINOR}.x"
               echo "${DOCKERHUB_REPO}:${MAJOR}.${MINOR}.${PATCH}"
