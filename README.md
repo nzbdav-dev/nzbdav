@@ -49,13 +49,13 @@ docker run --rm -it \
 After starting the container, be sure to navigate to the Settings page on the UI to finish setting up your usenet connection settings.
 
 <p align="center">
-    <img width="600" alt="settings-page" src="https://github.com/user-attachments/assets/894c9c12-364c-4a58-9b79-719cfa7a1f12" />
+    <img width="600" alt="settings-page" src="https://github.com/user-attachments/assets/ca0a7fa7-be43-412d-9fec-eda24eb25fdb" />
 </p>
 
 You'll also want to set up a username and password for logging in to the webdav server
 
 <p align="center">
-    <img width="600" alt="webdav-settings" src="https://github.com/user-attachments/assets/94dc7313-c766-4db0-b7f7-5cb601d02295" />
+    <img width="600" alt="webdav-settings" src="https://github.com/user-attachments/assets/833b382c-4e1d-480a-ac25-b9cc674baea4" />
 </p>
 
 # RClone
@@ -233,5 +233,7 @@ volumes:
 
 # More screenshots
 <img width="300" alt="onboarding" src="https://github.com/user-attachments/assets/4ca1bfed-3b98-4ff2-8108-59ed07a25591" />
-<img width="300" alt="queue and history" src="https://github.com/user-attachments/assets/6ae64b41-2ec4-4c40-9c40-de23e42a4178" />
-<img width="300" alt="dav-explorer" src="https://github.com/user-attachments/assets/0e72e987-2fc1-44b2-9ced-17aebbfbf823" />
+<img width="300" alt="queue and history" src="https://github.com/user-attachments/assets/4f69f8dd-0dba-47b4-b02f-3e83ead293db" />
+<img width="300" alt="dav-explorer" src="https://github.com/user-attachments/assets/54a1d49b-8a8d-4306-bcda-9740bd5c9f52" />
+<img width="300" alt="health-page" src="https://github.com/user-attachments/assets/709b81c2-550b-47d0-ad50-65dc184cd3fa" />
+
