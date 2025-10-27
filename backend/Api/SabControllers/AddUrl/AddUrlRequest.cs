@@ -6,6 +6,10 @@ namespace NzbWebDAV.Api.SabControllers.AddUrl;
 
 public class AddUrlRequest() : AddFileRequest
 {
+    private const string UserAgentHeader =
+        "Mozilla/5.0 (Windows NT 11.0; Win64; x64) AppleWebKit/537.36 " +
+        "(KHTML, like Gecko) Chrome/134.0.6998.166 Safari/537.36";
+
     public static async Task<AddUrlRequest> New(HttpContext context)
     {
         var nzbUrl = context.GetQueryParam("name");
@@ -32,6 +36,7 @@ public class AddUrlRequest() : AddFileRequest
 
             // fetch url
             var httpClient = new HttpClient();
+            httpClient.DefaultRequestHeaders.Add("User-Agent", UserAgentHeader);
             var response = await httpClient.GetAsync(url);
             if (!response.IsSuccessStatusCode)
                 throw new Exception($"Received status code {response.StatusCode}.");
