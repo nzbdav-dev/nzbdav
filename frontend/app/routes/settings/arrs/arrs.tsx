@@ -315,10 +315,12 @@ function InstanceForm({ instance, index, type, onUpdate, onRemove }: InstanceFor
                                     connectionState === 'testing' ? (
                                         <Spinner animation="border" size="sm" />
                                     ) : connectionState === 'success' ? (
-                                        <span style={{ color: 'white' }}>✓</span>
+                                        '✓'
                                     ) : connectionState === 'error' ? (
-                                        <span style={{ color: 'white' }}>✗</span>
-                                    ) : ('?')
+                                        '✗'
+                                    ) : (
+                                        'Test Conn'
+                                    )
                                 }
                             </Button>
                         )}

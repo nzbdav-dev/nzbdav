@@ -90,4 +90,6 @@
 
 .testButton {
     white-space: nowrap;
+    color: white;
+    font-size: 14px;
 }
