@@ -58,11 +58,11 @@ export function RepairsSettings({ config, setNewConfig }: RepairsSettingsProps) 
                     type="text"
                     id="repairs-connections-input"
                     aria-describedby="repairs-connections-help"
-                    placeholder="0"
+                    placeholder={"All"}
                     value={config["repair.connections"] || ""}
                     onChange={e => setNewConfig({ ...config, "repair.connections": e.target.value })} />
                 <Form.Text id="repairs-connections-help" muted>
-                    The background health-check job will not use any more than this number of connections.
+                    The background health-check job will not use any more than this number of connections. Will default to your overall Max Connections if left empty.
                 </Form.Text>
             </Form.Group>
         </div>

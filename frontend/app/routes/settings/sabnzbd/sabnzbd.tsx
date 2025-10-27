@@ -72,11 +72,11 @@ export function SabnzbdSettings({ config, setNewConfig }: SabnzbdSettingsProps) 
                     type="text"
                     id="max-queue-connections-input"
                     aria-describedby="max-queue-connections-help"
-                    placeholder="10"
+                    placeholder="All"
                     value={config["api.max-queue-connections"]}
                     onChange={e => setNewConfig({ ...config, "api.max-queue-connections": e.target.value })} />
                 <Form.Text id="max-queue-connections-help" muted>
-                    Queue processing tasks will not use any more than this number of connections.
+                    Queue processing tasks will not use any more than this number of connections. Will default to your overall Max Connections if left empty.
                 </Form.Text>
             </Form.Group>
             <hr />
