@@ -153,13 +153,19 @@ export function HistoryRow({ slot, onIsSelectedChanged, onIsRemovingChanged, onR
 }
 
 export function Actions({ slot, onRemove }: { slot: PresentationHistorySlot, onRemove: () => void }) {
+    // determine explore action link url
     var downloadFolder = slot.storage && getLeafDirectoryName(slot.storage);
+    const encodedCategory = downloadFolder && encodeURIComponent(slot.category);
+    const encodedDownloadFolder = downloadFolder && encodeURIComponent(downloadFolder);
+    var folderLink = downloadFolder && `/explore/content/${encodedCategory}/${encodedDownloadFolder}`;
+
+    // determine whether explore action should be disabled
     var isFolderDisabled = !downloadFolder || !!slot.isRemoving || !!slot.fail_message;
 
     return (
         <>
             {!isFolderDisabled &&
-                <Link to={`/explore/content/${slot.category}/${downloadFolder}`} >
+                <Link to={folderLink} >
                     <ActionButton type="explore" />
                 </Link>
             }

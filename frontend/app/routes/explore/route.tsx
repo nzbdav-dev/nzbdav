@@ -25,7 +25,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     if (request.url.endsWith('/')) return redirect(request.url.slice(0, -1));
 
     // load items from backend
-    let path = getWebdavPath(new URL(request.url).pathname);
+    let path = getWebdavPathDecoded(new URL(request.url).pathname);
     return {
         parentDirectories: getParentDirectories(path),
         items: (await backendClient.listWebdavDirectory(path)).map(x => {
@@ -52,16 +52,16 @@ function Body(props: ExplorePageData) {
 
     const items = props.items;
     const parentDirectories = isNavigating
-        ? getParentDirectories(getWebdavPath(navigation.location!.pathname))
+        ? getParentDirectories(getWebdavPathDecoded(navigation.location!.pathname))
         : props.parentDirectories;
 
     const getDirectoryPath = useCallback((directoryName: string) => {
-        return `${location.pathname}/${directoryName}`
+        return `${location.pathname}/${encodeURIComponent(directoryName)}`;
     }, [location.pathname]);
 
     const getFilePath = useCallback((file: ExploreFile) => {
         var pathname = getWebdavPath(location.pathname);
-        return `/view/${pathname}/${file.name}?downloadKey=${file.downloadKey}`;
+        return `/view/${pathname}/${encodeURIComponent(file.name)}?downloadKey=${file.downloadKey}`;
     }, [location.pathname]);
 
     return (
@@ -99,11 +99,14 @@ function getIcon(file: ExploreFile) {
 }
 
 function getWebdavPath(pathname: string): string {
-    pathname = decodeURIComponent(pathname);
     if (pathname.startsWith("/")) pathname = pathname.slice(1);
     if (pathname.startsWith("explore")) pathname = pathname.slice(7);
     if (pathname.startsWith("/")) pathname = pathname.slice(1);
     return pathname;
+}
+
+function getWebdavPathDecoded(pathname: string): string {
+    return decodeURIComponent(getWebdavPath(pathname));
 }
 
 function getParentDirectories(webdavPath: string): string[] {
