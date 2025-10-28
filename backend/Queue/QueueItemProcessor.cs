@@ -1,6 +1,7 @@
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using NzbWebDAV.Api.SabControllers.GetHistory;
+using NzbWebDAV.Clients.RadarrSonarr;
 using NzbWebDAV.Clients.Usenet;
 using NzbWebDAV.Clients.Usenet.Connections;
 using NzbWebDAV.Config;
@@ -294,5 +295,30 @@ public class QueueItemProcessor(
         await dbClient.Ctx.SaveChangesAsync(ct);
         _ = websocketManager.SendMessage(WebsocketTopic.QueueItemRemoved, queueItem.Id.ToString());
         _ = websocketManager.SendMessage(WebsocketTopic.HistoryItemAdded, historySlot.ToJson());
+        _ = RefreshMonitoredDownloads();
+    }
+
+    private async Task RefreshMonitoredDownloads()
+    {
+        var tasks = configManager
+            .GetArrConfig()
+            .GetArrClients()
+            .Select(RefreshMonitoredDownloads);
+        await Task.WhenAll(tasks);
+    }
+
+    private async Task RefreshMonitoredDownloads(ArrClient arrClient)
+    {
+        try
+        {
+            var downloadClients = await arrClient.GetDownloadClientsAsync();
+            if (downloadClients.All(x => x.Category != queueItem.Category)) return;
+            var queueCount = await arrClient.GetQueueCountAsync();
+            if (queueCount < 60) await arrClient.RefreshMonitoredDownloads();
+        }
+        catch (Exception e)
+        {
+            Log.Debug($"Could not refresh monitored downloads for Arr instance: `{arrClient.Host}`. {e.Message}");
+        }
     }
 }

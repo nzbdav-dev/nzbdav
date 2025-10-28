@@ -21,6 +21,9 @@ public class ArrClient(string host, string apiKey)
     public Task<List<ArrRootFolder>> GetRootFolders() =>
         Get<List<ArrRootFolder>>($"/rootfolder");
 
+    public Task<List<ArrDownloadClient>> GetDownloadClientsAsync() =>
+        Get<List<ArrDownloadClient>>($"/downloadClient");
+
     public Task<ArrCommand> RefreshMonitoredDownloads() =>
         CommandAsync(new { name = "RefreshMonitoredDownloads" });
 
@@ -29,6 +32,9 @@ public class ArrClient(string host, string apiKey)
 
     public Task<ArrQueue<ArrQueueRecord>> GetQueueAsync() =>
         Get<ArrQueue<ArrQueueRecord>>($"/queue?protocol=usenet&pageSize=5000");
+
+    public async Task<int> GetQueueCountAsync() =>
+        (await Get<ArrQueue<ArrQueueRecord>>($"/queue?pageSize=1")).TotalRecords;
 
     public Task<HttpStatusCode> DeleteQueueRecord(int id, DeleteQueueRecordRequest request) =>
         Delete($"/queue/{id}", request.GetQueryParams());
