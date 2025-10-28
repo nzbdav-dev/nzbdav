@@ -91,14 +91,16 @@ public class QueueItemProcessor(
 
     private async Task ProcessQueueItemAsync(DateTime startTime)
     {
-        // if the mount folder already exists,
-        // then we've already downloaded this nzb and we can mark the job as completed.
         var existingMountFolder = await GetMountFolder();
-        var isAlreadyDownloaded = existingMountFolder is not null;
-        if (isAlreadyDownloaded)
+        var duplicateNzbBehavior = configManager.GetDuplicateNzbBehavior();
+
+        // if the mount folder already exists and setting is `marked-failed`
+        // then immediately mark the job as failed.
+        var isDuplicateNzb = existingMountFolder is not null;
+        if (isDuplicateNzb && duplicateNzbBehavior == "mark-failed")
         {
-            Log.Information($"Nzb `{queueItem.JobName}` is a duplicate. Skipping and marking complete.");
-            await MarkQueueItemCompleted(startTime, error: null, () => existingMountFolder);
+            const string error = "Duplicate nzb: the download folder for this nzb already exists.";
+            await MarkQueueItemCompleted(startTime, error, () => Task.FromResult(existingMountFolder));
             return;
         }
 
@@ -156,10 +158,10 @@ public class QueueItemProcessor(
         }
 
         // update the database
-        await MarkQueueItemCompleted(startTime, error: null, () =>
+        await MarkQueueItemCompleted(startTime, error: null, async () =>
         {
-            var categoryFolder = GetOrCreateCategoryFolder();
-            var mountFolder = CreateMountFolder(categoryFolder);
+            var categoryFolder = await GetOrCreateCategoryFolder();
+            var mountFolder = await CreateMountFolder(categoryFolder, existingMountFolder, duplicateNzbBehavior);
             new RarAggregator(dbClient, mountFolder, checkedFullHealth).UpdateDatabase(fileProcessingResults);
             new FileAggregator(dbClient, mountFolder, checkedFullHealth).UpdateDatabase(fileProcessingResults);
             new SevenZipAggregator(dbClient, mountFolder, checkedFullHealth).UpdateDatabase(fileProcessingResults);
@@ -222,11 +224,11 @@ public class QueueItemProcessor(
         return await query.FirstOrDefaultAsync(ct);
     }
 
-    private DavItem GetOrCreateCategoryFolder()
+    private async Task<DavItem> GetOrCreateCategoryFolder()
     {
         // if the category item already exists, return it
-        var categoryFolder = dbClient.Ctx.Items
-            .FirstOrDefault(x => x.Parent == DavItem.ContentFolder && x.Name == queueItem.Category);
+        var categoryFolder = await dbClient.GetDirectoryChildAsync(
+            DavItem.ContentFolder.Id, queueItem.Category, ct);
         if (categoryFolder is not null)
             return categoryFolder;
 
@@ -244,8 +246,16 @@ public class QueueItemProcessor(
         return categoryFolder;
     }
 
-    private DavItem CreateMountFolder(DavItem categoryFolder)
+    private Task<DavItem> CreateMountFolder
+    (
+        DavItem categoryFolder,
+        DavItem? existingMountFolder,
+        string duplicateNzbBehavior
+    )
     {
+        if (existingMountFolder is not null && duplicateNzbBehavior == "increment")
+            return IncrementMountFolder(categoryFolder);
+
         var mountFolder = DavItem.New(
             id: Guid.NewGuid(),
             parent: categoryFolder,
@@ -256,7 +266,31 @@ public class QueueItemProcessor(
             lastHealthCheck: null
         );
         dbClient.Ctx.Items.Add(mountFolder);
-        return mountFolder;
+        return Task.FromResult(mountFolder);
+    }
+
+    private async Task<DavItem> IncrementMountFolder(DavItem categoryFolder)
+    {
+        for (var i = 2; i < 100; i++)
+        {
+            var name = $"{queueItem.JobName} ({i})";
+            var existingMountFolder = await dbClient.GetDirectoryChildAsync(categoryFolder.Id, name, ct);
+            if (existingMountFolder is not null) continue;
+
+            var mountFolder = DavItem.New(
+                id: Guid.NewGuid(),
+                parent: categoryFolder,
+                name: name,
+                fileSize: null,
+                type: DavItem.ItemType.Directory,
+                releaseDate: null,
+                lastHealthCheck: null
+            );
+            dbClient.Ctx.Items.Add(mountFolder);
+            return mountFolder;
+        }
+
+        throw new Exception("Duplicate nzb with more than 100 existing copies.");
     }
 
     private HistoryItem CreateHistoryItem(DavItem? mountFolder, DateTime jobStartTime, string? errorMessage = null)
@@ -282,11 +316,11 @@ public class QueueItemProcessor(
     (
         DateTime startTime,
         string? error = null,
-        Func<DavItem?>? databaseOperations = null
+        Func<Task<DavItem?>>? databaseOperations = null
     )
     {
         dbClient.Ctx.ChangeTracker.Clear();
-        var mountFolder = databaseOperations?.Invoke();
+        var mountFolder = databaseOperations != null ? await databaseOperations.Invoke() : null;
         var mountDirectory = configManager.GetRcloneMountDir();
         var historyItem = CreateHistoryItem(mountFolder, startTime, error);
         var historySlot = GetHistoryResponse.HistorySlot.FromHistoryItem(historyItem, mountDirectory);

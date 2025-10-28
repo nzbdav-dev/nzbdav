@@ -188,6 +188,12 @@ public class ConfigManager
         return GetConfigValue<ArrConfig>("arr.instances") ?? defaultValue;
     }
 
+    public string GetDuplicateNzbBehavior()
+    {
+        var defaultValue = "increment";
+        return GetConfigValue("api.duplicate-nzb-behavior") ?? defaultValue;
+    }
+
     public class ConfigEventArgs : EventArgs
     {
         public Dictionary<string, string> ChangedConfig { get; set; } = new();

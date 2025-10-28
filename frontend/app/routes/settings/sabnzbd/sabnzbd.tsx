@@ -81,6 +81,21 @@ export function SabnzbdSettings({ config, setNewConfig }: SabnzbdSettingsProps) 
             </Form.Group>
             <hr />
             <Form.Group>
+                <Form.Label htmlFor="duplicate-nzb-input">Behavior for Duplicate NZBs</Form.Label>
+                <Form.Select
+                    className={styles.input}
+                    value={config["api.duplicate-nzb-behavior"]}
+                    onChange={e => setNewConfig({ ...config, "api.duplicate-nzb-behavior": e.target.value })}
+                >
+                    <option value="increment">Download again with (2) suffix</option>
+                    <option value="mark-failed">Mark the download as failed</option>
+                </Form.Select>
+                <Form.Text id="max-queue-connections-help" muted>
+                    When an NZB is added, a new folder is created in the webdav. What should we when the download folder for an NZB already exists?
+                </Form.Text>
+            </Form.Group>
+            <hr />
+            <Form.Group>
                 <Form.Check
                     className={styles.input}
                     type="checkbox"
@@ -134,6 +149,7 @@ export function isSabnzbdSettingsUpdated(config: Record<string, string>, newConf
         || config["api.ensure-importable-video"] !== newConfig["api.ensure-importable-video"]
         || config["api.ensure-article-existence"] !== newConfig["api.ensure-article-existence"]
         || config["api.ignore-history-limit"] !== newConfig["api.ignore-history-limit"]
+        || config["api.duplicate-nzb-behavior"] !== newConfig["api.duplicate-nzb-behavior"]
 }
 
 export function isSabnzbdSettingsValid(newConfig: Record<string, string>) {
