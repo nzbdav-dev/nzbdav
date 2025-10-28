@@ -194,6 +194,12 @@ public class ConfigManager
         return GetConfigValue("api.duplicate-nzb-behavior") ?? defaultValue;
     }
 
+    public string GetDownloadExtensionBlacklist()
+    {
+        var defaultValue = ".nfo, .par2, .sfv";
+        return GetConfigValue("api.download-extension-blacklist") ?? defaultValue;
+    }
+
     public class ConfigEventArgs : EventArgs
     {
         public Dictionary<string, string> ChangedConfig { get; set; } = new();

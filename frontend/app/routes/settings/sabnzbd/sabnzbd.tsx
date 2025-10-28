@@ -81,6 +81,21 @@ export function SabnzbdSettings({ config, setNewConfig }: SabnzbdSettingsProps) 
             </Form.Group>
             <hr />
             <Form.Group>
+                <Form.Label htmlFor="ignored-file-extensions-input">Ignored File Extensions</Form.Label>
+                <Form.Control
+                    className={styles.input}
+                    type="text"
+                    id="ignored-file-extensions-input"
+                    aria-describedby="ignored-file-extensions-help"
+                    placeholder=".nfo, .par2, .sfv"
+                    value={config["api.download-extension-blacklist"]}
+                    onChange={e => setNewConfig({ ...config, "api.download-extension-blacklist": e.target.value })} />
+                <Form.Text id="ignored-file-extensions-help" muted>
+                    Files with these extensions will be ignored and not mounted onto the webdav when processing an nzb.
+                </Form.Text>
+            </Form.Group>
+            <hr />
+            <Form.Group>
                 <Form.Label htmlFor="duplicate-nzb-input">Behavior for Duplicate NZBs</Form.Label>
                 <Form.Select
                     className={styles.input}
@@ -150,6 +165,7 @@ export function isSabnzbdSettingsUpdated(config: Record<string, string>, newConf
         || config["api.ensure-article-existence"] !== newConfig["api.ensure-article-existence"]
         || config["api.ignore-history-limit"] !== newConfig["api.ignore-history-limit"]
         || config["api.duplicate-nzb-behavior"] !== newConfig["api.duplicate-nzb-behavior"]
+        || config["api.download-extension-blacklist"] !== newConfig["api.download-extension-blacklist"]
 }
 
 export function isSabnzbdSettingsValid(newConfig: Record<string, string>) {

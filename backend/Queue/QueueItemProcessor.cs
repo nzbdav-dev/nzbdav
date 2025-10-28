@@ -13,7 +13,7 @@ using NzbWebDAV.Queue.DeobfuscationSteps._2.GetPar2FileDescriptors;
 using NzbWebDAV.Queue.DeobfuscationSteps._3.GetFileInfos;
 using NzbWebDAV.Queue.FileAggregators;
 using NzbWebDAV.Queue.FileProcessors;
-using NzbWebDAV.Queue.Validators;
+using NzbWebDAV.Queue.PostProcessors;
 using NzbWebDAV.Utils;
 using NzbWebDAV.Websocket;
 using Serilog;
@@ -166,6 +166,9 @@ public class QueueItemProcessor(
             new FileAggregator(dbClient, mountFolder, checkedFullHealth).UpdateDatabase(fileProcessingResults);
             new SevenZipAggregator(dbClient, mountFolder, checkedFullHealth).UpdateDatabase(fileProcessingResults);
             new MultipartMkvAggregator(dbClient, mountFolder, checkedFullHealth).UpdateDatabase(fileProcessingResults);
+
+            // post-processing
+            new BlacklistedExtensionPostProcessor(configManager, dbClient).RemoveBlacklistedExtensions();
 
             // validate video files found
             if (configManager.IsEnsureImportableVideoEnabled())

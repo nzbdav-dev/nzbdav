@@ -6,7 +6,7 @@ import { ConfirmModal } from "../confirm-modal/confirm-modal"
 import { Link } from "react-router"
 import { type TriCheckboxState } from "../tri-checkbox/tri-checkbox"
 import type { PresentationHistorySlot } from "../../route"
-import { getDirectoryName, getLeafDirectoryName } from "~/utils/path"
+import { getLeafDirectoryName } from "~/utils/path"
 
 export type HistoryTableProps = {
     historySlots: PresentationHistorySlot[],
