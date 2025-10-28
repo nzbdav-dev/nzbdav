@@ -19,17 +19,24 @@ public class GetHistoryController(
             .Where(q => q.Category == request.Category || request.Category == null)
             .CountAsync(request.CancellationToken);
 
-        // get history items
-        var historyItems = await dbClient.Ctx.HistoryItems
+        // get history items with joined DavItem data
+        var historyItemsWithDavItems = await dbClient.Ctx.HistoryItems
             .Where(q => q.Category == request.Category || request.Category == null)
-            .OrderByDescending(q => q.CreatedAt)
+            .GroupJoin(
+                dbClient.Ctx.Items,
+                h => h.DownloadDirId,
+                d => d.Id,
+                (h, d) => new { HistoryItem = h, DavItem = d.FirstOrDefault() }
+            )
+            .OrderByDescending(q => q.HistoryItem.CreatedAt)
             .Skip(request.Start)
             .Take(request.Limit)
             .ToArrayAsync(request.CancellationToken);
 
         // get slots
-        var slots = historyItems
-            .Select(x => GetHistoryResponse.HistorySlot.FromHistoryItem(x, configManager.GetRcloneMountDir()))
+        var slots = historyItemsWithDavItems
+            .Select(x => GetHistoryResponse.HistorySlot.FromHistoryItem(
+                x.HistoryItem, x.DavItem, configManager.GetRcloneMountDir()))
             .ToList();
 
         // return response

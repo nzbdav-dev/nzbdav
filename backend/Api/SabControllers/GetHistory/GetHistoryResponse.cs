@@ -39,7 +39,7 @@ public class GetHistoryResponse : SabBaseResponse
         public long SizeInBytes { get; set; }
 
         [JsonPropertyName("storage")]
-        public string DownloadPath { get; set; }
+        public string? DownloadPath { get; set; }
 
         [JsonPropertyName("download_time")]
         public int DownloadTimeSeconds { get; set; }
@@ -47,7 +47,7 @@ public class GetHistoryResponse : SabBaseResponse
         [JsonPropertyName("fail_message")]
         public string FailMessage { get; set; }
 
-        public static HistorySlot FromHistoryItem(HistoryItem historyItem, string mountDir)
+        public static HistorySlot FromHistoryItem(HistoryItem historyItem, DavItem? downloadFolder, string mountDir)
         {
             return new HistorySlot()
             {
@@ -57,12 +57,12 @@ public class GetHistoryResponse : SabBaseResponse
                 Category = historyItem.Category,
                 Status = historyItem.DownloadStatus,
                 SizeInBytes = historyItem.TotalSegmentBytes,
-                DownloadPath = Path.Join(new[]
+                DownloadPath = downloadFolder == null ? null : Path.Join(new[]
                 {
                     mountDir,
                     DavItem.SymlinkFolder.Name,
                     historyItem.Category,
-                    historyItem.JobName
+                    downloadFolder.Name
                 }),
                 DownloadTimeSeconds = historyItem.DownloadTimeSeconds,
                 FailMessage = historyItem.FailMessage ?? "",

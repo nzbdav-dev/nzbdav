@@ -323,7 +323,7 @@ public class QueueItemProcessor(
         var mountFolder = databaseOperations != null ? await databaseOperations.Invoke() : null;
         var mountDirectory = configManager.GetRcloneMountDir();
         var historyItem = CreateHistoryItem(mountFolder, startTime, error);
-        var historySlot = GetHistoryResponse.HistorySlot.FromHistoryItem(historyItem, mountDirectory);
+        var historySlot = GetHistoryResponse.HistorySlot.FromHistoryItem(historyItem, mountFolder, mountDirectory);
         dbClient.Ctx.QueueItems.Remove(queueItem);
         dbClient.Ctx.HistoryItems.Add(historyItem);
         await dbClient.Ctx.SaveChangesAsync(ct);

@@ -6,6 +6,7 @@ import { ConfirmModal } from "../confirm-modal/confirm-modal"
 import { Link } from "react-router"
 import { type TriCheckboxState } from "../tri-checkbox/tri-checkbox"
 import type { PresentationHistorySlot } from "../../route"
+import { getDirectoryName, getLeafDirectoryName } from "~/utils/path"
 
 export type HistoryTableProps = {
     historySlots: PresentationHistorySlot[],
@@ -137,14 +138,7 @@ export function HistoryRow({ slot, onIsSelectedChanged, onIsRemovingChanged, onR
                 status={slot.status}
                 error={slot.fail_message}
                 fileSizeBytes={slot.bytes}
-                actions={
-                    <>
-                        <Link to={`/explore/content/${slot.category}/${slot.name}`}>
-                            <ActionButton type="explore" disabled={!!slot.isRemoving} />
-                        </Link>
-                        <ActionButton type="delete" disabled={!!slot.isRemoving} onClick={onRemove} />
-                    </>
-                }
+                actions={<Actions slot={slot} onRemove={onRemove} />}
                 onRowSelectionChanged={isSelected => onIsSelectedChanged(slot.nzo_id, isSelected)}
             />
             <ConfirmModal
@@ -156,4 +150,23 @@ export function HistoryRow({ slot, onIsSelectedChanged, onIsRemovingChanged, onR
                 onCancel={onCancelRemoval} />
         </>
     )
+}
+
+export function Actions({ slot, onRemove }: { slot: PresentationHistorySlot, onRemove: () => void }) {
+    var downloadFolder = slot.storage && getLeafDirectoryName(slot.storage);
+    var isFolderDisabled = !downloadFolder || !!slot.isRemoving || !!slot.fail_message;
+
+    return (
+        <>
+            {!isFolderDisabled &&
+                <Link to={`/explore/content/${slot.category}/${downloadFolder}`} >
+                    <ActionButton type="explore" />
+                </Link>
+            }
+            {isFolderDisabled &&
+                <ActionButton type="explore" disabled />
+            }
+            <ActionButton type="delete" disabled={!!slot.isRemoving} onClick={onRemove} />
+        </>
+    );
 }
