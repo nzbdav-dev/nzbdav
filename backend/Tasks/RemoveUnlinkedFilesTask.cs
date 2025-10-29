@@ -42,10 +42,10 @@ public class RemoveUnlinkedFilesTask(
         // get linked file paths
         Report(dryRun + $"Found {allDavItems.Count} webdav files.\nEnumerating all symlinked files...");
         var linkedIds = GetLinkedIds();
-        if (linkedIds.Count < 100)
+        if (linkedIds.Count < 5)
         {
             Report($"Aborted: " +
-                   $"There are less than one hundred symlinked files found in your library. " +
+                   $"There are less than five symlinked files found in your library. " +
                    $"Cancelling operation to prevent accidental bulk deletion.");
             return;
         }
