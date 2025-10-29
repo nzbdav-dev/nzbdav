@@ -102,11 +102,11 @@ export function SabnzbdSettings({ config, setNewConfig }: SabnzbdSettingsProps) 
                     value={config["api.duplicate-nzb-behavior"]}
                     onChange={e => setNewConfig({ ...config, "api.duplicate-nzb-behavior": e.target.value })}
                 >
-                    <option value="increment">Download again with (2) suffix</option>
+                    <option value="increment">Download again with suffix (2)</option>
                     <option value="mark-failed">Mark the download as failed</option>
                 </Form.Select>
                 <Form.Text id="max-queue-connections-help" muted>
-                    When an NZB is added, a new folder is created in the webdav. What should we when the download folder for an NZB already exists?
+                    When an NZB is added, a new folder is created on the webdav. What should be done when the download folder for an NZB already exists?
                 </Form.Text>
             </Form.Group>
             <hr />
