@@ -110,7 +110,7 @@ public class RemoveUnlinkedFilesTask(
     private HashSet<Guid> GetLinkedIds()
     {
         return OrganizedSymlinksUtil.GetLibrarySymlinkTargets(configManager)
-            .Select(x => x.Target)
+            .Select(x => x.DavItemId)
             .ToHashSet();
     }
 
