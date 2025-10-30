@@ -67,8 +67,8 @@ class BackendClient {
         return data.authenticated;
     }
 
-    public async getQueue(): Promise<QueueResponse> {
-        const url = process.env.BACKEND_URL + "/api?mode=queue";
+    public async getQueue(limit: number): Promise<QueueResponse> {
+        const url = process.env.BACKEND_URL + `/api?mode=queue&limit=${limit}`;
 
         const apiKey = process.env.FRONTEND_BACKEND_API_KEY || "";
         const response = await fetch(url, { headers: { "x-api-key": apiKey } });
@@ -80,8 +80,8 @@ class BackendClient {
         return data.queue;
     }
 
-    public async getHistory(): Promise<HistoryResponse> {
-        const url = process.env.BACKEND_URL + "/api?mode=history";
+    public async getHistory(limit: number): Promise<HistoryResponse> {
+        const url = process.env.BACKEND_URL + `/api?mode=history&pageSize=${limit}`;
 
         const apiKey = process.env.FRONTEND_BACKEND_API_KEY || "";
         const response = await fetch(url, { headers: { "x-api-key": apiKey } });
@@ -228,7 +228,8 @@ class BackendClient {
 export const backendClient = new BackendClient();
 
 export type QueueResponse = {
-    slots: QueueSlot[]
+    slots: QueueSlot[],
+    noofslots: number,
 }
 
 export type QueueSlot = {
@@ -244,7 +245,8 @@ export type QueueSlot = {
 }
 
 export type HistoryResponse = {
-    slots: HistorySlot[]
+    slots: HistorySlot[],
+    noofslots: number,
 }
 
 export type HistorySlot = {

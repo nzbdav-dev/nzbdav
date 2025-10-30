@@ -1,4 +1,4 @@
-import { redirect } from "react-router";
+import { Link, redirect } from "react-router";
 import type { Route } from "./+types/route";
 import { sessionStorage } from "~/auth/authentication.server";
 import styles from "./route.module.css"
@@ -27,20 +27,24 @@ const topicSubscriptions = {
     [topicNames.historyItemRemoved]: 'event',
 }
 
+const maxItems = 100;
 export async function loader({ request }: Route.LoaderArgs) {
-    var queuePromise = backendClient.getQueue();
-    var historyPromise = backendClient.getHistory();
+    var queuePromise = backendClient.getQueue(maxItems);
+    var historyPromise = backendClient.getHistory(maxItems);
     var queue = await queuePromise;
     var history = await historyPromise;
     return {
         queueSlots: queue?.slots || [],
         historySlots: history?.slots || [],
+        totalQueueCount: queue?.noofslots || 0,
+        totalHistoryCount: history?.noofslots || 0,
     }
 }
 
 export default function Queue(props: Route.ComponentProps) {
     const [queueSlots, setQueueSlots] = useState<PresentationQueueSlot[]>(props.loaderData.queueSlots);
     const [historySlots, setHistorySlots] = useState<PresentationHistorySlot[]>(props.loaderData.historySlots);
+    const disableLiveView = queueSlots.length == maxItems || historySlots.length == maxItems;
     const error = props.actionData?.error;
 
     // queue events
@@ -89,6 +93,7 @@ export default function Queue(props: Route.ComponentProps) {
 
     // websocket
     const onWebsocketMessage = useCallback((topic: string, message: string) => {
+        if (disableLiveView) return;
         if (topic == topicNames.queueItemAdded)
             onAddQueueSlot(JSON.parse(message));
         else if (topic == topicNames.queueItemRemoved)
@@ -108,9 +113,11 @@ export default function Queue(props: Route.ComponentProps) {
         onChangeQueueSlotPercentage,
         onAddHistorySlot,
         onRemoveHistorySlots,
+        disableLiveView
     ]);
 
     useEffect(() => {
+        if (disableLiveView) return;
         let ws: WebSocket;
         let disposed = false;
         function connect() {
@@ -123,7 +130,7 @@ export default function Queue(props: Route.ComponentProps) {
         }
 
         return connect();
-    }, [onWebsocketMessage]);
+    }, [onWebsocketMessage, disableLiveView]);
 
     return (
         <div className={styles.container}>
@@ -131,6 +138,27 @@ export default function Queue(props: Route.ComponentProps) {
             {error &&
                 <Alert variant="danger">
                     {error}
+                </Alert>
+            }
+
+            {/* warning */}
+            {disableLiveView &&
+                <Alert className={styles.alert} variant="warning">
+                    <b>Attention</b>
+                    <ul className={styles.list}>
+                        <li className={styles.listItem}>
+                            Displaying the first {queueSlots.length} of {props.loaderData.totalQueueCount} queue items
+                        </li>
+                        <li className={styles.listItem}>
+                            Displaying the first {historySlots.length} of {props.loaderData.totalHistoryCount} history items
+                        </li>
+                        <li className={styles.listItem}>
+                            Live view is disabled. Manually <Link to={'/queue'}>refresh</Link> the page for updates.
+                        </li>
+                        <li className={styles.listItem}>
+                            (This is a bandaid — Proper pagination will be added soon)
+                        </li>
+                    </ul>
                 </Alert>
             }
 

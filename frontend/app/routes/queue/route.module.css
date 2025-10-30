@@ -16,3 +16,15 @@
     gap: 10px;
     align-items: baseline;
 }
+
+.alert {
+    margin-bottom: 35px;
+
+    .list {
+        margin-bottom: 0;
+    }
+
+    .listItem {
+        margin-top: 5px
+    }
+}
