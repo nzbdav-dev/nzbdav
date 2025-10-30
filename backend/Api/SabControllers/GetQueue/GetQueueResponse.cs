@@ -16,6 +16,9 @@ public class GetQueueResponse : SabBaseResponse
 
         [JsonPropertyName("slots")]
         public List<QueueSlot> Slots { get; init; } = new();
+
+        [JsonPropertyName("noofslots")]
+        public int TotalCount { get; set; }
     }
 
     public class QueueSlot

@@ -18,8 +18,11 @@ public class GetQueueController(
         // get in progress item
         var (inProgressQueueItem, progressPercentage) = queueManager.GetInProgressQueueItem();
 
-        // get queued items
+        // get total count
         var ct = request.CancellationToken;
+        var totalCount = await dbClient.GetQueueItemsCount(request.Category, ct);
+
+        // get queued items
         var queueItems = (await dbClient.GetQueueItems(request.Category, request.Start, request.Limit, ct))
             .Where(x => x.Id != inProgressQueueItem?.Id)
             .ToArray();
@@ -43,6 +46,7 @@ public class GetQueueController(
             {
                 Paused = false,
                 Slots = slots,
+                TotalCount = totalCount,
             }
         };
     }
