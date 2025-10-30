@@ -29,6 +29,11 @@ class Program
 {
     static async Task Main(string[] args)
     {
+        // Update thread-pool
+        ThreadPool.GetMaxThreads(out var maxWorker, out var maxIo);
+        ThreadPool.SetMaxThreads(maxWorker, Math.Max(maxIo, 2000));
+        ThreadPool.SetMinThreads(100, 200);
+
         // Initialize logger
         var defaultLevel = LogEventLevel.Information;
         var envLevel = Environment.GetEnvironmentVariable("LOG_LEVEL");
