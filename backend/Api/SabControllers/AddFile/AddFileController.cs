@@ -35,7 +35,6 @@ public class AddFileController(
             CreatedAt = DateTime.Now,
             FileName = request.FileName,
             JobName = Path.GetFileNameWithoutExtension(request.FileName),
-            NzbContents = nzbFileContents,
             NzbFileSize = documentBytes.Length,
             TotalSegmentBytes = document.Files.SelectMany(x => x.Segments).Select(x => x.Size).Sum(),
             Category = request.Category,
@@ -43,7 +42,13 @@ public class AddFileController(
             PostProcessing = request.PostProcessing,
             PauseUntil = request.PauseUntil
         };
+        var queueNzbContents = new QueueNzbContents()
+        {
+            Id = queueItem.Id,
+            NzbContents = nzbFileContents,
+        };
         dbClient.Ctx.QueueItems.Add(queueItem);
+        dbClient.Ctx.QueueNzbContents.Add(queueNzbContents);
         await dbClient.Ctx.SaveChangesAsync(request.CancellationToken);
         var message = GetQueueResponse.QueueSlot.FromQueueItem(queueItem).ToJson();
         _ = websocketManager.SendMessage(WebsocketTopic.QueueItemAdded, message);

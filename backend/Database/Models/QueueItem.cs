@@ -6,7 +6,6 @@ public class QueueItem
     public DateTime CreatedAt { get; set; }
     public string FileName { get; set; } = null!;
     public string JobName { get; set; } = null!;
-    public string NzbContents { get; set; } = null!;
     public long NzbFileSize { get; set; }
     public long TotalSegmentBytes { get; set; }
     public string Category { get; set; } = null!;

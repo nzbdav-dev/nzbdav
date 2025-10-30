@@ -23,6 +23,7 @@ namespace NzbWebDAV.Queue;
 
 public class QueueItemProcessor(
     QueueItem queueItem,
+    QueueNzbContents queueNzbContents,
     DavDatabaseClient dbClient,
     UsenetStreamingClient usenetClient,
     ConfigManager configManager,
@@ -109,7 +110,7 @@ public class QueueItemProcessor(
         using var _ = ct.SetScopedContext(new ReservedConnectionsContext(reservedConnections));
 
         // read the nzb document
-        var documentBytes = Encoding.UTF8.GetBytes(queueItem.NzbContents);
+        var documentBytes = Encoding.UTF8.GetBytes(queueNzbContents.NzbContents);
         using var stream = new MemoryStream(documentBytes);
         var nzb = await NzbDocument.LoadAsync(stream);
         var archivePassword = nzb.MetaData.GetValueOrDefault("password")?.FirstOrDefault();

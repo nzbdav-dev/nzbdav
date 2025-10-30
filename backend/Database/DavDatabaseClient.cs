@@ -76,16 +76,23 @@ public sealed class DavDatabaseClient(DavDatabaseContext ctx)
     }
 
     // queue
-    public Task<QueueItem?> GetTopQueueItem(CancellationToken ct = default)
+    public async Task<(QueueItem? queueItem, QueueNzbContents? queueNzbContents)> GetTopQueueItem
+    (
+        CancellationToken ct = default
+    )
     {
         var nowTime = DateTime.Now;
-        return Ctx.QueueItems
+        var queueItem = await Ctx.QueueItems
             .OrderByDescending(q => q.Priority)
             .ThenBy(q => q.CreatedAt)
             .Where(q => q.PauseUntil == null || nowTime >= q.PauseUntil)
             .Skip(0)
             .Take(1)
             .FirstOrDefaultAsync(ct);
+        var queueNzbContents = queueItem != null
+            ? await Ctx.QueueNzbContents.FirstOrDefaultAsync(q => q.Id == queueItem.Id, ct)
+            : null;
+        return (queueItem, queueNzbContents);
     }
 
     public Task<QueueItem[]> GetQueueItems
@@ -96,24 +103,14 @@ public sealed class DavDatabaseClient(DavDatabaseContext ctx)
         CancellationToken ct = default
     )
     {
-        return Ctx.QueueItems
-            .Where(q => q.Category == category || category == null)
+        var queueItems = category != null
+            ? Ctx.QueueItems.Where(q => q.Category == category)
+            : Ctx.QueueItems;
+        return queueItems
             .OrderByDescending(q => q.Priority)
             .ThenBy(q => q.CreatedAt)
             .Skip(start)
             .Take(limit)
-            .Select(q => new QueueItem()
-            {
-                Id = q.Id,
-                CreatedAt = q.CreatedAt,
-                FileName = q.FileName,
-                NzbContents = null!,
-                NzbFileSize = q.NzbFileSize,
-                TotalSegmentBytes = q.TotalSegmentBytes,
-                Category = q.Category,
-                Priority = q.Priority,
-                PostProcessing = q.PostProcessing,
-            })
             .ToArrayAsync(cancellationToken: ct);
     }
 

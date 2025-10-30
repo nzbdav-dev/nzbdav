@@ -26,6 +26,7 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
     public DbSet<DavMultipartFile> MultipartFiles => Set<DavMultipartFile>();
     public DbSet<QueueItem> QueueItems => Set<QueueItem>();
     public DbSet<HistoryItem> HistoryItems => Set<HistoryItem>();
+    public DbSet<QueueNzbContents> QueueNzbContents => Set<QueueNzbContents>();
     public DbSet<HealthCheckResult> HealthCheckResults => Set<HealthCheckResult>();
     public DbSet<ConfigItem> ConfigItems => Set<ConfigItem>();
 
@@ -204,9 +205,6 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
             e.Property(i => i.FileName)
                 .IsRequired();
 
-            e.Property(i => i.NzbContents)
-                .IsRequired();
-
             e.Property(i => i.NzbFileSize)
                 .IsRequired();
 
@@ -298,6 +296,24 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
 
             e.HasIndex(i => new { i.Category, i.DownloadDirId })
                 .IsUnique(false);
+        });
+        
+        // QueueNzbContents
+        b.Entity<QueueNzbContents>(e =>
+        {
+            e.ToTable("QueueNzbContents");
+            e.HasKey(i => i.Id);
+
+            e.Property(i => i.Id)
+                .ValueGeneratedNever();
+
+            e.Property(i => i.NzbContents)
+                .IsRequired();
+
+            e.HasOne(f => f.QueueItem)
+                .WithOne()
+                .HasForeignKey<QueueNzbContents>(f => f.Id)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         // HealthCheckResult

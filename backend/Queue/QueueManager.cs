@@ -68,8 +68,8 @@ public class QueueManager : IDisposable
                 // get the next queue-item from the database
                 await using var dbContext = new DavDatabaseContext();
                 var dbClient = new DavDatabaseClient(dbContext);
-                var queueItem = await LockAsync(() => dbClient.GetTopQueueItem(ct));
-                if (queueItem is null)
+                var topItem = await LockAsync(() => dbClient.GetTopQueueItem(ct));
+                if (topItem.queueItem is null || topItem.queueNzbContents is null)
                 {
                     // if we're done with the queue, wait
                     // five seconds before checking again.
@@ -82,7 +82,7 @@ public class QueueManager : IDisposable
                 await LockAsync(() =>
                 {
                     _inProgressQueueItem = BeginProcessingQueueItem(
-                        dbClient, queueItem, queueItemCancellationTokenSource
+                        dbClient, topItem.queueItem, topItem.queueNzbContents, queueItemCancellationTokenSource
                     );
                 });
                 await (_inProgressQueueItem?.ProcessingTask ?? Task.CompletedTask);
@@ -102,12 +102,14 @@ public class QueueManager : IDisposable
     (
         DavDatabaseClient dbClient,
         QueueItem queueItem,
+        QueueNzbContents queueNzbContents,
         CancellationTokenSource cts
     )
     {
         var progressHook = new Progress<int>();
         var task = new QueueItemProcessor(
-            queueItem, dbClient, _usenetClient, _configManager, _websocketManager, progressHook, cts.Token
+            queueItem, queueNzbContents, dbClient, _usenetClient, 
+            _configManager, _websocketManager, progressHook, cts.Token
         ).ProcessAsync();
         var inProgressQueueItem = new InProgressQueueItem()
         {
