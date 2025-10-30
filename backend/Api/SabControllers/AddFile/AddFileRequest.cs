@@ -22,9 +22,6 @@ public class AddFileRequest()
             context.Request.Form.Files["name"] ??
             throw new BadHttpRequestException("Invalid nzbFile/name param");
 
-        if (file.ContentType != "application/x-nzb")
-            throw new BadHttpRequestException("File mime type must be application/x-nzb");
-
         using var streamReader = new StreamReader(file.OpenReadStream());
 
         return new AddFileRequest()
