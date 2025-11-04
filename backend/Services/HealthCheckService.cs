@@ -22,6 +22,8 @@ public class HealthCheckService
     private readonly WebsocketManager _websocketManager;
     private readonly CancellationToken _cancellationToken = SigtermUtil.GetCancellationToken();
 
+    private readonly HashSet<string> _missingSegmentIds = [];
+
     public HealthCheckService
     (
         ConfigManager configManager,
@@ -32,6 +34,14 @@ public class HealthCheckService
         _configManager = configManager;
         _usenetClient = usenetClient;
         _websocketManager = websocketManager;
+
+        _configManager.OnConfigChanged += (_, configEventArgs) =>
+        {
+            // when usenet host changes, clear the missing segments cache
+            if (!configEventArgs.ChangedConfig.ContainsKey("usenet.host")) return;
+            lock (_missingSegmentIds) _missingSegmentIds.Clear();
+        };
+
         _ = StartMonitoringService();
     }
 
@@ -139,11 +149,15 @@ public class HealthCheckService
             }));
             await dbClient.Ctx.SaveChangesAsync(ct);
         }
-        catch (UsenetArticleNotFoundException)
+        catch (UsenetArticleNotFoundException e)
         {
-            // when usenet article is missing, perform repairs
             _ = _websocketManager.SendMessage(WebsocketTopic.HealthItemProgress, $"{davItem.Id}|100");
             _ = _websocketManager.SendMessage(WebsocketTopic.HealthItemProgress, $"{davItem.Id}|done");
+            if (FilenameUtil.IsImportantFileType(davItem.Name))
+                lock (_missingSegmentIds)
+                    _missingSegmentIds.Add(e.SegmentId);
+
+            // when usenet article is missing, perform repairs
             await Repair(davItem, dbClient, ct);
         }
     }
@@ -299,5 +313,15 @@ public class HealthCheckService
             $"{result.DavItemId}|{(int)result.Result}|{(int)result.RepairStatus}"
         );
         return result;
+    }
+
+    public void CheckCachedMissingSegmentIds(IEnumerable<string> segmentIds)
+    {
+        lock (_missingSegmentIds)
+        {
+            foreach (var segmentId in segmentIds)
+                if (_missingSegmentIds.Contains(segmentId))
+                    throw new UsenetArticleNotFoundException(segmentId);
+        }
     }
 }

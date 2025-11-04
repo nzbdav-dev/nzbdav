@@ -7,6 +7,7 @@ using NzbWebDAV.Clients.Usenet.Connections;
 using NzbWebDAV.Config;
 using NzbWebDAV.Database;
 using NzbWebDAV.Database.Models;
+using NzbWebDAV.Exceptions;
 using NzbWebDAV.Extensions;
 using NzbWebDAV.Queue.DeobfuscationSteps._1.FetchFirstSegment;
 using NzbWebDAV.Queue.DeobfuscationSteps._2.GetPar2FileDescriptors;
@@ -14,6 +15,7 @@ using NzbWebDAV.Queue.DeobfuscationSteps._3.GetFileInfos;
 using NzbWebDAV.Queue.FileAggregators;
 using NzbWebDAV.Queue.FileProcessors;
 using NzbWebDAV.Queue.PostProcessors;
+using NzbWebDAV.Services;
 using NzbWebDAV.Utils;
 using NzbWebDAV.Websocket;
 using Serilog;
@@ -28,6 +30,7 @@ public class QueueItemProcessor(
     UsenetStreamingClient usenetClient,
     ConfigManager configManager,
     WebsocketManager websocketManager,
+    HealthCheckService healthCheckService,
     IProgress<int> progress,
     CancellationToken ct
 )
@@ -116,7 +119,12 @@ public class QueueItemProcessor(
         var archivePassword = nzb.MetaData.GetValueOrDefault("password")?.FirstOrDefault();
         var nzbFiles = nzb.Files.Where(x => x.Segments.Count > 0).ToList();
 
-        // part 1 -- get name and size of each nzb file
+        // step 0 -- perform article existence pre-check against cache
+        // https://github.com/nzbdav-dev/nzbdav/issues/101
+        var articlesToPrecheck = nzbFiles.SelectMany(x => x.Segments).Select(x => x.MessageId.Value);
+        healthCheckService.CheckCachedMissingSegmentIds(articlesToPrecheck);
+
+        // step 1 -- get name and size of each nzb file
         var part1Progress = progress
             .Scale(50, 100)
             .ToPercentage(nzbFiles.Count);
@@ -127,7 +135,7 @@ public class QueueItemProcessor(
         var fileInfos = GetFileInfosStep.GetFileInfos(
             segments, par2FileDescriptors);
 
-        // part 2 -- perform file processing
+        // step 2 -- perform file processing
         var fileProcessors = GetFileProcessors(fileInfos, archivePassword).ToList();
         var part2Progress = progress
             .Offset(50)
@@ -142,7 +150,7 @@ public class QueueItemProcessor(
             .Select(x => x!)
             .ToList();
 
-        // part3 -- Optionally check full article existence
+        // step 3 -- Optionally check full article existence
         var checkedFullHealth = false;
         if (configManager.IsEnsureArticleExistenceEnabled())
         {
