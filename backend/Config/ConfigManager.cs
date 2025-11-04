@@ -60,7 +60,7 @@ public class ConfigManager
     {
         return StringUtil.EmptyToNull(GetConfigValue("rclone.mount-dir"))
                ?? StringUtil.EmptyToNull(Environment.GetEnvironmentVariable("MOUNT_DIR"))
-               ?? "/tmp";
+               ?? "/mnt/nzbdav";
     }
 
     public string GetApiKey()
@@ -80,7 +80,7 @@ public class ConfigManager
     {
         return int.Parse(
             StringUtil.EmptyToNull(GetConfigValue("usenet.connections"))
-            ?? "10"
+            ?? "50"
         );
     }
 
@@ -89,7 +89,7 @@ public class ConfigManager
         return int.Parse(
             StringUtil.EmptyToNull(GetConfigValue("usenet.connections-per-stream"))
             ?? StringUtil.EmptyToNull(Environment.GetEnvironmentVariable("CONNECTIONS_PER_STREAM"))
-            ?? "1"
+            ?? "5"
         );
     }
 
