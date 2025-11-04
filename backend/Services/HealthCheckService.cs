@@ -201,10 +201,33 @@ public class HealthCheckService
     {
         try
         {
-            var symlink = OrganizedSymlinksUtil.GetSymlink(davItem, _configManager);
+            // if the file extension has been marked as ignored,
+            // then don't bother trying to repair it. We can simply delete it.
+            var blacklistedExtensions = _configManager.GetBlacklistedExtensions();
+            if (blacklistedExtensions.Contains(Path.GetExtension(davItem.Name)))
+            {
+                dbClient.Ctx.Items.Remove(davItem);
+                dbClient.Ctx.HealthCheckResults.Add(SendStatus(new HealthCheckResult()
+                {
+                    Id = Guid.NewGuid(),
+                    DavItemId = davItem.Id,
+                    Path = davItem.Path,
+                    CreatedAt = DateTimeOffset.UtcNow,
+                    Result = HealthCheckResult.HealthResult.Unhealthy,
+                    RepairStatus = HealthCheckResult.RepairAction.Deleted,
+                    Message = string.Join(" ", [
+                        "File had missing articles.",
+                        "File extension is marked in settings as ignored (unwanted) file type.",
+                        "Deleted file."
+                    ])
+                }));
+                await dbClient.Ctx.SaveChangesAsync(ct);
+                return;
+            }
 
             // if the unhealthy item is unlinked/orphaned,
             // then we can simply delete it.
+            var symlink = OrganizedSymlinksUtil.GetSymlink(davItem, _configManager);
             if (symlink == null)
             {
                 dbClient.Ctx.Items.Remove(davItem);
@@ -217,7 +240,7 @@ public class HealthCheckService
                     Result = HealthCheckResult.HealthResult.Unhealthy,
                     RepairStatus = HealthCheckResult.RepairAction.Deleted,
                     Message = string.Join(" ", [
-                        "File had missing articles",
+                        "File had missing articles.",
                         "Could not find corresponding symlink within Library Dir.",
                         "Deleted file."
                     ])

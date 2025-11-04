@@ -10,7 +10,7 @@ public class BlacklistedExtensionPostProcessor(ConfigManager configManager, DavD
 {
     public void RemoveBlacklistedExtensions()
     {
-        var blacklistedExtensions = GetBlacklistedExtensions();
+        var blacklistedExtensions = configManager.GetBlacklistedExtensions();
         var blacklistedFiles = dbClient.Ctx.ChangeTracker.Entries<DavItem>()
             .Where(x => x.State == EntityState.Added)
             .Select(x => x.Entity)
@@ -19,16 +19,6 @@ public class BlacklistedExtensionPostProcessor(ConfigManager configManager, DavD
 
         foreach (var blacklistedFile in blacklistedFiles)
             RemoveBlacklistedFile(blacklistedFile);
-    }
-
-    private HashSet<string> GetBlacklistedExtensions()
-    {
-        return configManager.GetDownloadExtensionBlacklist()
-            .Split(',', StringSplitOptions.RemoveEmptyEntries)
-            .Select(x => x.Trim())
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .Select(x => x.ToLower())
-            .ToHashSet();
     }
 
     private void RemoveBlacklistedFile(DavItem davItem)

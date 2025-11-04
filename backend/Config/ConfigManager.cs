@@ -194,10 +194,15 @@ public class ConfigManager
         return GetConfigValue("api.duplicate-nzb-behavior") ?? defaultValue;
     }
 
-    public string GetDownloadExtensionBlacklist()
+    public HashSet<string> GetBlacklistedExtensions()
     {
         var defaultValue = ".nfo, .par2, .sfv";
-        return GetConfigValue("api.download-extension-blacklist") ?? defaultValue;
+        return (GetConfigValue("api.download-extension-blacklist") ?? defaultValue)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(x => x.Trim())
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.ToLower())
+            .ToHashSet();
     }
 
     public class ConfigEventArgs : EventArgs
