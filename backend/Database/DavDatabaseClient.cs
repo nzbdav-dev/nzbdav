@@ -158,21 +158,21 @@ public sealed class DavDatabaseClient(DavDatabaseContext ctx)
     }
 
     // health check
-    public async Task<List<HealthCheckStats>> GetHealthCheckStatsAsync
+    public async Task<List<HealthCheckStat>> GetHealthCheckStatsAsync
     (
         DateTimeOffset from,
         DateTimeOffset to,
         CancellationToken ct = default
     )
     {
-        return await Ctx.HealthCheckResults
-            .Where(h => h.CreatedAt >= from && h.CreatedAt <= to)
+        return await Ctx.HealthCheckStats
+            .Where(h => h.DateStartInclusive >= from && h.DateStartInclusive <= to)
             .GroupBy(h => new { h.Result, h.RepairStatus })
-            .Select(g => new HealthCheckStats
+            .Select(g => new HealthCheckStat
             {
                 Result = g.Key.Result,
                 RepairStatus = g.Key.RepairStatus,
-                Count = g.Count()
+                Count = g.Select(r => r.Count).Sum(),
             })
             .ToListAsync(ct);
     }

@@ -28,6 +28,7 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
     public DbSet<HistoryItem> HistoryItems => Set<HistoryItem>();
     public DbSet<QueueNzbContents> QueueNzbContents => Set<QueueNzbContents>();
     public DbSet<HealthCheckResult> HealthCheckResults => Set<HealthCheckResult>();
+    public DbSet<HealthCheckStat> HealthCheckStats => Set<HealthCheckStat>();
     public DbSet<ConfigItem> ConfigItems => Set<ConfigItem>();
 
     // tables
@@ -297,7 +298,7 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
             e.HasIndex(i => new { i.Category, i.DownloadDirId })
                 .IsUnique(false);
         });
-        
+
         // QueueNzbContents
         b.Entity<QueueNzbContents>(e =>
         {
@@ -355,9 +356,45 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
             e.HasIndex(i => new { i.Result, i.RepairStatus, i.CreatedAt })
                 .IsUnique(false);
 
+            e.HasIndex(i => new { i.CreatedAt })
+                .IsUnique(false);
+
             e.HasIndex(h => h.DavItemId)
                 .HasFilter("\"RepairStatus\" = 3")
                 .IsUnique(false);
+        });
+
+        // HealthCheckStats
+        b.Entity<HealthCheckStat>(e =>
+        {
+            e.ToTable("HealthCheckStats");
+            e.HasKey(i => new { i.DateStartInclusive, i.DateEndExclusive, i.Result, i.RepairStatus });
+
+            e.Property(i => i.DateStartInclusive)
+                .ValueGeneratedNever()
+                .IsRequired()
+                .HasConversion(
+                    x => x.ToUnixTimeSeconds(),
+                    x => DateTimeOffset.FromUnixTimeSeconds(x)
+                );
+
+            e.Property(i => i.DateEndExclusive)
+                .ValueGeneratedNever()
+                .IsRequired()
+                .HasConversion(
+                    x => x.ToUnixTimeSeconds(),
+                    x => DateTimeOffset.FromUnixTimeSeconds(x)
+                );
+
+            e.Property(i => i.Result)
+                .HasConversion<int>()
+                .IsRequired();
+
+            e.Property(i => i.RepairStatus)
+                .HasConversion<int>()
+                .IsRequired();
+
+            e.Property(i => i.Count);
         });
 
         // ConfigItem

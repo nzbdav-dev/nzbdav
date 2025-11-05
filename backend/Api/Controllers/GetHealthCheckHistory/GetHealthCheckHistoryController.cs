@@ -11,17 +11,18 @@ public class GetHealthCheckHistoryController(DavDatabaseClient dbClient) : BaseA
     private async Task<GetHealthCheckHistoryResponse> GetHealthCheckHistory(GetHealthCheckHistoryRequest request)
     {
         var now = DateTime.UtcNow;
+        var tomorrow = now.AddDays(1);
         var thirtyDaysAgo = now.AddDays(-30);
-        var stats = await dbClient.GetHealthCheckStatsAsync(thirtyDaysAgo, now);
-        var items = await dbClient.Ctx.HealthCheckResults
+        var statsPromise = dbClient.GetHealthCheckStatsAsync(thirtyDaysAgo, tomorrow);
+        var itemsPromise = dbClient.Ctx.HealthCheckResults
             .OrderByDescending(x => x.CreatedAt)
             .Take(request.PageSize)
             .ToListAsync();
 
         return new GetHealthCheckHistoryResponse()
         {
-            Stats = stats,
-            Items = items
+            Stats = await statsPromise,
+            Items = await itemsPromise
         };
     }
 
