@@ -31,7 +31,9 @@ public class CancellableStream(Stream innerStream, CancellationToken token) : St
     public override int Read(byte[] buffer, int offset, int count)
     {
         CheckDisposed();
-        return ReadAsync(buffer, offset, count, token).Result;
+        return ReadAsync(buffer, offset, count, token)
+            .GetAwaiter()
+            .GetResult();
     }
 
     public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
