@@ -73,16 +73,19 @@ public class UsenetStreamingClient
         var token = childCt.Token;
 
         var tasks = segmentIds
-            .Select(x => _client.StatAsync(x, token))
+            .Select(async x => (
+                SegmentId: x,
+                Result: await _client.StatAsync(x, token)
+            ))
             .WithConcurrencyAsync(concurrency);
 
         var processed = 0;
-        await foreach (var result in tasks)
+        await foreach (var task in tasks)
         {
             progress?.Report(++processed);
-            if (result.ResponseType == NntpStatResponseType.ArticleExists) continue;
+            if (task.Result.ResponseType == NntpStatResponseType.ArticleExists) continue;
             await childCt.CancelAsync();
-            throw new UsenetArticleNotFoundException(result.MessageId.Value);
+            throw new UsenetArticleNotFoundException(task.SegmentId);
         }
     }
 
