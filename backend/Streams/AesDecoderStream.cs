@@ -172,10 +172,14 @@ namespace NzbWebDAV.Streams
             var iv = new byte[16];
             if (blockIndex > 0)
             {
-                var bytesRead = await _mStream.ReadAsync(iv.AsMemory(0, 16), ct);
-                if (bytesRead == 0) return false;
-                if (bytesRead != 16)
-                    throw new EndOfStreamException("Unable to read previous block for IV");
+                try
+                {
+                    await _mStream.ReadExactlyAsync(iv.AsMemory(0, 16), ct);
+                }
+                catch (Exception e)
+                {
+                    throw new EndOfStreamException("Unable to read previous block for IV", e);
+                }
             }
             else
             {
@@ -201,9 +205,7 @@ namespace NzbWebDAV.Streams
             if (blockOffset > 0)
             {
                 var tempCipher = new byte[blockSize];
-                var bytes = await _mStream.ReadAsync(tempCipher.AsMemory(0, blockSize), ct);
-                if (bytes != blockSize)
-                    throw new EndOfStreamException();
+                await _mStream.ReadExactlyAsync(tempCipher.AsMemory(0, blockSize), ct);
 
                 var tempPlain = new byte[blockSize];
                 var decrypted = _mDecoder.TransformBlock(tempCipher, 0, blockSize, tempPlain, 0);
