@@ -15,7 +15,7 @@ public class BlacklistedExtensionPostProcessor(ConfigManager configManager, DavD
             .Where(x => x.State == EntityState.Added)
             .Select(x => x.Entity)
             .Where(x => x.Type != DavItem.ItemType.Directory)
-            .Where(x => blacklistedExtensions.Contains(Path.GetExtension(x.Name)));
+            .Where(x => blacklistedExtensions.Contains(Path.GetExtension(x.Name).ToLower()));
 
         foreach (var blacklistedFile in blacklistedFiles)
             RemoveBlacklistedFile(blacklistedFile);

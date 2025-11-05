@@ -204,7 +204,7 @@ public class HealthCheckService
             // if the file extension has been marked as ignored,
             // then don't bother trying to repair it. We can simply delete it.
             var blacklistedExtensions = _configManager.GetBlacklistedExtensions();
-            if (blacklistedExtensions.Contains(Path.GetExtension(davItem.Name)))
+            if (blacklistedExtensions.Contains(Path.GetExtension(davItem.Name).ToLower()))
             {
                 dbClient.Ctx.Items.Remove(davItem);
                 dbClient.Ctx.HealthCheckResults.Add(SendStatus(new HealthCheckResult()
