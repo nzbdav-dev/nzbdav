@@ -58,7 +58,7 @@ public class DatabaseStoreWatchFolder(
         {
             FileName = request.Name,
             MimeType = "application/x-nzb",
-            Category = "uncategorized",
+            Category = configManager.GetManualUploadCategory(),
             Priority = QueueItem.PriorityOption.Normal,
             PostProcessing = QueueItem.PostProcessingOption.RepairUnpackDelete,
             PauseUntil = DateTime.Now.AddSeconds(3),

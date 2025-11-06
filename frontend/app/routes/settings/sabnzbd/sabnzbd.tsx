@@ -51,6 +51,21 @@ export function SabnzbdSettings({ config, setNewConfig }: SabnzbdSettingsProps) 
             </Form.Group>
             <hr />
             <Form.Group>
+                <Form.Label htmlFor="manual-category-input">Manual Upload Category</Form.Label>
+                <Form.Control
+                    className={styles.input}
+                    type="text"
+                    id="manual-category-input"
+                    aria-describedby="manual-category-help"
+                    value={config["api.manual-category"]}
+                    placeholder="uncategorized"
+                    onChange={e => setNewConfig({ ...config, "api.manual-category": e.target.value })} />
+                <Form.Text id="manual-category-help" muted>
+                    The category to use for manual uploads through the Queue page on the UI.
+                </Form.Text>
+            </Form.Group>
+            <hr />
+            <Form.Group>
                 <Form.Label htmlFor="mount-dir-input">Rclone Mount Directory</Form.Label>
                 <Form.Control
                     className={styles.input}
@@ -159,6 +174,7 @@ export function SabnzbdSettings({ config, setNewConfig }: SabnzbdSettingsProps) 
 export function isSabnzbdSettingsUpdated(config: Record<string, string>, newConfig: Record<string, string>) {
     return config["api.key"] !== newConfig["api.key"]
         || config["api.categories"] !== newConfig["api.categories"]
+        || config["api.manual-category"] !== newConfig["api.manual-category"]
         || config["rclone.mount-dir"] !== newConfig["rclone.mount-dir"]
         || config["api.max-queue-connections"] !== newConfig["api.max-queue-connections"]
         || config["api.ensure-importable-video"] !== newConfig["api.ensure-importable-video"]

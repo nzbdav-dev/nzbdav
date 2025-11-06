@@ -13,6 +13,7 @@ import { isRepairsSettingsUpdated, isRepairsSettingsValid, RepairsSettings } fro
 const defaultConfig = {
     "api.key": "",
     "api.categories": "",
+    "api.manual-category": "uncategorized",
     "api.max-queue-connections": "",
     "api.ensure-importable-video": "true",
     "api.ensure-article-existence": "false",
