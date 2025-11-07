@@ -13,7 +13,8 @@ public class AddUrlRequest() : AddFileRequest
     public static async Task<AddUrlRequest> New(HttpContext context)
     {
         var nzbUrl = context.GetQueryParam("name");
-        var nzbFile = await GetNzbFile(nzbUrl);
+        var nzbName = context.GetQueryParam("nzbname");
+        var nzbFile = await GetNzbFile(nzbUrl, nzbName);
         return new AddUrlRequest()
         {
             FileName = nzbFile.FileName,
@@ -26,7 +27,7 @@ public class AddUrlRequest() : AddFileRequest
         };
     }
 
-    private static async Task<NzbFileResponse> GetNzbFile(string? url)
+    private static async Task<NzbFileResponse> GetNzbFile(string? url, string? nzbName)
     {
         try
         {
@@ -43,14 +44,16 @@ public class AddUrlRequest() : AddFileRequest
 
             // read the content type
             var contentType = response.Content.Headers.ContentType?.MediaType;
-            if (string.IsNullOrEmpty(contentType))
-                throw new Exception("Missing Content-Type header.");
 
-            // read the filename
-            var contentDisposition = response.Content.Headers.ContentDisposition;
-            var fileName = contentDisposition?.FileName?.Trim('"');
-            if (string.IsNullOrEmpty(fileName))
-                throw new Exception("Filename could not be determined from Content-Disposition header.");
+            // determine the filename
+            var fileName = AddNzbExtension(nzbName);
+            if (fileName == null)
+            {
+                var contentDisposition = response.Content.Headers.ContentDisposition;
+                fileName = contentDisposition?.FileName?.Trim('"');
+                if (string.IsNullOrEmpty(fileName))
+                    throw new Exception("Filename could not be determined from Content-Disposition header.");
+            }
 
             // read the file contents
             var fileContents = await response.Content.ReadAsStringAsync();
@@ -71,10 +74,17 @@ public class AddUrlRequest() : AddFileRequest
         }
     }
 
+    private static string? AddNzbExtension(string? nzbName)
+    {
+        return nzbName == null ? null
+            : nzbName.ToLower().EndsWith("nzb") ? nzbName
+            : $"{nzbName}.nzb";
+    }
+
     private class NzbFileResponse
     {
         public required string FileName { get; init; }
-        public required string ContentType { get; init; }
+        public required string? ContentType { get; init; }
         public required string FileContents { get; init; }
     }
 }

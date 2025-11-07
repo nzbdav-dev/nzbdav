@@ -7,7 +7,7 @@ namespace NzbWebDAV.Api.SabControllers.AddFile;
 public class AddFileRequest()
 {
     public string FileName { get; init; }
-    public string MimeType { get; init; }
+    public string? MimeType { get; init; }
     public string NzbFileContents { get; init; }
     public string Category { get; init; }
     public QueueItem.PriorityOption Priority { get; init; }
