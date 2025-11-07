@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NzbWebDAV.Config;
 using NzbWebDAV.Database;
+using NzbWebDAV.Database.Models;
 
 namespace NzbWebDAV.Api.SabControllers.GetHistory;
 
@@ -14,18 +15,27 @@ public class GetHistoryController(
 {
     private async Task<GetHistoryResponse> GetHistoryAsync(GetHistoryRequest request)
     {
+        // get query
+        IQueryable<HistoryItem> query = dbClient.Ctx.HistoryItems;
+        if (request.NzoIds.Count > 0)
+            query = query.Where(q => request.NzoIds.Contains(q.Id));
+        if (request.Category != null)
+            query = query.Where(q => q.Category == request.Category);
+
         // get total count
-        var totalCount = await dbClient.Ctx.HistoryItems
-            .Where(q => q.Category == request.Category || request.Category == null)
+        var totalCountPromise = query
             .CountAsync(request.CancellationToken);
 
         // get history items
-        var historyItems = await dbClient.Ctx.HistoryItems
-            .Where(q => q.Category == request.Category || request.Category == null)
+        var historyItemsPromise = query
             .OrderByDescending(q => q.CreatedAt)
             .Skip(request.Start)
             .Take(request.Limit)
             .ToArrayAsync(request.CancellationToken);
+
+        // await results
+        var totalCount = await totalCountPromise;
+        var historyItems = await historyItemsPromise;
 
         // get download folders
         var downloadFolderIds = historyItems.Select(x => x.DownloadDirId).ToHashSet();
