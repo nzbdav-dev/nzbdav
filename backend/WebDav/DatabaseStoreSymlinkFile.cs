@@ -24,7 +24,7 @@ public class DatabaseStoreSymlinkFile(DavItem davFile, ConfigManager configManag
         return GetTargetPath(davFile, configManager.GetRcloneMountDir());
     }
 
-    public static string GetTargetPath(DavItem davFile, string mountDir)
+    public static string GetTargetPath(DavItem davFile, string mountDir, char? pathSeparator = null)
     {
         var pathParts = davFile.IdPrefix
             .Select(x => x.ToString())
@@ -32,6 +32,6 @@ public class DatabaseStoreSymlinkFile(DavItem davFile, ConfigManager configManag
             .Prepend(mountDir)
             .Append(davFile.Id.ToString())
             .ToArray();
-        return Path.Join(pathParts);
+        return string.Join(pathSeparator ?? Path.DirectorySeparatorChar, pathParts);
     }
 }

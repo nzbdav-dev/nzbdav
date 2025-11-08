@@ -24,8 +24,7 @@ public class GetConfigController(
         var root = JsonNode.Parse(config)!;
 
         // update the complete_dir
-        var completeDir = Path.Join(configManager.GetRcloneMountDir(), DavItem.SymlinkFolder.Name);
-        root["config"]!["misc"]!["complete_dir"] = completeDir;
+        root["config"]!["misc"]!["complete_dir"] = GetCompletedDir();
 
         // update the categories
         var categoriesRoot = root["config"]?["categories"]?.AsArray()!;
@@ -51,5 +50,12 @@ public class GetConfigController(
         var options = new JsonSerializerOptions { WriteIndented = true };
         var response = root.ToJsonString(options);
         return Content(response, "application/json");
+    }
+
+    private string GetCompletedDir()
+    {
+        return configManager.GetImportStrategy() == "strm"
+            ? configManager.GetStrmCompletedDownloadDir()
+            : Path.Join(configManager.GetRcloneMountDir(), DavItem.SymlinkFolder.Name);
     }
 }

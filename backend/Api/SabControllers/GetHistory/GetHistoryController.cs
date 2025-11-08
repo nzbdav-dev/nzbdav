@@ -51,7 +51,7 @@ public class GetHistoryController(
                 GetHistoryResponse.HistorySlot.FromHistoryItem(
                     x,
                     x.DownloadDirId != null ? davItemsDict.GetValueOrDefault(x.DownloadDirId.Value) : null,
-                    configManager.GetRcloneMountDir()
+                    configManager
                 )
             )
             .ToList();

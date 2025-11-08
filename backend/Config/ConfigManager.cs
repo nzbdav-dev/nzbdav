@@ -58,15 +58,23 @@ public class ConfigManager
 
     public string GetRcloneMountDir()
     {
-        return StringUtil.EmptyToNull(GetConfigValue("rclone.mount-dir"))
+        var mountDir = StringUtil.EmptyToNull(GetConfigValue("rclone.mount-dir"))
                ?? StringUtil.EmptyToNull(Environment.GetEnvironmentVariable("MOUNT_DIR"))
                ?? "/mnt/nzbdav";
+        if (mountDir.EndsWith('/')) mountDir = mountDir.TrimEnd('/');
+        return mountDir;
     }
 
     public string GetApiKey()
     {
         return StringUtil.EmptyToNull(GetConfigValue("api.key"))
                ?? EnvironmentUtil.GetVariable("FRONTEND_BACKEND_API_KEY");
+    }
+
+    public string GetStrmKey()
+    {
+        return GetConfigValue("api.strm-key")
+               ?? throw new InvalidOperationException("The `api.strm-key` config does not exist.");
     }
 
     public string GetApiCategories()
@@ -209,6 +217,21 @@ public class ConfigManager
             .Where(x => !string.IsNullOrWhiteSpace(x))
             .Select(x => x.ToLower())
             .ToHashSet();
+    }
+
+    public string GetImportStrategy()
+    {
+        return GetConfigValue("api.import-strategy") ?? "symlinks";
+    }
+
+    public string GetStrmCompletedDownloadDir()
+    {
+        return GetConfigValue("api.completed-downloads-dir") ?? "/data/completed-downloads";
+    }
+
+    public string GetBaseUrl()
+    {
+        return GetConfigValue("general.base-url") ?? "http://localhost:3000";
     }
 
     public class ConfigEventArgs : EventArgs

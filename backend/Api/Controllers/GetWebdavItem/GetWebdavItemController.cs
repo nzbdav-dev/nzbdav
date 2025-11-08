@@ -62,6 +62,7 @@ public class ListWebdavDirectoryController(DatabaseStore store, ConfigManager co
     {
         try
         {
+            HttpContext.Items["configManager"] = configManager;
             var request = new GetWebdavItemRequest(HttpContext);
             await using var response = await GetWebdavItem(request);
             await response.CopyToAsync(Response.Body, bufferSize: 1024, HttpContext.RequestAborted);

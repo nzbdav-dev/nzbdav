@@ -1,6 +1,7 @@
 ﻿using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.Http;
+using NzbWebDAV.Config;
 using NzbWebDAV.Utils;
 
 namespace NzbWebDAV.Api.Controllers.GetWebdavItem;
@@ -20,11 +21,11 @@ public class GetWebdavItemRequest
         if (path.StartsWith("/")) path = path[1..];
         Item = path;
 
-        // skip auth check for now
+        // authenticate the downloadKey
         var downloadKey = context.Request.Query["downloadKey"];
-        if (!VerifyDownloadKey(downloadKey, Item))
+        var configManager = (ConfigManager)context.Items["configManager"]!;
+        if (!VerifyDownloadKey(downloadKey, Item, configManager))
             throw new UnauthorizedAccessException("Invalid download key");
-
 
         // parse range header
         var rangeHeader = context.Request.Headers["Range"].FirstOrDefault() ?? "";
@@ -34,14 +35,27 @@ public class GetWebdavItemRequest
         if (parts.Length > 1) RangeEnd = long.Parse(parts[1]);
     }
 
-
-    public static bool VerifyDownloadKey(string? downloadKey, string path)
+    private static bool VerifyDownloadKey(string? downloadKey, string path, ConfigManager configManager)
     {
+        if (path.StartsWith(".ids"))
+        {
+            // strm streams link items by id and use a different download key
+            var strmKey = configManager.GetStrmKey();
+            var expectedDownloadKey = GenerateDownloadKey(strmKey, path);
+            if (downloadKey == expectedDownloadKey)
+                return true;
+        }
+
         var apiKey = EnvironmentUtil.GetVariable("FRONTEND_BACKEND_API_KEY");
+        return downloadKey == GenerateDownloadKey(apiKey, path);
+    }
+
+    public static string GenerateDownloadKey(string apiKey, string path)
+    {
         var input = $"{path}_{apiKey}";
         var inputBytes = Encoding.UTF8.GetBytes(input);
         var hashBytes = SHA256.HashData(inputBytes);
         var hash = Convert.ToHexStringLower(hashBytes);
-        return downloadKey == hash;
+        return hash;
     }
 }

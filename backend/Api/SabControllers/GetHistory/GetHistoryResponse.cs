@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using NzbWebDAV.Config;
 using NzbWebDAV.Database.Models;
 
 namespace NzbWebDAV.Api.SabControllers.GetHistory;
@@ -47,7 +48,12 @@ public class GetHistoryResponse : SabBaseResponse
         [JsonPropertyName("fail_message")]
         public string FailMessage { get; set; }
 
-        public static HistorySlot FromHistoryItem(HistoryItem historyItem, DavItem? downloadFolder, string mountDir)
+        public static HistorySlot FromHistoryItem
+        (
+            HistoryItem historyItem,
+            DavItem? downloadFolder,
+            ConfigManager configManager
+        )
         {
             return new HistorySlot()
             {
@@ -57,16 +63,47 @@ public class GetHistoryResponse : SabBaseResponse
                 Category = historyItem.Category,
                 Status = historyItem.DownloadStatus,
                 SizeInBytes = historyItem.TotalSegmentBytes,
-                DownloadPath = downloadFolder == null ? null : Path.Join(new[]
-                {
-                    mountDir,
-                    DavItem.SymlinkFolder.Name,
-                    historyItem.Category,
-                    downloadFolder.Name
-                }),
+                DownloadPath = GetDownloadPath(historyItem, downloadFolder, configManager),
                 DownloadTimeSeconds = historyItem.DownloadTimeSeconds,
                 FailMessage = historyItem.FailMessage ?? "",
             };
+        }
+
+        private static string? GetDownloadPath
+        (
+            HistoryItem historyItem,
+            DavItem? downloadFolder,
+            ConfigManager configManager
+        )
+        {
+            // return null for null download folder
+            if (downloadFolder == null) return null;
+            var importStrategy = configManager.GetImportStrategy();
+
+            // return completed-downloads path
+            if (importStrategy == "strm")
+            {
+                return Path.Join(new[]
+                {
+                    configManager.GetStrmCompletedDownloadDir(),
+                    historyItem.Category,
+                    downloadFolder.Name
+                });
+            }
+
+            // return completed-symlinks path
+            if (importStrategy == "symlinks")
+            {
+                return Path.Join(new[]
+                {
+                    configManager.GetRcloneMountDir(),
+                    DavItem.SymlinkFolder.Name,
+                    historyItem.Category,
+                    downloadFolder.Name
+                });
+            }
+
+            throw new Exception("Unknown import strategy");
         }
     }
 }
