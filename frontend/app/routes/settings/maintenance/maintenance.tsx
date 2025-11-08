@@ -111,10 +111,14 @@ export function Maintenance({ savedConfig }: MaintenanceProps) {
                     </div>
                     <Form.Text id="cleanup-task-progress-help" muted>
                         <br />
-                        This task will scan your organized media library for all symlinked files.
+                        This task will scan your organized media library for all symlinked or *.strm linked files.
                         Any file on the webdav that is not pointed to by your library will be deleted.
                         If you would like to see what would be deleted without running the task, you can {dryRunButton}.
                         The dry-run will not delete anything.
+                        <br />
+                        <br />
+                        Note: This task is intended to cleanup old, abandoned, files.
+                        Files added less than twenty-four hours ago will not be deleted.
                     </Form.Text>
                 </Form.Group>
             </div>

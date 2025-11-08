@@ -46,7 +46,7 @@ export function RepairsSettings({ config, setNewConfig }: RepairsSettingsProps) 
                     value={config["media.library-dir"]}
                     onChange={e => setNewConfig({ ...config, "media.library-dir": e.target.value })} />
                 <Form.Text id="library-dir-help" muted>
-                    The path to your organized media library that contains all your imported symlinks.
+                    The path to your organized media library that contains all your imported symlinks or *.strm files.
                     Make sure this path is visible to your NzbDAV container.
                 </Form.Text>
             </Form.Group>
