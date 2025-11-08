@@ -11,6 +11,7 @@ import { Maintenance } from "./maintenance/maintenance";
 import { isRepairsSettingsUpdated, isRepairsSettingsValid, RepairsSettings } from "./repairs/repairs";
 
 const defaultConfig = {
+    "general.base-url": "",
     "api.key": "",
     "api.categories": "",
     "api.manual-category": "uncategorized",
@@ -20,6 +21,8 @@ const defaultConfig = {
     "api.ignore-history-limit": "true",
     "api.download-extension-blacklist": ".nfo, .par2, .sfv",
     "api.duplicate-nzb-behavior": "increment",
+    "api.import-strategy": "symlinks",
+    "api.completed-downloads-dir": "",
     "usenet.host": "",
     "usenet.port": "",
     "usenet.use-ssl": "false",

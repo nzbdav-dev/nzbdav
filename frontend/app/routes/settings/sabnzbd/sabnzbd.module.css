@@ -13,3 +13,8 @@
 .error {
     border: 1px solid red !important;
 }
+
+.subGroup {
+    margin-top: 15px;
+    margin-left: 15px;
+}

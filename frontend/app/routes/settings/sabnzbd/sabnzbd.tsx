@@ -66,19 +66,66 @@ export function SabnzbdSettings({ config, setNewConfig }: SabnzbdSettingsProps) 
             </Form.Group>
             <hr />
             <Form.Group>
-                <Form.Label htmlFor="mount-dir-input">Rclone Mount Directory</Form.Label>
-                <Form.Control
+                <Form.Label htmlFor="import-strategy-input">Import Strategy</Form.Label>
+                <Form.Select
                     className={styles.input}
-                    type="text"
-                    id="mount-dir-input"
-                    aria-describedby="mount-dir-help"
-                    placeholder="/mnt/nzbdav"
-                    value={config["rclone.mount-dir"]}
-                    onChange={e => setNewConfig({ ...config, "rclone.mount-dir": e.target.value })} />
-                <Form.Text id="mount-dir-help" muted>
-                    The location at which you've mounted (or will mount) the webdav root, through Rclone. This is used to tell Radarr / Sonarr where to look for completed "downloads."
+                    value={config["api.import-strategy"]}
+                    onChange={e => setNewConfig({ ...config, "api.import-strategy": e.target.value })}
+                >
+                    <option value="symlinks">Symlinks — Plex</option>
+                    <option value="strm">STRM Files — Emby/Jellyfin</option>
+                </Form.Select>
+                <Form.Text id="import-strategy-help" muted>
+                    If you need to be able to stream from Plex, you will need to configure rclone and should select the `Symlinks` option here. If you only need to stream through Emby or Jellyfin, then you can skip rclone altogether and select the `STRM Files` option.
                 </Form.Text>
             </Form.Group>
+            {/* <hr /> */}
+            {config["api.import-strategy"] === 'symlinks' &&
+                <Form.Group className={styles.subGroup}>
+                    <Form.Label htmlFor="mount-dir-input">Rclone Mount Directory</Form.Label>
+                    <Form.Control
+                        className={styles.input}
+                        type="text"
+                        id="mount-dir-input"
+                        aria-describedby="mount-dir-help"
+                        placeholder="/mnt/nzbdav"
+                        value={config["rclone.mount-dir"]}
+                        onChange={e => setNewConfig({ ...config, "rclone.mount-dir": e.target.value })} />
+                    <Form.Text id="mount-dir-help" muted>
+                        The location at which you've mounted (or will mount) the webdav root, through Rclone. This is used to tell Radarr / Sonarr where to look for completed "downloads."
+                    </Form.Text>
+                </Form.Group>
+            }
+            {config["api.import-strategy"] === 'strm' && <>
+                <Form.Group  className={styles.subGroup}>
+                    <Form.Label htmlFor="completed-downloads-dir-input">Completed Downloads Dir</Form.Label>
+                    <Form.Control
+                        className={styles.input}
+                        type="text"
+                        id="completed-downloads-dir-input"
+                        aria-describedby="completed-downloads-dir-help"
+                        placeholder="/data/completed-downloads"
+                        value={config["api.completed-downloads-dir"]}
+                        onChange={e => setNewConfig({ ...config, "api.completed-downloads-dir": e.target.value })} />
+                    <Form.Text id="completed-downloads-dir-help" muted>
+                        This is used to tell Radarr / Sonarr where to look for completed "downloads." Make sure this path is also visible to your Radarr / Sonarr containers. The "downloads" placed in this folder will all be *.strm files that point to nzbdav for streaming.
+                    </Form.Text>
+                </Form.Group>
+                <Form.Group  className={styles.subGroup}>
+                    <Form.Label htmlFor="base-url-input">Base URL</Form.Label>
+                    <Form.Control
+                        className={styles.input}
+                        type="text"
+                        id="base-url-input"
+                        aria-describedby="base-url-help"
+                        placeholder="http://localhost:3000"
+                        value={config["general.base-url"]}
+                        onChange={e => setNewConfig({ ...config, "general.base-url": e.target.value })} />
+                    <Form.Text id="base-url-help" muted>
+                        What is the base URL at which you access nzbdav? Make sure that Emby/Jellyfin can access this url. This is the URL they will connect to for streaming. All *.strm files will point to this URL.
+                    </Form.Text>
+                </Form.Group>
+            </>}
             <hr />
             <Form.Group>
                 <Form.Label htmlFor="max-queue-connections-input">Max Connections for Queue Processing</Form.Label>
@@ -182,6 +229,9 @@ export function isSabnzbdSettingsUpdated(config: Record<string, string>, newConf
         || config["api.ignore-history-limit"] !== newConfig["api.ignore-history-limit"]
         || config["api.duplicate-nzb-behavior"] !== newConfig["api.duplicate-nzb-behavior"]
         || config["api.download-extension-blacklist"] !== newConfig["api.download-extension-blacklist"]
+        || config["api.import-strategy"] !== newConfig["api.import-strategy"]
+        || config["api.completed-downloads-dir"] !== newConfig["api.completed-downloads-dir"]
+        || config["general.base-url"] !== newConfig["general.base-url"]
 }
 
 export function isSabnzbdSettingsValid(newConfig: Record<string, string>) {
