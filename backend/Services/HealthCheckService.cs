@@ -227,8 +227,8 @@ public class HealthCheckService
 
             // if the unhealthy item is unlinked/orphaned,
             // then we can simply delete it.
-            var symlink = OrganizedSymlinksUtil.GetSymlink(davItem, _configManager);
-            if (symlink == null)
+            var symlinkOrStrmPath = OrganizedLinksUtil.GetLink(davItem, _configManager);
+            if (symlinkOrStrmPath == null)
             {
                 dbClient.Ctx.Items.Remove(davItem);
                 dbClient.Ctx.HealthCheckResults.Add(SendStatus(new HealthCheckResult()
@@ -241,7 +241,7 @@ public class HealthCheckService
                     RepairStatus = HealthCheckResult.RepairAction.Deleted,
                     Message = string.Join(" ", [
                         "File had missing articles.",
-                        "Could not find corresponding symlink within Library Dir.",
+                        "Could not find corresponding symlink or strm-file within Library Dir.",
                         "Deleted file."
                     ])
                 }));
@@ -249,16 +249,17 @@ public class HealthCheckService
                 return;
             }
 
-            // if the unhealthy item is symlinked within the organized media-library
+            // if the unhealthy item is linked within the organized media-library
             // then we must find the corresponding arr instance and trigger a new search.
+            var linkType = symlinkOrStrmPath.ToLower().EndsWith("strm") ? "strm-file" : "symlink";
             foreach (var arrClient in _configManager.GetArrConfig().GetArrClients())
             {
                 var rootFolders = await arrClient.GetRootFolders();
-                if (!rootFolders.Any(x => symlink.StartsWith(x.Path!))) continue;
+                if (!rootFolders.Any(x => symlinkOrStrmPath.StartsWith(x.Path!))) continue;
 
                 // if we found a corresponding arr instance,
                 // then remove and search.
-                if (await arrClient.RemoveAndSearch(symlink))
+                if (await arrClient.RemoveAndSearch(symlinkOrStrmPath))
                 {
                     dbClient.Ctx.Items.Remove(davItem);
                     dbClient.Ctx.HealthCheckResults.Add(SendStatus(new HealthCheckResult()
@@ -271,7 +272,7 @@ public class HealthCheckService
                         RepairStatus = HealthCheckResult.RepairAction.Repaired,
                         Message = string.Join(" ", [
                             "File had missing articles.",
-                            "Corresponding symlink found within Library Dir.",
+                            $"Corresponding {linkType} found within Library Dir.",
                             "Triggered new Arr search."
                         ])
                     }));
@@ -281,14 +282,14 @@ public class HealthCheckService
 
                 // if we could not find corresponding media-item to remove-and-search
                 // within the found arr instance, then break out of this loop so that
-                // we can fall back to the behavior below of deleting both the symlink
+                // we can fall back to the behavior below of deleting both the link-file
                 // and the dav-item.
                 break;
             }
 
             // if we could not find a corresponding arr instance
-            // then we can delete both the item and the symlink.
-            File.Delete(symlink);
+            // then we can delete both the item and the link-file.
+            File.Delete(symlinkOrStrmPath);
             dbClient.Ctx.Items.Remove(davItem);
             dbClient.Ctx.HealthCheckResults.Add(SendStatus(new HealthCheckResult()
             {
@@ -300,9 +301,9 @@ public class HealthCheckService
                 RepairStatus = HealthCheckResult.RepairAction.Deleted,
                 Message = string.Join(" ", [
                     "File had missing articles.",
-                    "Corresponding symlink found within Library Dir.",
+                    $"Corresponding {linkType} found within Library Dir.",
                     "Could not find corresponding Radarr/Sonarr media-item to trigger a new search.",
-                    "Deleted file."
+                    $"Deleted the webdav-file and {linkType}."
                 ])
             }));
             await dbClient.Ctx.SaveChangesAsync(ct);

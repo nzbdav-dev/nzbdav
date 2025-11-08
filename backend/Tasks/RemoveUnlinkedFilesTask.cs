@@ -40,12 +40,12 @@ public class RemoveUnlinkedFilesTask(
         var allDavItems = await dbClient.Ctx.Items.ToListAsync();
 
         // get linked file paths
-        Report(dryRun + $"Found {allDavItems.Count} webdav files.\nEnumerating all symlinked files...");
+        Report(dryRun + $"Found {allDavItems.Count} webdav files.\nEnumerating all linked files...");
         var linkedIds = GetLinkedIds();
         if (linkedIds.Count < 5)
         {
             Report($"Aborted: " +
-                   $"There are less than five symlinked files found in your library. " +
+                   $"There are less than five linked files found in your library. " +
                    $"Cancelling operation to prevent accidental bulk deletion.");
             return;
         }
@@ -109,7 +109,7 @@ public class RemoveUnlinkedFilesTask(
 
     private HashSet<Guid> GetLinkedIds()
     {
-        return OrganizedSymlinksUtil.GetLibrarySymlinkTargets(configManager)
+        return OrganizedLinksUtil.GetLibraryDavItemLinks(configManager)
             .Select(x => x.DavItemId)
             .ToHashSet();
     }

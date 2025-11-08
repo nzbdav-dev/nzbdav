@@ -8,7 +8,7 @@ namespace NzbWebDAV.Clients.RadarrSonarr;
 public class SonarrClient(string host, string apiKey) : ArrClient(host, apiKey)
 {
     private static readonly Dictionary<string, int> SeriesPathToSeriesIdCache = new();
-    private static readonly Dictionary<string, int> SymlinkToEpisodeFileIdCache = new();
+    private static readonly Dictionary<string, int> SymlinkOrStrmToEpisodeFileIdCache = new();
 
     public Task<SonarrQueue> GetSonarrQueueAsync() =>
         Get<SonarrQueue>($"/queue?protocol=usenet&pageSize=5000");
@@ -34,25 +34,25 @@ public class SonarrClient(string host, string apiKey) : ArrClient(host, apiKey)
     public Task<ArrCommand> SearchEpisodesAsync(List<int> episodeIds) =>
         CommandAsync(new { name = "EpisodeSearch", episodeIds });
 
-    public override async Task<bool> RemoveAndSearch(string symlinkPath)
+    public override async Task<bool> RemoveAndSearch(string symlinkOrStrmPath)
     {
         // get episode-file-id and episode-ids
-        var mediaIds = await GetMediaIds(symlinkPath);
+        var mediaIds = await GetMediaIds(symlinkOrStrmPath);
         if (mediaIds == null) return false;
 
         // delete the episode-file
         if (await DeleteEpisodeFile(mediaIds.Value.episodeFileId) != HttpStatusCode.OK)
-            throw new Exception($"Failed to delete episode file `{symlinkPath}` from sonarr instance `{Host}`.");
+            throw new Exception($"Failed to delete episode file `{symlinkOrStrmPath}` from sonarr instance `{Host}`.");
 
         // trigger a new search for each episode
         await SearchEpisodesAsync(mediaIds.Value.episodeIds);
         return true;
     }
 
-    private async Task<(int episodeFileId, List<int> episodeIds)?> GetMediaIds(string symlinkPath)
+    private async Task<(int episodeFileId, List<int> episodeIds)?> GetMediaIds(string symlinkOrStrmPath)
     {
         // get episode-file-id
-        var episodeFileId = await GetEpisodeFileId(symlinkPath);
+        var episodeFileId = await GetEpisodeFileId(symlinkOrStrmPath);
         if (episodeFileId == null) return null;
 
         // get episode-ids
@@ -64,25 +64,25 @@ public class SonarrClient(string host, string apiKey) : ArrClient(host, apiKey)
         return (episodeFileId.Value, episodeIds);
     }
 
-    private async Task<int?> GetEpisodeFileId(string symlinkPath)
+    private async Task<int?> GetEpisodeFileId(string symlinkOrStrmPath)
     {
         // if episode-file-id is found in the cache, verify it and return it
-        if (SymlinkToEpisodeFileIdCache.TryGetValue(symlinkPath, out var episodeFileId))
+        if (SymlinkOrStrmToEpisodeFileIdCache.TryGetValue(symlinkOrStrmPath, out var episodeFileId))
         {
             var episodeFile = await GetEpisodeFile(episodeFileId);
-            if (episodeFile.Path == symlinkPath) return episodeFileId;
+            if (episodeFile.Path == symlinkOrStrmPath) return episodeFileId;
         }
 
         // otherwise, find the series-id
-        var seriesId = await GetSeriesId(symlinkPath);
+        var seriesId = await GetSeriesId(symlinkOrStrmPath);
         if (seriesId == null) return null;
 
         // then use it to find all episode-files and repopulate the cache
         int? result = null;
         foreach (var episodeFile in await GetAllEpisodeFiles(seriesId.Value))
         {
-            SymlinkToEpisodeFileIdCache[episodeFile.Path!] = episodeFile.Id;
-            if (episodeFile.Path == symlinkPath)
+            SymlinkOrStrmToEpisodeFileIdCache[episodeFile.Path!] = episodeFile.Id;
+            if (episodeFile.Path == symlinkOrStrmPath)
                 result = episodeFile.Id;
         }
 
@@ -90,10 +90,10 @@ public class SonarrClient(string host, string apiKey) : ArrClient(host, apiKey)
         return result;
     }
 
-    private async Task<int?> GetSeriesId(string symlinkPath)
+    private async Task<int?> GetSeriesId(string symlinkOrStrmPath)
     {
         // get series-id from cache
-        var cachedSeriesId = PathUtil.GetAllParentDirectories(symlinkPath)
+        var cachedSeriesId = PathUtil.GetAllParentDirectories(symlinkOrStrmPath)
             .Where(x => SeriesPathToSeriesIdCache.ContainsKey(x))
             .Select(x => SeriesPathToSeriesIdCache[x])
             .Select(x => (int?)x)
@@ -103,9 +103,8 @@ public class SonarrClient(string host, string apiKey) : ArrClient(host, apiKey)
         if (cachedSeriesId != null)
         {
             var series = await GetSeries(cachedSeriesId.Value);
-            if (symlinkPath.StartsWith(series.Path!))
-                return
-                    cachedSeriesId;
+            if (symlinkOrStrmPath.StartsWith(series.Path!))
+                return cachedSeriesId;
         }
 
         // otherwise, fetch all series and repopulate the cache
@@ -113,7 +112,7 @@ public class SonarrClient(string host, string apiKey) : ArrClient(host, apiKey)
         foreach (var series in await GetAllSeries())
         {
             SeriesPathToSeriesIdCache[series.Path!] = series.Id;
-            if (symlinkPath.StartsWith(series.Path!))
+            if (symlinkOrStrmPath.StartsWith(series.Path!))
                 result = series.Id;
         }
 
