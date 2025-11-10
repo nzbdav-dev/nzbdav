@@ -6,7 +6,12 @@ type User = {
   username: string;
 };
 
+// Add auth bypass configuration
+const AUTH_DISABLED = process.env.DISABLE_FRONTEND_AUTH === 'true';
+const BYPASS_USERNAME = process.env.BYPASS_USERNAME || 'admin';
+
 const oneYear = 60 * 60 * 24 * 365; // seconds
+
 export const sessionStorage = createCookieSessionStorage({
   cookie: {
     name: "__session",
@@ -20,6 +25,11 @@ export const sessionStorage = createCookieSessionStorage({
 });
 
 export async function authenticate(request: Request): Promise<User> {
+  // If auth is disabled, return a default user without checking credentials
+  if (AUTH_DISABLED) {
+    return { username: BYPASS_USERNAME };
+  }
+
   const formData = await request.formData();
   const username = formData.get("username")?.toString();
   const password = formData.get("password")?.toString();
@@ -29,6 +39,11 @@ export async function authenticate(request: Request): Promise<User> {
 }
 
 export async function isAuthenticated(cookieHeader: string | null | undefined): Promise<boolean> {
+  // If auth is disabled, always return true
+  if (AUTH_DISABLED) {
+    return true;
+  }
+
   const session = await sessionStorage.getSession(cookieHeader);
   const user = session.get("user");
   return !!user;

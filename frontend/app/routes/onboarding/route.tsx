@@ -11,6 +11,11 @@ type OnboardingPageData = {
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
+    // If auth is disabled, redirect to main app (no onboarding needed)
+    if (process.env.DISABLE_FRONTEND_AUTH === 'true') {
+        return redirect("/");
+    }
+
     // if already logged in, redirect to landing page
     let session = await sessionStorage.getSession(request.headers.get("cookie"));
     let user = session.get("user");
@@ -96,6 +101,11 @@ export default function Index({ loaderData, actionData }: Route.ComponentProps) 
 
 export async function action({ request }: Route.ActionArgs) {
     try {
+        // If auth is disabled, redirect to main app
+        if (process.env.DISABLE_FRONTEND_AUTH === 'true') {
+            return redirect("/");
+        }
+
         // if we don't need to go through onboarding, redirect to login page
         const isOnboarding = await backendClient.isOnboarding();
         if (!isOnboarding) return redirect("/login");
