@@ -10,6 +10,10 @@ type LoginPageData = {
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
+    // If auth is disabled, redirect directly to main app
+    if (process.env.DISABLE_FRONTEND_AUTH === 'true') {
+        return redirect("/");
+    }
     // if already logged in, redirect to landing page
     let session = await sessionStorage.getSession(request.headers.get("cookie"));
     let user = session.get("user");

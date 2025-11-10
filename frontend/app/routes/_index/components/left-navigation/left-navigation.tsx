@@ -9,6 +9,8 @@ export type LeftNavigationProps = {
 }
 
 export function LeftNavigation({ version }: LeftNavigationProps) {
+    const frontendAuthDisabled = process.env.DISABLE_FRONTEND_AUTH === 'true';
+
     return (
         <div className={styles.container}>
             <Item target="/queue">
@@ -43,13 +45,15 @@ export function LeftNavigation({ version }: LeftNavigationProps) {
                     version: {version || 'unknown'}
                 </div>
                 <hr />
-                <Form method="post" action="/logout">
-                    <input name="confirm" value="true" type="hidden" />
-                    <button className={styles.unstyled + ' ' + styles.item} type="submit">
-                        <div className={styles["logout-icon"]} />
-                        <div className={styles.title}>Logout</div>
-                    </button>
-                </Form>
+                {!frontendAuthDisabled && (
+                    <Form method="post" action="/logout">
+                        <input name="confirm" value="true" type="hidden" />
+                        <button className={styles.unstyled + ' ' + styles.item} type="submit">
+                            <div className={styles["logout-icon"]} />
+                            <div className={styles.title}>Logout</div>
+                        </button>
+                    </Form>
+                )}
             </div>
         </div>
     );
