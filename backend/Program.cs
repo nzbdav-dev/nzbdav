@@ -49,6 +49,13 @@ class Program
             .WriteTo.Console(theme: AnsiConsoleTheme.Code)
             .CreateLogger();
 
+        // Check if WebDAV auth should be disabled
+        var webdavAuthDisabled = Environment.GetEnvironmentVariable("DISABLE_WEBDAV_AUTH")?.ToLower() == "true";
+        if (webdavAuthDisabled)
+        {
+            Log.Information("WebDAV authentication is DISABLED via DISABLE_WEBDAV_AUTH environment variable");
+        }
+
         // initialize database
         await using var databaseContext = new DavDatabaseContext();
 
@@ -93,22 +100,25 @@ class Program
                 opts.Handlers["GET"] = typeof(GetAndHeadHandlerPatch);
                 opts.Handlers["HEAD"] = typeof(GetAndHeadHandlerPatch);
                 opts.Filter = opts.GetFilter();
-                opts.RequireAuthentication = true;
+                opts.RequireAuthentication = !webdavAuthDisabled;
             });
 
-        // add basic auth
-        builder.Services
-            .AddDataProtection()
-            .PersistKeysToFileSystem(new DirectoryInfo(Path.Join(DavDatabaseContext.ConfigPath, "data-protection")));
-        builder.Services
-            .AddAuthentication(opts => opts.DefaultScheme = BasicAuthenticationDefaults.AuthenticationScheme)
-            .AddBasicAuthentication(opts =>
-            {
-                opts.AllowInsecureProtocol = true;
-                opts.CacheCookieName = "nzb-webdav-backend";
-                opts.CacheCookieExpiration = TimeSpan.FromHours(1);
-                opts.Events.OnValidateCredentials = (context) => ValidateCredentials(context, configManager);
-            });
+        // add basic auth (only if not disabled)
+        if (!webdavAuthDisabled)
+        {
+            builder.Services
+                .AddDataProtection()
+                .PersistKeysToFileSystem(new DirectoryInfo(Path.Join(DavDatabaseContext.ConfigPath, "data-protection")));
+            builder.Services
+                .AddAuthentication(opts => opts.DefaultScheme = BasicAuthenticationDefaults.AuthenticationScheme)
+                .AddBasicAuthentication(opts =>
+                {
+                    opts.AllowInsecureProtocol = true;
+                    opts.CacheCookieName = "nzb-webdav-backend";
+                    opts.CacheCookieExpiration = TimeSpan.FromHours(1);
+                    opts.Events.OnValidateCredentials = (context) => ValidateCredentials(context, configManager);
+                });
+        }
 
         // force instantiation of services
         var app = builder.Build();
@@ -121,7 +131,13 @@ class Program
         app.MapHealthChecks("/health");
         app.Map("/ws", websocketManager.HandleRoute);
         app.MapControllers();
-        app.UseAuthentication();
+        
+        // Only use authentication if not disabled
+        if (!webdavAuthDisabled)
+        {
+            app.UseAuthentication();
+        }
+        
         app.UseNWebDav();
         app.Lifetime.ApplicationStopping.Register(SigtermUtil.Cancel);
         await app.RunAsync();

@@ -189,10 +189,15 @@ export default function Queue(props: Route.ComponentProps) {
 }
 
 export async function action({ request }: Route.ActionArgs) {
-    // ensure user is logged in
-    let session = await sessionStorage.getSession(request.headers.get("cookie"));
-    let user = session.get("user");
-    if (!user) return redirect("/login");
+    // Check if auth is disabled
+    const authDisabled = process.env.DISABLE_FRONTEND_AUTH === 'true';
+    
+    if (!authDisabled) {
+        // ensure user is logged in (only if auth is enabled)
+        let session = await sessionStorage.getSession(request.headers.get("cookie"));
+        let user = session.get("user");
+        if (!user) return redirect("/login");
+    }
 
     try {
         const formData = await request.formData();

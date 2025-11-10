@@ -24,6 +24,17 @@ export async function loader({ request }: Route.LoaderArgs) {
   if (path === "/login") return { useLayout: false };
   if (path === "/onboarding") return { useLayout: false };
 
+  // Check if auth is disabled via env var
+  const frontendAuthDisabled = process.env.DISABLE_FRONTEND_AUTH === 'true';
+  
+  if (frontendAuthDisabled) {
+    // Skip authentication check when disabled
+    return { 
+      useLayout: true, 
+      version: process.env.NZBDAV_VERSION
+    };
+  }
+
   // ensure all other routes are authenticated
   let session = await sessionStorage.getSession(request.headers.get("cookie"));
   let user = session.get("user");
