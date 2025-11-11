@@ -20,6 +20,11 @@ public static class NzbFileExtensions
             .ToArray();
     }
 
+    public static long GetTotalYencodedSize(this NzbFile file)
+    {
+        return file.Size;
+    }
+
     public static string GetSubjectFileName(this NzbFile file)
     {
         return GetFirstValidNonEmptyFilename(
@@ -40,7 +45,8 @@ public static class NzbFileExtensions
     {
         // Otherwise, use sabnzbd's regex
         // https://github.com/sabnzbd/sabnzbd/blob/b6b0d10367fd4960bad73edd1d3812cafa7fc002/sabnzbd/nzbstuff.py#L106
-        var match = Regex.Match(file.Subject, @"\b([\w\-+()' .,]+(?:\[[\w\-\/+()' .,]*][\w\-+()' .,]*)*\.[A-Za-z0-9]{2,4})\b");
+        var match = Regex.Match(file.Subject,
+            @"\b([\w\-+()' .,]+(?:\[[\w\-\/+()' .,]*][\w\-+()' .,]*)*\.[A-Za-z0-9]{2,4})\b");
         return match.Success ? match.Groups[1].Value : "";
     }
 

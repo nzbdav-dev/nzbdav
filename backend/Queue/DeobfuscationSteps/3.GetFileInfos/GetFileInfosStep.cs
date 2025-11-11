@@ -1,5 +1,6 @@
 ﻿using System.Security.Cryptography;
 using NzbWebDAV.Extensions;
+using NzbWebDAV.Models;
 using NzbWebDAV.Par2Recovery.Packets;
 using NzbWebDAV.Queue.DeobfuscationSteps._1.FetchFirstSegment;
 using NzbWebDAV.Utils;
@@ -38,12 +39,11 @@ public static class GetFileInfosStep
 
     private static FileInfo GetFileInfo(
         FetchFirstSegmentsStep.NzbFileWithFirstSegment file,
-        Dictionary<string, FileDesc> hashToFilenameMap,
+        Dictionary<string, FileDesc> hashToFiledescMap,
         MD5 md5
     )
     {
-        var hash = !file.MissingFirstSegment ? BitConverter.ToString(md5.ComputeHash(file.First16KB!)) : "";
-        var fileDesc = hashToFilenameMap.GetValueOrDefault(hash);
+        var fileDesc = GetMatchingFileDescriptor(file, hashToFiledescMap, md5);
         var subjectFileName = file.NzbFile.GetSubjectFileName();
         var headerFileName = file.Header?.FileName ?? "";
         var par2FileName = fileDesc?.FileName ?? "";
@@ -72,6 +72,27 @@ public static class GetFileInfosStep
         if (FilenameUtil.IsImportantFileType(filename)) priority += 50;
         if (Path.GetExtension(filename).TrimStart('.').Length is >= 2 and <= 4) priority += 10;
         return priority;
+    }
+
+    private static FileDesc? GetMatchingFileDescriptor
+    (
+        FetchFirstSegmentsStep.NzbFileWithFirstSegment file,
+        Dictionary<string, FileDesc> hashToFiledescMap,
+        MD5 md5
+    )
+    {
+        var hash = !file.MissingFirstSegment ? BitConverter.ToString(md5.ComputeHash(file.First16KB!)) : "";
+        var fileDesc = hashToFiledescMap.GetValueOrDefault(hash);
+        if (fileDesc is null) return null;
+        return IsCloseToYencodedSize((long)fileDesc.FileLength, file.NzbFile.GetTotalYencodedSize())
+            ? fileDesc
+            : null;
+    }
+
+    private static bool IsCloseToYencodedSize(long fileSize, long totalYencodedSize)
+    {
+        var range = new LongRange(95 * totalYencodedSize / 100, totalYencodedSize);
+        return range.Contains(fileSize);
     }
 
     public class FileInfo
