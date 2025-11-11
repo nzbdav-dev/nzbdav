@@ -14,7 +14,6 @@ public abstract class BaseAggregator
     {
         var pathSegments = pathWithinArchive
             .Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
-            .Prepend("extracted")
             .ToArray();
         var parentDirectory = MountDirectory;
         var pathKey = "";

@@ -177,6 +177,7 @@ public class QueueItemProcessor(
             new MultipartMkvAggregator(dbClient, mountFolder, checkedFullHealth).UpdateDatabase(fileProcessingResults);
 
             // post-processing
+            new RenameDuplicatesPostProcessor(dbClient).RenameDuplicates();
             new BlacklistedExtensionPostProcessor(configManager, dbClient).RemoveBlacklistedExtensions();
 
             // validate video files found

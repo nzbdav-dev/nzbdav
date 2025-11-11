@@ -10,10 +10,10 @@ public class DavItem
     public string IdPrefix { get; init; }
     public DateTime CreatedAt { get; init; }
     public Guid? ParentId { get; init; }
-    public string Name { get; init; } = null!;
+    public string Name { get; set; } = null!;
     public long? FileSize { get; set; }
     public ItemType Type { get; init; }
-    public string Path { get; init; } = null!;
+    public string Path { get; set; } = null!;
     public DateTimeOffset? ReleaseDate { get; set; }
     public DateTimeOffset? LastHealthCheck { get; set; }
     public DateTimeOffset? NextHealthCheck { get; set; }
