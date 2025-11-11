@@ -190,7 +190,7 @@ export default function Queue(props: Route.ComponentProps) {
 
 export async function action({ request }: Route.ActionArgs) {
     // Check if auth is disabled
-    const authDisabled = process.env.DISABLE_AUTH === 'true';
+    const authDisabled = process.env.DISABLE_FRONTEND_AUTH === 'true';
     
     if (!authDisabled) {
         // ensure user is logged in (only if auth is enabled)
