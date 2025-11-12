@@ -13,7 +13,7 @@ public class DatabaseStoreNzbFile(
     DavDatabaseClient dbClient,
     UsenetStreamingClient usenetClient,
     ConfigManager configManager
-) : BaseStoreReadonlyItem
+) : BaseStoreStreamFile(configManager)
 {
     public DavItem DavItem => davNzbFile;
     public override string Name => davNzbFile.Name;
@@ -21,7 +21,7 @@ public class DatabaseStoreNzbFile(
     public override long FileSize => davNzbFile.FileSize!.Value;
     public override DateTime CreatedAt => davNzbFile.CreatedAt;
 
-    public override async Task<Stream> GetReadableStreamAsync(CancellationToken cancellationToken)
+    public override async Task<Stream> GetStreamAsync(CancellationToken cancellationToken)
     {
         // store the DavItem being accessed in the http context
         httpContext.Items["DavItem"] = davNzbFile;

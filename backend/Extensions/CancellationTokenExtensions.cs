@@ -4,24 +4,32 @@ namespace NzbWebDAV.Extensions;
 
 public static class CancellationTokenExtensions
 {
-    private static readonly ConcurrentDictionary<CancellationToken, object?> Context = new();
+    private static readonly ConcurrentDictionary<LookupKey, object?> Context = new();
 
     public static CancellationTokenScopedContext SetScopedContext<T>(this CancellationToken ct, T? value)
     {
-        Context[ct] = value;
-        return new CancellationTokenScopedContext(ct);
+        var lookupKey = new LookupKey() { CancellationToken = ct, Type = typeof(T) };
+        Context[lookupKey] = value;
+        return new CancellationTokenScopedContext(lookupKey, value);
     }
 
     public static T? GetContext<T>(this CancellationToken ct)
     {
-        return Context.TryGetValue(ct, out var result) && result is T context ? context : default;
+        var lookupKey = new LookupKey() { CancellationToken = ct, Type = typeof(T) };
+        return Context.TryGetValue(lookupKey, out var result) && result is T context ? context : default;
     }
 
-    public class CancellationTokenScopedContext(CancellationToken ct) : IDisposable
+    public class CancellationTokenScopedContext(LookupKey lookupKey, object? value) : IDisposable
     {
         public void Dispose()
         {
-            Context.Remove(ct, out _);
+            Context.Remove(lookupKey, out _);
         }
+    }
+
+    public record struct LookupKey
+    {
+        public CancellationToken CancellationToken;
+        public Type Type;
     }
 }

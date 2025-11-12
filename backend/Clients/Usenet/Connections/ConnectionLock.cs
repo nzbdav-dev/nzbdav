@@ -8,26 +8,34 @@ namespace NzbWebDAV.Clients.Usenet.Connections;
 /// </summary>
 public sealed class ConnectionLock<T> : IDisposable, IAsyncDisposable
 {
-    private readonly Action<T>            _syncReturn;
-    private readonly Func<T, ValueTask>?  _asyncReturn;
-    private readonly Action<T>            _syncDestroy;
-    private readonly Func<T, ValueTask>?  _asyncDestroy;
-    private          T?                   _connection;
-    private          int                  _disposed; // 0 == false, 1 == true
-    private          int                  _replace;  // 0 == false, 1 == true
+    private readonly Action<T> _syncReturn;
+    private readonly Func<T, ValueTask>? _asyncReturn;
+    private readonly Action<T> _syncDestroy;
+    private readonly Func<T, ValueTask>? _asyncDestroy;
+    private T? _connection;
+    private int _disposed; // 0 == false, 1 == true
+    private int _replace; // 0 == false, 1 == true
+    public SemaphoreSlim? Semaphore { get; }
 
-    internal ConnectionLock(
-        T                       connection,
-        Action<T>               syncReturn,
-        Func<T,ValueTask>?      asyncReturn = null,
-        Action<T>?              syncDestroy = null,
-        Func<T,ValueTask>?      asyncDestroy = null)
+    internal ConnectionLock
+    (
+        T connection,
+        Action<T> syncReturn,
+        Func<T, ValueTask>? asyncReturn = null,
+        Action<T>? syncDestroy = null,
+        Func<T, ValueTask>? asyncDestroy = null,
+        SemaphoreSlim? semaphore = null
+    )
     {
-        _connection  = connection;
-        _syncReturn  = syncReturn;
+        _connection = connection;
+        _syncReturn = syncReturn;
         _asyncReturn = asyncReturn;
-        _syncDestroy = syncDestroy ?? (_ => { /* no-op fallback */ });
+        _syncDestroy = syncDestroy ?? (_ =>
+        {
+            /* no-op fallback */
+        });
         _asyncDestroy = asyncDestroy; // may be null; will fall back to _syncDestroy
+        Semaphore = semaphore;
     }
 
     public T Connection
@@ -44,7 +52,7 @@ public sealed class ConnectionLock<T> : IDisposable, IAsyncDisposable
 
     public void Dispose()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) == 1) return;   // already done
+        if (Interlocked.Exchange(ref _disposed, 1) == 1) return; // already done
         var conn = Interlocked.Exchange(ref _connection, default);
         if (conn is not null)
         {
@@ -54,6 +62,7 @@ public sealed class ConnectionLock<T> : IDisposable, IAsyncDisposable
             else
                 _syncReturn(conn);
         }
+
         GC.SuppressFinalize(this);
     }
 
@@ -79,6 +88,7 @@ public sealed class ConnectionLock<T> : IDisposable, IAsyncDisposable
                     _syncReturn(conn);
             }
         }
+
         GC.SuppressFinalize(this);
     }
 }

@@ -15,7 +15,7 @@ public class DatabaseStoreRarFile(
     DavDatabaseClient dbClient,
     UsenetStreamingClient usenetClient,
     ConfigManager configManager
-) : BaseStoreReadonlyItem
+) : BaseStoreStreamFile(configManager)
 {
     public DavItem DavItem => davRarFile;
     public override string Name => davRarFile.Name;
@@ -23,7 +23,7 @@ public class DatabaseStoreRarFile(
     public override long FileSize => davRarFile.FileSize!.Value;
     public override DateTime CreatedAt => davRarFile.CreatedAt;
 
-    public override async Task<Stream> GetReadableStreamAsync(CancellationToken ct)
+    public override async Task<Stream> GetStreamAsync(CancellationToken ct)
     {
         // store the DavItem being accessed in the http context
         httpContext.Items["DavItem"] = davRarFile;

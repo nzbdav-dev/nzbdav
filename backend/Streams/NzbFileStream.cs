@@ -94,10 +94,14 @@ public class NzbFileStream(
 
     private CombinedStream GetCombinedStream(int firstSegmentIndex, CancellationToken ct)
     {
+        var concurrency = Math.Min(
+            concurrentConnections + concurrentConnections / 2,
+            concurrentConnections + 5
+        );
         return new CombinedStream(
             fileSegmentIds[firstSegmentIndex..]
                 .Select(async x => (Stream)await client.GetSegmentStreamAsync(x, false, ct))
-                .WithConcurrency(concurrentConnections)
+                .WithConcurrency(concurrency)
         );
     }
 

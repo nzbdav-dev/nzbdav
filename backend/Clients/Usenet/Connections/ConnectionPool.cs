@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using NzbWebDAV.Extensions;
+using NzbWebDAV.Utils;
 
 namespace NzbWebDAV.Clients.Usenet.Connections;
 
@@ -66,6 +67,9 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
     public async Task<ConnectionLock<T>> GetConnectionLockAsync(
         CancellationToken cancellationToken = default)
     {
+        var connectionSemaphore = cancellationToken.GetContext<ConnectionSemaphoreContext>()?.Semaphore;
+        if (connectionSemaphore is not null) await connectionSemaphore.WaitAsync(cancellationToken);
+
         var reservedCount = cancellationToken.GetContext<ReservedConnectionsContext>().Count;
         if (reservedCount < 0 || reservedCount > _maxConnections)
             reservedCount = 0;
@@ -80,6 +84,7 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
         if (Volatile.Read(ref _disposed) == 1)
         {
             _gate.Release();
+            connectionSemaphore?.Release();
             ThrowDisposed();
         }
 
@@ -89,7 +94,7 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
             if (!item.IsExpired(IdleTimeout))
             {
                 TriggerConnectionPoolChangedEvent();
-                return BuildLock(item.Connection);
+                return BuildLock(item.Connection, connectionSemaphore);
             }
 
             // Stale – destroy and continue looking.
@@ -107,15 +112,23 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
         catch
         {
             _gate.Release(); // free the permit on failure
+            connectionSemaphore?.Release();
             throw;
         }
 
         Interlocked.Increment(ref _live);
         TriggerConnectionPoolChangedEvent();
-        return BuildLock(conn);
+        return BuildLock(conn, connectionSemaphore);
 
-        ConnectionLock<T> BuildLock(T c)
-            => new ConnectionLock<T>(c, Return, ReturnAsync, Destroy, DestroyAsync);
+        ConnectionLock<T> BuildLock(T c, SemaphoreSlim? semaphore)
+            => new
+            (
+                c,
+                x => Return(x, semaphore),
+                x => ReturnAsync(x, semaphore),
+                x => Destroy(x, semaphore),
+                x => DestroyAsync(x, semaphore)
+            );
 
         static void ThrowDisposed()
             => throw new ObjectDisposedException(nameof(ConnectionPool<T>));
@@ -133,7 +146,7 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
         }
     }
 
-    private void Return(T connection)
+    private void Return(T connection, SemaphoreSlim? semaphore)
     {
         if (Volatile.Read(ref _disposed) == 1)
         {
@@ -145,16 +158,17 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
 
         _idleConnections.Push(new Pooled(connection, Environment.TickCount64));
         _gate.Release();
+        ExceptionUtil.Try(() => semaphore?.Release());
         TriggerConnectionPoolChangedEvent();
     }
 
-    private ValueTask ReturnAsync(T connection)
+    private ValueTask ReturnAsync(T connection, SemaphoreSlim? semaphore)
     {
-        Return(connection);
+        Return(connection, semaphore);
         return ValueTask.CompletedTask;
     }
 
-    private void Destroy(T connection)
+    private void Destroy(T connection, SemaphoreSlim? semaphore)
     {
         // When a lock requests replacement, we dispose the connection instead of reusing.
         _ = DisposeConnectionAsync(connection); // fire & forget
@@ -162,18 +176,22 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
         if (Volatile.Read(ref _disposed) == 0)
         {
             _gate.Release();
+            ExceptionUtil.Try(() => semaphore?.Release());
         }
+
         TriggerConnectionPoolChangedEvent();
     }
 
-    private ValueTask DestroyAsync(T connection)
+    private ValueTask DestroyAsync(T connection, SemaphoreSlim? semaphore)
     {
         _ = DisposeConnectionAsync(connection); // fire & forget
         Interlocked.Decrement(ref _live);
         if (Volatile.Read(ref _disposed) == 0)
         {
             _gate.Release();
+            ExceptionUtil.Try(() => semaphore?.Release());
         }
+
         TriggerConnectionPoolChangedEvent();
         return ValueTask.CompletedTask;
     }
