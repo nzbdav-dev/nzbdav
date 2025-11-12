@@ -1,0 +1,42 @@
+.container {
+    max-width: 600px;
+}
+
+.task {
+    background-color: #02181d;
+    padding: 5px;
+    color: #dee2e6;
+}
+
+.alert {
+    margin-top: 8px;
+}
+
+.run {
+    margin-top: 12px;
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+    align-items: center;
+}
+
+.run-button {
+    flex-shrink: 0;
+}
+
+.dryrun-button {
+    padding: 0 5px;
+}
+
+.task-progress {
+    font-size:12px;
+    white-space: pre-line;
+}
+
+.list {
+    margin-bottom: 0;
+}
+
+.list-item {
+    margin-top: 5px
+}
