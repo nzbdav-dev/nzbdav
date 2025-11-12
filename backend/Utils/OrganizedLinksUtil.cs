@@ -108,7 +108,8 @@ public static class OrganizedLinksUtil
         return new DavItemLink()
         {
             LinkPath = symlinkInfo.SymlinkPath,
-            DavItemId = Guid.Parse(guid)
+            DavItemId = Guid.Parse(guid),
+            SymlinkOrStrmInfo = symlinkInfo
         };
     }
 
@@ -121,7 +122,8 @@ public static class OrganizedLinksUtil
         return new DavItemLink()
         {
             LinkPath = strmInfo.StrmPath,
-            DavItemId = Guid.Parse(guid)
+            DavItemId = Guid.Parse(guid),
+            SymlinkOrStrmInfo = strmInfo
         };
     }
 
@@ -129,5 +131,6 @@ public static class OrganizedLinksUtil
     {
         public string LinkPath; // Path to either a symlink or strm file.
         public Guid DavItemId;
+        public SymlinkAndStrmUtil.ISymlinkOrStrmInfo SymlinkOrStrmInfo;
     }
 }

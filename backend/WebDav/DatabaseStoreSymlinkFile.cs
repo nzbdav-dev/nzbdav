@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using NzbWebDAV.Config;
 using NzbWebDAV.Database.Models;
+using NzbWebDAV.Extensions;
 using NzbWebDAV.WebDav.Base;
 
 namespace NzbWebDAV.WebDav;
@@ -21,16 +22,16 @@ public class DatabaseStoreSymlinkFile(DavItem davFile, ConfigManager configManag
 
     private string GetTargetPath()
     {
-        return GetTargetPath(davFile, configManager.GetRcloneMountDir());
+        return GetTargetPath(davFile.Id, configManager.GetRcloneMountDir());
     }
 
-    public static string GetTargetPath(DavItem davFile, string mountDir, char? pathSeparator = null)
+    public static string GetTargetPath(Guid davItemId, string mountDir, char? pathSeparator = null)
     {
-        var pathParts = davFile.IdPrefix
+        var pathParts = davItemId.GetFiveLengthPrefix()
             .Select(x => x.ToString())
             .Prepend(DavItem.IdsFolder.Name)
             .Prepend(mountDir)
-            .Append(davFile.Id.ToString())
+            .Append(davItemId.ToString())
             .ToArray();
         return string.Join(pathSeparator ?? Path.DirectorySeparatorChar, pathParts);
     }

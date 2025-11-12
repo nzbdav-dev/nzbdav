@@ -9,4 +9,12 @@ public class PathUtil
             ? GetAllParentDirectories(directoryName).Prepend(directoryName)
             : [];
     }
+
+    public static string ReplaceExtension(string path, string newExtensions)
+    {
+        var directoryName = Path.GetDirectoryName(path);
+        var filenameWithoutExtension = Path.GetFileNameWithoutExtension(path);
+        var newFilename = $"{filenameWithoutExtension}.{newExtensions.TrimStart('.')}";
+        return Path.Join(directoryName, newFilename);
+    }
 }

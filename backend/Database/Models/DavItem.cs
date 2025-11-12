@@ -1,4 +1,5 @@
 ﻿using System.Text.Json.Serialization;
+using NzbWebDAV.Extensions;
 
 namespace NzbWebDAV.Database.Models;
 
@@ -32,7 +33,7 @@ public class DavItem
         return new DavItem()
         {
             Id = id,
-            IdPrefix = id.ToString()[..5],
+            IdPrefix = id.GetFiveLengthPrefix(),
             CreatedAt = DateTime.Now,
             ParentId = parent.Id,
             Name = name,

@@ -5,7 +5,6 @@ using NzbWebDAV.Database;
 using NzbWebDAV.Database.Models;
 using NzbWebDAV.Utils;
 using NzbWebDAV.WebDav;
-using Serilog;
 
 namespace NzbWebDAV.Queue.PostProcessors;
 
@@ -46,11 +45,11 @@ public class CreateStrmFilesPostProcessor(ConfigManager configManager, DavDataba
     {
         var baseUrl = configManager.GetBaseUrl();
         if (baseUrl.EndsWith('/')) baseUrl = baseUrl.TrimEnd('/');
-        var pathUrl = DatabaseStoreSymlinkFile.GetTargetPath(davItem, "", '/');
+        var pathUrl = DatabaseStoreSymlinkFile.GetTargetPath(davItem.Id, "", '/');
         if (pathUrl.StartsWith('/')) pathUrl = pathUrl.TrimStart('/');
         var strmKey = configManager.GetStrmKey();
         var downloadKey = GetWebdavItemRequest.GenerateDownloadKey(strmKey, pathUrl);
-        var extension = Path.GetExtension(davItem.Name).ToLowerInvariant().TrimStart('.');
+        var extension = Path.GetExtension(davItem.Name).ToLower().TrimStart('.');
         return $"{baseUrl}/view/{pathUrl}?downloadKey={downloadKey}&extension={extension}";
     }
 }
