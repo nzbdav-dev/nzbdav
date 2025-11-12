@@ -1,13 +1,11 @@
-﻿using System.Security.Claims;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.DataProtection;
+﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using NWebDav.Server;
-using NWebDav.Server.Authentication;
 using NWebDav.Server.Stores;
 using NzbWebDAV.Api.SabControllers;
+using NzbWebDAV.Auth;
 using NzbWebDAV.Clients.Usenet;
 using NzbWebDAV.Config;
 using NzbWebDAV.Database;
@@ -49,13 +47,6 @@ class Program
             .WriteTo.Console(theme: AnsiConsoleTheme.Code)
             .CreateLogger();
 
-        // Check if WebDAV auth should be disabled
-        var webdavAuthDisabled = Environment.GetEnvironmentVariable("DISABLE_WEBDAV_AUTH")?.ToLower() == "true";
-        if (webdavAuthDisabled)
-        {
-            Log.Information("WebDAV authentication is DISABLED via DISABLE_WEBDAV_AUTH environment variable");
-        }
-
         // initialize database
         await using var databaseContext = new DavDatabaseContext();
 
@@ -83,6 +74,7 @@ class Program
         builder.Services.AddControllers();
         builder.Services.AddHealthChecks();
         builder.Services
+            .AddWebdavBasicAuthentication(configManager)
             .AddSingleton(configManager)
             .AddSingleton(websocketManager)
             .AddSingleton<UsenetStreamingClient>()
@@ -100,25 +92,9 @@ class Program
                 opts.Handlers["GET"] = typeof(GetAndHeadHandlerPatch);
                 opts.Handlers["HEAD"] = typeof(GetAndHeadHandlerPatch);
                 opts.Filter = opts.GetFilter();
-                opts.RequireAuthentication = !webdavAuthDisabled;
+                opts.RequireAuthentication = !WebApplicationAuthExtensions
+                    .IsWebdavAuthDisabled();
             });
-
-        // add basic auth (only if not disabled)
-        if (!webdavAuthDisabled)
-        {
-            builder.Services
-                .AddDataProtection()
-                .PersistKeysToFileSystem(new DirectoryInfo(Path.Join(DavDatabaseContext.ConfigPath, "data-protection")));
-            builder.Services
-                .AddAuthentication(opts => opts.DefaultScheme = BasicAuthenticationDefaults.AuthenticationScheme)
-                .AddBasicAuthentication(opts =>
-                {
-                    opts.AllowInsecureProtocol = true;
-                    opts.CacheCookieName = "nzb-webdav-backend";
-                    opts.CacheCookieExpiration = TimeSpan.FromHours(1);
-                    opts.Events.OnValidateCredentials = (context) => ValidateCredentials(context, configManager);
-                });
-        }
 
         // force instantiation of services
         var app = builder.Build();
@@ -131,44 +107,9 @@ class Program
         app.MapHealthChecks("/health");
         app.Map("/ws", websocketManager.HandleRoute);
         app.MapControllers();
-        
-        // Only use authentication if not disabled
-        if (!webdavAuthDisabled)
-        {
-            app.UseAuthentication();
-        }
-        
+        app.UseWebdavBasicAuthentication();
         app.UseNWebDav();
         app.Lifetime.ApplicationStopping.Register(SigtermUtil.Cancel);
         await app.RunAsync();
-    }
-
-    private static Task ValidateCredentials(ValidateCredentialsContext context, ConfigManager configManager)
-    {
-        var user = configManager.GetWebdavUser();
-        var passwordHash = configManager.GetWebdavPasswordHash();
-
-        if (user == null || passwordHash == null)
-            context.Fail("webdav user and password are not yet configured.");
-
-        if (context.Username == user && PasswordUtil.Verify(passwordHash!, context.Password))
-        {
-            var claims = new[]
-            {
-                new Claim(ClaimTypes.NameIdentifier, context.Username, ClaimValueTypes.String,
-                    context.Options.ClaimsIssuer),
-                new Claim(ClaimTypes.Name, context.Username, ClaimValueTypes.String,
-                    context.Options.ClaimsIssuer)
-            };
-
-            context.Principal = new ClaimsPrincipal(new ClaimsIdentity(claims, context.Scheme.Name));
-            context.Success();
-        }
-        else
-        {
-            context.Fail("invalid credentials");
-        }
-
-        return Task.CompletedTask;
     }
 }
