@@ -30,7 +30,7 @@ const setApiKeyForAuthenticatedRequests = async (req: express.Request) => {
   if (hasApiKey) return;
 
   // if the request is not authenticated, do nothing
-  const authenticated = await isAuthenticated(req.headers.cookie);
+  const authenticated = await isAuthenticated(req);
   if (!authenticated) return;
 
   // otherwise, set the api key header

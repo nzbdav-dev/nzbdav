@@ -1,7 +1,7 @@
 import { Alert, Button, Form as BootstrapForm } from "react-bootstrap";
 import styles from "./route.module.css"
 import type { Route } from "./+types/route";
-import { authenticate, sessionStorage } from "~/auth/authentication.server";
+import { isAuthenticated, login } from "~/auth/authentication.server";
 import { Form, redirect, useNavigation } from "react-router";
 import { backendClient } from "~/clients/backend-client.server";
 
@@ -10,14 +10,8 @@ type LoginPageData = {
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
-    // If auth is disabled, redirect directly to main app
-    if (process.env.DISABLE_FRONTEND_AUTH === 'true') {
-        return redirect("/");
-    }
     // if already logged in, redirect to landing page
-    let session = await sessionStorage.getSession(request.headers.get("cookie"));
-    let user = session.get("user");
-    if (user) return redirect("/");
+    if (await isAuthenticated(request)) return redirect("/");
 
     // if we need to go through onboarding, redirect to onboarding page
     const isOnboarding = await backendClient.isOnboarding();
@@ -49,10 +43,8 @@ export default function Index({ loaderData, actionData }: Route.ComponentProps) 
 
 export async function action({ request }: Route.ActionArgs) {
     try {
-        let user = await authenticate(request);
-        let session = await sessionStorage.getSession(request.headers.get("cookie"));
-        session.set("user", user);
-        return redirect("/", { headers: { "Set-Cookie": await sessionStorage.commitSession(session) } });
+        var responseInit = await login(request);
+        return redirect("/", responseInit);
     }
     catch (error) {
         if (error instanceof Error) {

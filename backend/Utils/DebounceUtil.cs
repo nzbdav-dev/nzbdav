@@ -1,6 +1,6 @@
 namespace NzbWebDAV.Utils;
 
-public class DebounceUtil
+public static class DebounceUtil
 {
     public static Action<Action> CreateDebounce(TimeSpan timespan)
     {
@@ -26,6 +26,17 @@ public class DebounceUtil
 
             if (shouldInvoke)
                 actionToMaybeInvoke?.Invoke();
+        };
+    }
+
+    public static Action<Action> RunOnlyOnce()
+    {
+        var isAlreadyRan = false;
+        return actionToMaybeInvoke =>
+        {
+            if (isAlreadyRan) return;
+            isAlreadyRan = true;
+            actionToMaybeInvoke?.Invoke();
         };
     }
 }
