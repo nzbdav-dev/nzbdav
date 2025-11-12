@@ -50,6 +50,7 @@ public class CreateStrmFilesPostProcessor(ConfigManager configManager, DavDataba
         if (pathUrl.StartsWith('/')) pathUrl = pathUrl.TrimStart('/');
         var strmKey = configManager.GetStrmKey();
         var downloadKey = GetWebdavItemRequest.GenerateDownloadKey(strmKey, pathUrl);
-        return $"{baseUrl}/view/{pathUrl}?downloadKey={downloadKey}";
+        var extension = Path.GetExtension(davItem.Name).ToLowerInvariant().TrimStart('.');
+        return $"{baseUrl}/view/{pathUrl}?downloadKey={downloadKey}&extension={extension}";
     }
 }
