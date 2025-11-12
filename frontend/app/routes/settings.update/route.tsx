@@ -1,13 +1,11 @@
 import type { Route } from "./+types/route";
 import { backendClient, type ConfigItem } from "~/clients/backend-client.server";
 import { redirect } from "react-router";
-import { sessionStorage } from "~/auth/authentication.server";
+import { isAuthenticated } from "~/auth/authentication.server";
 
 export async function action({ request }: Route.ActionArgs) {
     // ensure user is logged in
-    let session = await sessionStorage.getSession(request.headers.get("cookie"));
-    let user = session.get("user");
-    if (!user) return redirect("/login");
+    if (!await isAuthenticated(request)) return redirect("/login");
 
     // get the ConfigItems to update
     const formData = await request.formData();

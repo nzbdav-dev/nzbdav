@@ -1,5 +1,5 @@
 import WebSocket, { WebSocketServer } from 'ws';
-import { sessionStorage } from "../app/auth/authentication.server";
+import { isAuthenticated } from "../app/auth/authentication.server";
 import type { IncomingMessage } from 'http';
 
 function initializeWebsocketServer(wss: WebSocketServer) {
@@ -11,53 +11,46 @@ function initializeWebsocketServer(wss: WebSocketServer) {
 
     // authenticate new websocket sessions
     wss.on("connection", async (ws: WebSocket, request: IncomingMessage) => {
-        const cookieHeader = request.headers.cookie;
-        if (cookieHeader) {
-            try {
-                const session = await sessionStorage.getSession(cookieHeader);
-                const user = session.get("user");
-                if (!user) {
-                    ws.close(1008, "Unauthorized");
-                    return;
-                }
-
-                // handle topic subscription
-                ws.onmessage = (event: WebSocket.MessageEvent) => {
-                    try {
-                        var topics = JSON.parse(event.data.toString());
-                        websockets.set(ws, topics);
-                        for (const topic in topics) {
-                            var topicSubscriptions = subscriptions.get(topic);
-                            if (topicSubscriptions) topicSubscriptions.add(ws);
-                            else subscriptions.set(topic, new Set<WebSocket>([ws]));
-                            if (topics[topic] === 'state') {
-                                var messageToSend = lastMessage.get(topic);
-                                if (messageToSend) ws.send(messageToSend);
-                            }
-                        }
-                    } catch {
-                        ws.close(1003, "Could not process topic subscription. If recently updated, try refreshing the page.");
-                    }
-                };
-
-                // unsubscribe from topics
-                ws.onclose = () => {
-                    var topics = websockets.get(ws);
-                    if (topics) {
-                        websockets.delete(ws);
-                        for (const topic in topics) {
-                            var topicSubscriptions = subscriptions.get(topic);
-                            if (topicSubscriptions) topicSubscriptions.delete(ws);
-                        }
-                    }
-                };
-            } catch (error) {
-                console.error("Error authenticating websocket session:", error);
-                ws.close(1011, "Internal server error");
+        try {
+            // ensure user is logged in
+            if (!await isAuthenticated(request)) {
+                ws.close(1008, "Unauthorized");
                 return;
             }
-        } else {
-            ws.close(1008, "Unauthorized");
+
+            // handle topic subscription
+            ws.onmessage = (event: WebSocket.MessageEvent) => {
+                try {
+                    var topics = JSON.parse(event.data.toString());
+                    websockets.set(ws, topics);
+                    for (const topic in topics) {
+                        var topicSubscriptions = subscriptions.get(topic);
+                        if (topicSubscriptions) topicSubscriptions.add(ws);
+                        else subscriptions.set(topic, new Set<WebSocket>([ws]));
+                        if (topics[topic] === 'state') {
+                            var messageToSend = lastMessage.get(topic);
+                            if (messageToSend) ws.send(messageToSend);
+                        }
+                    }
+                } catch {
+                    ws.close(1003, "Could not process topic subscription. If recently updated, try refreshing the page.");
+                }
+            };
+
+            // unsubscribe from topics
+            ws.onclose = () => {
+                var topics = websockets.get(ws);
+                if (topics) {
+                    websockets.delete(ws);
+                    for (const topic in topics) {
+                        var topicSubscriptions = subscriptions.get(topic);
+                        if (topicSubscriptions) topicSubscriptions.delete(ws);
+                    }
+                }
+            };
+        } catch (error) {
+            console.error("Error authenticating websocket session:", error);
+            ws.close(1011, "Internal server error");
             return;
         }
     });
