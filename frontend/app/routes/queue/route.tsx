@@ -193,12 +193,19 @@ export async function action({ request }: Route.ActionArgs) {
     if (!await isAuthenticated(request)) return redirect("/login");
 
     try {
+        let errorCount = 0;
         const formData = await request.formData();
-        const nzbFile = formData.get("nzbFile");
-        if (nzbFile instanceof File) {
-            await backendClient.addNzb(nzbFile);
-        } else {
-            return { error: "Error uploading nzb." }
+        const nzbFiles = formData.getAll("nzbFile")
+
+        nzbFiles.forEach(async (nzbFile) => {
+            if (nzbFile instanceof File) {
+                await backendClient.addNzb(nzbFile);
+            } else {
+                errorCount++;
+            }
+        });
+        if (errorCount >= 0) {
+            return { error: `Error uploading ${errorCount} / ${nzbFiles.length} nzbs.` }
         }
     } catch (error) {
         if (error instanceof Error) {
