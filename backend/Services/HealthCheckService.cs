@@ -92,16 +92,21 @@ public class HealthCheckService
 
     public static IOrderedQueryable<DavItem> GetHealthCheckQueueItems(DavDatabaseClient dbClient)
     {
+        return GetHealthCheckQueueItemsQuery(dbClient)
+            .OrderBy(x => x.NextHealthCheck)
+            .ThenByDescending(x => x.ReleaseDate)
+            .ThenBy(x => x.Id);
+    }
+
+    public static IQueryable<DavItem> GetHealthCheckQueueItemsQuery(DavDatabaseClient dbClient)
+    {
         var actionNeeded = HealthCheckResult.RepairAction.ActionNeeded;
         var healthCheckResults = dbClient.Ctx.HealthCheckResults;
         return dbClient.Ctx.Items
             .Where(x => x.Type == DavItem.ItemType.NzbFile
                         || x.Type == DavItem.ItemType.RarFile
                         || x.Type == DavItem.ItemType.MultipartFile)
-            .Where(x => !healthCheckResults.Any(h => h.DavItemId == x.Id && h.RepairStatus == actionNeeded))
-            .OrderBy(x => x.NextHealthCheck)
-            .ThenByDescending(x => x.ReleaseDate)
-            .ThenBy(x => x.Id);
+            .Where(x => !healthCheckResults.Any(h => h.DavItemId == x.Id && h.RepairStatus == actionNeeded));
     }
 
     private async Task PerformHealthCheck
