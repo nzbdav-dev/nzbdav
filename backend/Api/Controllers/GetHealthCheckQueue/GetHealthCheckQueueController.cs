@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NzbWebDAV.Database;
-using NzbWebDAV.Database.Models;
 using NzbWebDAV.Services;
 
 namespace NzbWebDAV.Api.Controllers.GetHealthCheckQueue;

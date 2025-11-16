@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Http;
 using NzbWebDAV.Api.SabControllers.AddFile;
 using NzbWebDAV.Extensions;
+using NzbWebDAV.Utils;
 
 namespace NzbWebDAV.Api.SabControllers.AddUrl;
 
@@ -36,9 +37,8 @@ public class AddUrlRequest() : AddFileRequest
                 throw new Exception($"The url is invalid.");
 
             // fetch url
-            var httpClient = new HttpClient();
-            httpClient.DefaultRequestHeaders.Add("User-Agent", UserAgentHeader);
-            var response = await httpClient.GetAsync(url);
+            var response = await GetAsync(url);
+            response.EnsureSuccessStatusCode();
             if (!response.IsSuccessStatusCode)
                 throw new Exception($"Received status code {response.StatusCode}.");
 
@@ -72,6 +72,45 @@ public class AddUrlRequest() : AddFileRequest
         {
             throw new BadHttpRequestException($"Failed to fetch nzb-file url `{url}`: {ex.Message}");
         }
+    }
+
+    private static HttpClientHandler GetHttpClientHandler()
+    {
+        return new HttpClientHandler
+        {
+            AllowAutoRedirect = true,
+            MaxAutomaticRedirections = 10,
+        };
+    }
+
+    private static HttpClient GetHttpClient(HttpClientHandler handler)
+    {
+        var httpClient = new HttpClient(handler);
+        httpClient.DefaultRequestHeaders.Add("User-Agent", UserAgentHeader);
+        return httpClient;
+    }
+
+    private static async Task<HttpResponseMessage> GetAsync(string url)
+    {
+        var handler = GetHttpClientHandler();
+        var client = GetHttpClient(handler);
+        var response = await client.GetAsync(url);
+        var remainingRedirects = handler.MaxAutomaticRedirections;
+        while
+        (
+            (int)response.StatusCode is >= 300 and < 400
+            && remainingRedirects > 0
+            && response.Headers.Location is not null
+            && EnvironmentUtil.IsVariableTrue("ALLOW_HTTPS_TO_HTTP_REDIRECTS")
+        )
+        {
+            var redirect = response.Headers.Location;
+            var redirectUri = redirect.IsAbsoluteUri ? redirect : new Uri(new Uri(url), redirect);
+            response = await client.GetAsync(redirectUri);
+            remainingRedirects--;
+        }
+
+        return response;
     }
 
     private static string? AddNzbExtension(string? nzbName)
