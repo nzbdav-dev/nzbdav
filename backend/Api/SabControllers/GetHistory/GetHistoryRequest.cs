@@ -11,6 +11,8 @@ public class GetHistoryRequest
     public string? Category { get; init; }
     public List<Guid> NzoIds { get; init; } = [];
     public CancellationToken CancellationToken { get; set; }
+    public string? Name { get; init; }
+    public string? Status { get; init; }
 
 
     public GetHistoryRequest(HttpContext context, ConfigManager configManager)
@@ -19,7 +21,9 @@ public class GetHistoryRequest
         var limitParam = context.GetQueryParam("limit");
         var pageSizeParam = context.GetQueryParam("pageSize");
         var nzoIdsParam = context.GetQueryParam("nzo_ids");
-        Category = context.GetQueryParam("category");
+        Category = context.GetQueryParam("category") ?? context.GetQueryParam("cat");
+        Name = context.GetQueryParam("name");
+        Status = context.GetQueryParam("status");
         CancellationToken = context.RequestAborted;
 
         if (startParam is not null)
