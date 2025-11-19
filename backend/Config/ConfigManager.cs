@@ -1,5 +1,6 @@
 ﻿using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using NzbWebDAV.Clients.Usenet.Models;
 using NzbWebDAV.Database;
 using NzbWebDAV.Database.Models;
 using NzbWebDAV.Utils;
@@ -227,6 +228,68 @@ public class ConfigManager
     public string GetBaseUrl()
     {
         return GetConfigValue("general.base-url") ?? "http://localhost:3000";
+    }
+
+    /// <summary>
+    /// Get Usenet server configurations with backward compatibility
+    /// </summary>
+    public List<UsenetServerConfig> GetUsenetServers()
+    {
+        // First check if we have new multi-server configuration
+        var serversJson = GetConfigValue("usenet.servers");
+        if (!string.IsNullOrWhiteSpace(serversJson))
+        {
+            try
+            {
+                var servers = JsonSerializer.Deserialize<List<UsenetServerConfig>>(serversJson);
+                if (servers != null && servers.Count > 0)
+                {
+                    return servers.Where(s => s.Enabled).ToList();
+                }
+            }
+            catch (JsonException)
+            {
+                // Fall through to legacy configuration
+            }
+        }
+
+        // Fall back to legacy single-server configuration
+        var host = GetConfigValue("usenet.host");
+        if (string.IsNullOrWhiteSpace(host))
+        {
+            throw new InvalidOperationException(
+                "No Usenet server configuration found. Please configure either 'usenet.servers' or legacy 'usenet.host' settings.");
+        }
+
+        var legacyServer = new UsenetServerConfig
+        {
+            Id = "legacy-server",
+            Name = "Primary Server",
+            Host = host,
+            Port = int.Parse(GetConfigValue("usenet.port") ?? "119"),
+            UseSsl = bool.Parse(GetConfigValue("usenet.use-ssl") ?? "false"),
+            Username = GetConfigValue("usenet.user") ?? string.Empty,
+            Password = GetConfigValue("usenet.pass") ?? string.Empty,
+            MaxConnections = GetMaxConnections(),
+            Priority = 0,
+            Enabled = true
+        };
+
+        return new List<UsenetServerConfig> { legacyServer };
+    }
+
+    /// <summary>
+    /// Check if any Usenet server configuration changed
+    /// </summary>
+    public bool HasUsenetConfigChanged(Dictionary<string, string> changedConfig)
+    {
+        return changedConfig.ContainsKey("usenet.servers") ||
+               changedConfig.ContainsKey("usenet.host") ||
+               changedConfig.ContainsKey("usenet.port") ||
+               changedConfig.ContainsKey("usenet.use-ssl") ||
+               changedConfig.ContainsKey("usenet.user") ||
+               changedConfig.ContainsKey("usenet.pass") ||
+               changedConfig.ContainsKey("usenet.connections");
     }
 
     public class ConfigEventArgs : EventArgs

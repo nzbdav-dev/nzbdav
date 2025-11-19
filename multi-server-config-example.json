@@ -1,0 +1,46 @@
+{
+  "usenet.servers": [
+    {
+      "id": "primary-server-1",
+      "name": "Primary Provider",
+      "host": "news.usenetserver.com",
+      "port": 563,
+      "useSsl": true,
+      "username": "your-username",
+      "password": "your-password",
+      "maxConnections": 50,
+      "priority": 0,
+      "enabled": true,
+      "retentionDays": 3000,
+      "groups": "primary,main"
+    },
+    {
+      "id": "backup-server-1",
+      "name": "Backup Provider",
+      "host": "news.backup-provider.com",
+      "port": 563,
+      "useSsl": true,
+      "username": "backup-username",
+      "password": "backup-password",
+      "maxConnections": 30,
+      "priority": 1,
+      "enabled": true,
+      "retentionDays": 3500,
+      "groups": "backup"
+    },
+    {
+      "id": "fill-server-1",
+      "name": "High Retention Fill",
+      "host": "news.fill-provider.com",
+      "port": 563,
+      "useSsl": true,
+      "username": "fill-username",
+      "password": "fill-password",
+      "maxConnections": 20,
+      "priority": 2,
+      "enabled": true,
+      "retentionDays": 5000,
+      "groups": "fill,backup"
+    }
+  ]
+}

@@ -77,6 +77,7 @@ class Program
             .AddWebdavBasicAuthentication(configManager)
             .AddSingleton(configManager)
             .AddSingleton(websocketManager)
+            .AddSingleton<ServerHealthTracker>()
             .AddSingleton<UsenetStreamingClient>()
             .AddSingleton<QueueManager>()
             .AddSingleton<ArrMonitoringService>()

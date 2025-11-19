@@ -15,49 +15,61 @@ public class UsenetStreamingClient
 {
     private readonly INntpClient _client;
     private readonly WebsocketManager _websocketManager;
+    private readonly ServerHealthTracker _healthTracker;
+    private readonly ConfigManager _configManager;
+    private MultiServerNntpClient? _multiServerClient;
 
-    public UsenetStreamingClient(ConfigManager configManager, WebsocketManager websocketManager)
+    public UsenetStreamingClient(
+        ConfigManager configManager,
+        WebsocketManager websocketManager,
+        ServerHealthTracker healthTracker)
     {
         // initialize private members
         _websocketManager = websocketManager;
+        _healthTracker = healthTracker;
+        _configManager = configManager;
 
-        // get connection settings from config-manager
-        var host = configManager.GetConfigValue("usenet.host") ?? string.Empty;
-        var port = int.Parse(configManager.GetConfigValue("usenet.port") ?? "119");
-        var useSsl = bool.Parse(configManager.GetConfigValue("usenet.use-ssl") ?? "false");
-        var user = configManager.GetConfigValue("usenet.user") ?? string.Empty;
-        var pass = configManager.GetConfigValue("usenet.pass") ?? string.Empty;
-        var connections = configManager.GetMaxConnections();
+        // get server configurations
+        var serverConfigs = configManager.GetUsenetServers();
 
-        // initialize the nntp-client
-        var createNewConnection = (CancellationToken ct) => CreateNewConnection(host, port, useSsl, user, pass, ct);
-        var connectionPool = CreateNewConnectionPool(connections, createNewConnection);
-        var multiConnectionClient = new MultiConnectionNntpClient(connectionPool);
+        // initialize the multi-server client
+        _multiServerClient = new MultiServerNntpClient(serverConfigs, _healthTracker);
+
+        // wrap with caching
         var cache = new MemoryCache(new MemoryCacheOptions() { SizeLimit = 8192 });
-        _client = new CachingNntpClient(multiConnectionClient, cache);
+        _client = new CachingNntpClient(_multiServerClient, cache);
 
-        // when config changes, update the connection-pool
-        configManager.OnConfigChanged += (_, configEventArgs) =>
+        // setup connection pool monitoring for all servers
+        SetupConnectionPoolMonitoring(serverConfigs);
+
+        // when config changes, update the servers
+        configManager.OnConfigChanged += async (_, configEventArgs) =>
         {
             // if unrelated config changed, do nothing
-            if (!configEventArgs.ChangedConfig.ContainsKey("usenet.host") &&
-                !configEventArgs.ChangedConfig.ContainsKey("usenet.port") &&
-                !configEventArgs.ChangedConfig.ContainsKey("usenet.use-ssl") &&
-                !configEventArgs.ChangedConfig.ContainsKey("usenet.user") &&
-                !configEventArgs.ChangedConfig.ContainsKey("usenet.pass") &&
-                !configEventArgs.ChangedConfig.ContainsKey("usenet.connections")) return;
+            if (!configManager.HasUsenetConfigChanged(configEventArgs.ChangedConfig))
+                return;
 
-            // update the connection-pool according to the new config
-            var connectionCount = int.Parse(configEventArgs.NewConfig["usenet.connections"]);
-            var newHost = configEventArgs.NewConfig["usenet.host"];
-            var newPort = int.Parse(configEventArgs.NewConfig["usenet.port"]);
-            var newUseSsl = bool.Parse(configEventArgs.NewConfig.GetValueOrDefault("usenet.use-ssl", "false"));
-            var newUser = configEventArgs.NewConfig["usenet.user"];
-            var newPass = configEventArgs.NewConfig["usenet.pass"];
-            var newConnectionPool = CreateNewConnectionPool(connectionCount, cancellationToken =>
-                CreateNewConnection(newHost, newPort, newUseSsl, newUser, newPass, cancellationToken));
-            multiConnectionClient.UpdateConnectionPool(newConnectionPool);
+            // update server configurations
+            var newServerConfigs = configManager.GetUsenetServers();
+            if (_multiServerClient != null)
+            {
+                await _multiServerClient.UpdateServersAsync(newServerConfigs);
+                SetupConnectionPoolMonitoring(newServerConfigs);
+            }
         };
+    }
+
+    private void SetupConnectionPoolMonitoring(List<UsenetServerConfig> serverConfigs)
+    {
+        // Calculate total connections across all servers
+        var totalConnections = serverConfigs.Sum(s => s.MaxConnections);
+
+        // Send initial websocket update
+        var message = $"0|{totalConnections}|0";
+        _websocketManager.SendMessage(WebsocketTopic.UsenetConnections, message);
+
+        // Note: Individual connection pool monitoring is handled by MultiServerNntpClient
+        // This provides an aggregate view across all servers
     }
 
     public async Task CheckAllSegmentsAsync
@@ -178,23 +190,20 @@ public class UsenetStreamingClient
         return _client.GetArticleHeadersAsync(segmentId, cancellationToken);
     }
 
-    private ConnectionPool<INntpClient> CreateNewConnectionPool
-    (
-        int maxConnections,
-        Func<CancellationToken, ValueTask<INntpClient>> connectionFactory
-    )
+    /// <summary>
+    /// Get health statistics for all configured servers
+    /// </summary>
+    public List<ServerHealthStats> GetServerHealthStats()
     {
-        var connectionPool = new ConnectionPool<INntpClient>(maxConnections, connectionFactory);
-        connectionPool.OnConnectionPoolChanged += OnConnectionPoolChanged;
-        var args = new ConnectionPool<INntpClient>.ConnectionPoolChangedEventArgs(0, 0, maxConnections);
-        OnConnectionPoolChanged(connectionPool, args);
-        return connectionPool;
+        return _multiServerClient?.GetServerHealthStats() ?? new List<ServerHealthStats>();
     }
 
-    private void OnConnectionPoolChanged(object? _, ConnectionPool<INntpClient>.ConnectionPoolChangedEventArgs args)
+    /// <summary>
+    /// Get current server configurations
+    /// </summary>
+    public IReadOnlyList<UsenetServerConfig> GetServerConfigs()
     {
-        var message = $"{args.Live}|{args.Max}|{args.Idle}";
-        _websocketManager.SendMessage(WebsocketTopic.UsenetConnections, message);
+        return _multiServerClient?.GetServerConfigs() ?? Array.Empty<UsenetServerConfig>();
     }
 
     public static async ValueTask<INntpClient> CreateNewConnection
