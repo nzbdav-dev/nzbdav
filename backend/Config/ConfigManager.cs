@@ -177,6 +177,23 @@ public class ConfigManager
         return (configValue != null ? bool.Parse(configValue) : defaultValue);
     }
 
+    public bool IsNzbBackupEnabled()
+    {
+        var defaultValue = false;
+        var configValue = StringUtil.EmptyToNull(GetConfigValue("api.nzb-backup.enabled"));
+        return (configValue != null ? bool.Parse(configValue) : defaultValue);
+    }
+
+    public string GetNzbBackupDir()
+    {
+        var backupDir = StringUtil.EmptyToNull(GetConfigValue("api.nzb-backup.dir"))
+            ?? StringUtil.EmptyToNull(Environment.GetEnvironmentVariable("NZB_BACKUP_DIR"))
+            ?? "/mnt/nzbdav/nzb-backups";
+
+        if (backupDir.EndsWith('/')) backupDir = backupDir.TrimEnd('/');
+        return backupDir;
+    }
+    
     public int GetMaxRepairConnections()
     {
         return int.Parse(

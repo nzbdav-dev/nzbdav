@@ -19,6 +19,8 @@ const defaultConfig = {
     "api.ensure-importable-video": "true",
     "api.ensure-article-existence": "false",
     "api.ignore-history-limit": "true",
+    "api.nzb-backup.enabled": "false",
+    "api.nzb-backup.dir": "",
     "api.download-extension-blacklist": ".nfo, .par2, .sfv",
     "api.duplicate-nzb-behavior": "increment",
     "api.import-strategy": "symlinks",

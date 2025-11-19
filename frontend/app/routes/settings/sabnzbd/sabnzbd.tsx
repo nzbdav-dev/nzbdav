@@ -214,6 +214,44 @@ export function SabnzbdSettings({ config, setNewConfig }: SabnzbdSettingsProps) 
                     <a href="https://github.com/Sonarr/Sonarr/issues/5452">See here</a>.
                 </Form.Text>
             </Form.Group>
+            <hr />
+            <Form.Group>
+              <Form.Check
+                  className={styles.input}
+                  type="checkbox"
+                  id="nzb-backup-checkbox"
+                  aria-describedby="nzb-backup-help"
+                  label={`Backup NZBs`}
+                  checked={config["api.nzb-backup.enabled"] === "true"}
+                  onChange={e => setNewConfig({...config, "api.nzb-backup.enabled": "" + e.target.checked 
+                  })} 
+              />
+              <Form.Text id="nzb-backup-help" muted>
+                  When enabled, all incoming NZBs will be saved as .gz to your environment-configured /NZB_BACKUP_FOLDER before any processing.
+              </Form.Text>
+          </Form.Group>
+          {config["api.nzb-backup.enabled"] === "true" &&
+            <Form.Group className={styles.subGroup}>
+                <Form.Label htmlFor="nzb-backup-dir-input">Backup Directory</Form.Label>
+                <Form.Control
+                    className={styles.input}
+                    type="text"
+                    id="nzb-backup-dir-input"
+                    aria-describedby="nzb-backup-dir-help"
+                    placeholder="/data/nzb-backup"
+                    value={config["api.nzb-backup.dir"]}
+                    onChange={e =>
+                        setNewConfig({
+                            ...config,
+                            "api.nzb-backup.dir": e.target.value
+                        })
+                    }
+                />
+                <Form.Text id="nzb-backup-dir-help" muted>
+                    Absolute path where .gz NZB backups will be stored.
+                </Form.Text>
+            </Form.Group>
+        }
         </div>
     );
 }
@@ -232,6 +270,8 @@ export function isSabnzbdSettingsUpdated(config: Record<string, string>, newConf
         || config["api.import-strategy"] !== newConfig["api.import-strategy"]
         || config["api.completed-downloads-dir"] !== newConfig["api.completed-downloads-dir"]
         || config["general.base-url"] !== newConfig["general.base-url"]
+        || config["api.nzb-backup.enabled"] !== newConfig["api.nzb-backup.enabled"]
+        || config["api.nzb-backup.dir"] !== newConfig["api.nzb-backup.dir"]
 }
 
 export function isSabnzbdSettingsValid(newConfig: Record<string, string>) {

@@ -28,6 +28,28 @@ public class AddFileController(
         using var memoryStream = new MemoryStream(documentBytes);
         var document = await NzbDocument.LoadAsync(memoryStream);
 
+        // backup the nzb if configured
+        if (configManager.IsNzbBackupEnabled())
+        {
+            var backupDir = configManager.GetNzbBackupDir();
+            if (!string.IsNullOrWhiteSpace(backupDir))
+            {
+                try
+                {
+                    if (!Directory.Exists(backupDir)) Directory.CreateDirectory(backupDir);
+
+                    var backupFilePath = Path.Combine(backupDir, request.FileName + ".gz");
+                    using var fs = new FileStream(backupFilePath, FileMode.Create, FileAccess.Write);
+                    using var gz = new System.IO.Compression.GZipStream(fs, System.IO.Compression.CompressionLevel.Optimal);
+                    await gz.WriteAsync(documentBytes, 0, documentBytes.Length, request.CancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[NZB Backup] Failed to save {request.FileName}.gz: {ex.Message}");
+                }
+            }
+        }
+        
         // add the queueItem to the database
         var queueItem = new QueueItem
         {
