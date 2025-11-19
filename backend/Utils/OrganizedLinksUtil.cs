@@ -105,10 +105,11 @@ public static class OrganizedLinksUtil
         targetPath = targetPath.StartsWith('/') ? targetPath : $"/{targetPath}";
         if (!targetPath.StartsWith("/.ids")) return null;
         var guid = Path.GetFileNameWithoutExtension(targetPath);
+        if (!Guid.TryParse(guid, out var davItemId)) return null;
         return new DavItemLink()
         {
             LinkPath = symlinkInfo.SymlinkPath,
-            DavItemId = Guid.Parse(guid),
+            DavItemId = davItemId,
             SymlinkOrStrmInfo = symlinkInfo
         };
     }
@@ -119,10 +120,11 @@ public static class OrganizedLinksUtil
         var absolutePath = new Uri(targetUrl).AbsolutePath;
         if (!absolutePath.StartsWith("/view/.ids")) return null;
         var guid = Path.GetFileNameWithoutExtension(absolutePath);
+        if (!Guid.TryParse(guid, out var davItemId)) return null;
         return new DavItemLink()
         {
             LinkPath = strmInfo.StrmPath,
-            DavItemId = Guid.Parse(guid),
+            DavItemId = davItemId,
             SymlinkOrStrmInfo = strmInfo
         };
     }

@@ -12,6 +12,12 @@ public class ArrClient(string host, string apiKey)
     private string ApiKey { get; } = apiKey;
     private const string BasePath = "/api/v3";
 
+    // Reusable HttpClient to prevent socket exhaustion
+    private readonly HttpClient _httpClient = new()
+    {
+        DefaultRequestHeaders = { { "X-Api-Key", apiKey } }
+    };
+
     public Task<ArrApiInfoResponse> GetApiInfo() =>
         GetRoot<ArrApiInfoResponse>($"/api");
 
@@ -52,23 +58,20 @@ public class ArrClient(string host, string apiKey)
 
     protected async Task<T> GetRoot<T>(string rootPath)
     {
-        using var httpClient = GetHttpClient();
-        await using var response = await httpClient.GetStreamAsync($"{Host}{rootPath}");
+        await using var response = await _httpClient.GetStreamAsync($"{Host}{rootPath}");
         return await JsonSerializer.DeserializeAsync<T>(response) ?? throw new NullReferenceException();
     }
 
     protected async Task<T> Post<T>(string path, object body)
     {
-        using var httpClient = GetHttpClient();
-        using var response = await httpClient.PostAsJsonAsync(GetRequestUri(path), body);
+        using var response = await _httpClient.PostAsJsonAsync(GetRequestUri(path), body);
         await using var stream = await response.Content.ReadAsStreamAsync();
         return await JsonSerializer.DeserializeAsync<T>(stream) ?? throw new NullReferenceException();
     }
 
     protected async Task<HttpStatusCode> Delete(string path, Dictionary<string, string>? queryParams = null)
     {
-        using var httpClient = GetHttpClient();
-        using var response = await httpClient.DeleteAsync(GetRequestUri(path, queryParams));
+        using var response = await _httpClient.DeleteAsync(GetRequestUri(path, queryParams));
         return response.StatusCode;
     }
 
@@ -80,12 +83,5 @@ public class ArrClient(string host, string apiKey)
         var queryString = string.Join("&", query);
         if (queryString.Length > 0) resource = $"{resource}?{queryString}";
         return resource;
-    }
-
-    private HttpClient GetHttpClient()
-    {
-        var httpClient = new HttpClient();
-        httpClient.DefaultRequestHeaders.Add("X-Api-Key", ApiKey);
-        return httpClient;
     }
 }
