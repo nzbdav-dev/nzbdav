@@ -21,6 +21,13 @@ public class GetHistoryController(
             query = query.Where(q => request.NzoIds.Contains(q.Id));
         if (request.Category != null)
             query = query.Where(q => q.Category == request.Category);
+        if (request.Name != null)
+            query = query.Where(q => q.JobName == request.Name);
+        if (request.Status != null)
+        {
+            if (Enum.TryParse<HistoryItem.DownloadStatusOption>(request.Status, ignoreCase: true, out var statusEnum))
+                query = query.Where(q => q.DownloadStatus == statusEnum);
+        }
 
         // get total count
         var totalCountPromise = query
