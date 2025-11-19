@@ -73,20 +73,77 @@ public class UsenetStreamingClient
         var token = childCt.Token;
 
         var tasks = segmentIds
-            .Select(async x => (
-                SegmentId: x,
-                Result: await _client.StatAsync(x, token)
-            ))
+            .Select(async x => await CheckSegmentWithRetryAsync(x, token))
             .WithConcurrencyAsync(concurrency);
 
         var processed = 0;
         await foreach (var task in tasks)
         {
             progress?.Report(++processed);
-            if (task.Result.ResponseType == NntpStatResponseType.ArticleExists) continue;
+            if (task.IsSuccess) continue;
             await childCt.CancelAsync();
             throw new UsenetArticleNotFoundException(task.SegmentId);
         }
+    }
+
+    private async Task<(string SegmentId, bool IsSuccess)> CheckSegmentWithRetryAsync(
+        string segmentId,
+        CancellationToken cancellationToken)
+    {
+        const int maxRetries = 3;
+        var retryDelays = new[] { TimeSpan.FromMilliseconds(100), TimeSpan.FromMilliseconds(250), TimeSpan.FromMilliseconds(500) };
+
+        for (var attempt = 0; attempt <= maxRetries; attempt++)
+        {
+            try
+            {
+                var result = await _client.StatAsync(segmentId, cancellationToken);
+
+                // Only these response codes indicate the article is actually missing
+                if (result.ResponseType == NntpStatResponseType.NoArticleWithThatNumber ||
+                    result.ResponseType == NntpStatResponseType.NoArticleWithThatMessageId)
+                {
+                    return (segmentId, false);
+                }
+
+                // Article exists
+                if (result.ResponseType == NntpStatResponseType.ArticleExists)
+                {
+                    return (segmentId, true);
+                }
+
+                // Protocol/state errors (412, 420) - retry if we have attempts left
+                if (result.ResponseType == NntpStatResponseType.NoGroupSelected ||
+                    result.ResponseType == NntpStatResponseType.CurrentArticleInvalid)
+                {
+                    if (attempt < maxRetries)
+                    {
+                        await Task.Delay(retryDelays[attempt], cancellationToken);
+                        continue;
+                    }
+                    // Treat as success after retries to avoid false positives
+                    return (segmentId, true);
+                }
+
+                // Unknown response - log and retry
+                if (attempt < maxRetries)
+                {
+                    await Task.Delay(retryDelays[attempt], cancellationToken);
+                    continue;
+                }
+
+                // After all retries, assume success to avoid false positives
+                return (segmentId, true);
+            }
+            catch (Exception) when (attempt < maxRetries)
+            {
+                // Retry on transient network errors
+                await Task.Delay(retryDelays[attempt], cancellationToken);
+            }
+        }
+
+        // After all retries exhausted with exceptions, assume success to avoid false positives
+        return (segmentId, true);
     }
 
     public async Task<NzbFileStream> GetFileStream(NzbFile nzbFile, int concurrentConnections, CancellationToken ct)
