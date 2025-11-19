@@ -22,7 +22,7 @@ public class GetHistoryController(
         if (request.Category != null)
             query = query.Where(q => q.Category == request.Category);
         if (request.Name != null)
-            query = query.Where(q => q.JobName == request.Name);
+            query = query.Where(q => EF.Functions.Like(q.JobName, $"%{request.Name}%"));
         if (request.Status != null)
         {
             if (Enum.TryParse<HistoryItem.DownloadStatusOption>(request.Status, ignoreCase: true, out var statusEnum))
