@@ -16,6 +16,10 @@ public class NzbFileStream(
     private CombinedStream? _innerStream;
     private bool _disposed;
 
+    // Cache for segment seek results to avoid recalculating positions
+    // Key: byte offset, Value: (segment index, segment byte range)
+    private readonly Dictionary<long, InterpolationSearch.Result> _segmentCache = new();
+
     public override void Flush()
     {
         _innerStream?.Flush();
@@ -70,7 +74,20 @@ public class NzbFileStream(
 
     private async Task<InterpolationSearch.Result> SeekSegment(long byteOffset, CancellationToken ct)
     {
-        return await InterpolationSearch.Find(
+        // Check if we have a cached result for this exact offset
+        if (_segmentCache.TryGetValue(byteOffset, out var cached))
+            return cached;
+
+        // Check if we have a cached result that contains this offset
+        // This reuses work from previous seeks to nearby positions
+        foreach (var (_, cachedResult) in _segmentCache)
+        {
+            if (cachedResult.FoundByteRange.Contains(byteOffset))
+                return cachedResult;
+        }
+
+        // Not in cache, perform the search
+        var result = await InterpolationSearch.Find(
             byteOffset,
             new LongRange(0, fileSegmentIds.Length),
             new LongRange(0, fileSize),
@@ -81,6 +98,13 @@ public class NzbFileStream(
             },
             ct
         );
+
+        // Cache the result for future seeks
+        // Keep cache size reasonable (max 100 entries)
+        if (_segmentCache.Count < 100)
+            _segmentCache[byteOffset] = result;
+
+        return result;
     }
 
     private async Task<CombinedStream> GetFileStream(long rangeStart, CancellationToken cancellationToken)
@@ -94,6 +118,9 @@ public class NzbFileStream(
 
     private CombinedStream GetCombinedStream(int firstSegmentIndex, CancellationToken ct)
     {
+        // Note: The Select creates tasks lazily, and WithConcurrency() already optimizes
+        // time-to-first-byte by yielding the first task immediately (see IEnumerableTaskExtensions.cs:36-42)
+        // and managing concurrent prefetching of subsequent segments
         return new CombinedStream(
             fileSegmentIds[firstSegmentIndex..]
                 .Select(async x => (Stream)await client.GetSegmentStreamAsync(x, false, ct))

@@ -1,4 +1,6 @@
-﻿namespace NzbWebDAV.Streams;
+using System.Buffers;
+
+namespace NzbWebDAV.Streams;
 
 public class CombinedStream(IEnumerable<Task<Stream>> streams) : Stream
 {
@@ -58,16 +60,28 @@ public class CombinedStream(IEnumerable<Task<Stream>> streams) : Stream
     {
         if (count == 0) return;
         var remaining = count;
-        var throwaway = new byte[1024];
-        while (remaining > 0)
+        // Increased from 1KB to 256KB for much faster seeking
+        // When seeking within a segment, we need to discard unwanted bytes
+        // Larger buffer = fewer read operations = faster seeks
+        // Use ArrayPool to avoid heap allocation of large buffers
+        const int bufferSize = 256 * 1024;
+        var throwaway = ArrayPool<byte>.Shared.Rent(bufferSize);
+        try
         {
-            var toRead = (int)Math.Min(remaining, throwaway.Length);
-            var read = await ReadAsync(throwaway, 0, toRead);
-            remaining -= read;
-            if (read == 0) break;
-        }
+            while (remaining > 0)
+            {
+                var toRead = (int)Math.Min(remaining, throwaway.Length);
+                var read = await ReadAsync(throwaway, 0, toRead);
+                remaining -= read;
+                if (read == 0) break;
+            }
 
-        _position += count;
+            _position += count;
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(throwaway);
+        }
     }
 
     public override void Flush()
