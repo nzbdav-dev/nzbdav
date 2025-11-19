@@ -38,10 +38,48 @@ public class MultiServerNntpClient : INntpClient
             .ThenBy(s => s.Name)
             .ToList();
 
-        if (configs.Count == 0)
-            throw new InvalidOperationException("At least one enabled Usenet server must be configured");
-
+        // Validate and filter out invalid server configurations
+        var validConfigs = new List<UsenetServerConfig>();
         foreach (var config in configs)
+        {
+            // Validate hostname
+            if (string.IsNullOrWhiteSpace(config.Host))
+            {
+                _logger?.LogWarning(
+                    "Skipping server '{Name}' (ID: {Id}): hostname is empty or null",
+                    config.Name ?? "unnamed", config.Id);
+                continue;
+            }
+
+            // Validate port
+            if (config.Port <= 0 || config.Port > 65535)
+            {
+                _logger?.LogWarning(
+                    "Skipping server '{Name}' (ID: {Id}): invalid port {Port}",
+                    config.Name, config.Id, config.Port);
+                continue;
+            }
+
+            // Validate connection count
+            if (config.MaxConnections <= 0)
+            {
+                _logger?.LogWarning(
+                    "Skipping server '{Name}' (ID: {Id}): invalid maxConnections {MaxConnections}",
+                    config.Name, config.Id, config.MaxConnections);
+                continue;
+            }
+
+            validConfigs.Add(config);
+        }
+
+        if (validConfigs.Count == 0)
+        {
+            throw new InvalidOperationException(
+                "No valid Usenet servers configured. At least one server must have a valid hostname, port, and connection count.");
+        }
+
+        // Initialize valid servers
+        foreach (var config in validConfigs)
         {
             var serverInstance = CreateServerInstance(config);
             _servers.Add(serverInstance);

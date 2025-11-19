@@ -244,12 +244,22 @@ public class ConfigManager
                 var servers = JsonSerializer.Deserialize<List<UsenetServerConfig>>(serversJson);
                 if (servers != null && servers.Count > 0)
                 {
-                    return servers.Where(s => s.Enabled).ToList();
+                    // Return all enabled servers (validation happens in MultiServerNntpClient)
+                    var enabledServers = servers.Where(s => s.Enabled).ToList();
+
+                    if (enabledServers.Count == 0)
+                    {
+                        throw new InvalidOperationException(
+                            "All configured Usenet servers are disabled. At least one server must be enabled.");
+                    }
+
+                    return enabledServers;
                 }
             }
-            catch (JsonException)
+            catch (JsonException ex)
             {
-                // Fall through to legacy configuration
+                // Log error and fall through to legacy configuration
+                Console.WriteLine($"Failed to parse usenet.servers JSON: {ex.Message}");
             }
         }
 
