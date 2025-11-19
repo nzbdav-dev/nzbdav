@@ -82,7 +82,7 @@ public class StrmToSymlinksTask(
             var symlinkPath = PathUtil.ReplaceExtension(item.Link.LinkPath, item.Extension);
             var symlinkTarget = DatabaseStoreSymlinkFile.GetTargetPath(item.Link.DavItemId, mountDir);
             File.CreateSymbolicLink(symlinkPath, symlinkTarget);
-            File.Delete(item.Link.LinkPath);
+            PathUtil.SafeDeleteFile(item.Link.LinkPath);
             onItemCompleted?.Invoke();
         }
     }

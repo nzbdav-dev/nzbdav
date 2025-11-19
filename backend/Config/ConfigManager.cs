@@ -92,19 +92,16 @@ public class ConfigManager
 
     public int GetMaxConnections()
     {
-        return int.Parse(
-            StringUtil.EmptyToNull(GetConfigValue("usenet.connections"))
-            ?? "50"
-        );
+        var value = StringUtil.EmptyToNull(GetConfigValue("usenet.connections")) ?? "50";
+        return int.TryParse(value, out var result) ? result : 50;
     }
 
     public int GetConnectionsPerStream()
     {
-        return int.Parse(
-            StringUtil.EmptyToNull(GetConfigValue("usenet.connections-per-stream"))
+        var value = StringUtil.EmptyToNull(GetConfigValue("usenet.connections-per-stream"))
             ?? StringUtil.EmptyToNull(Environment.GetEnvironmentVariable("CONNECTIONS_PER_STREAM"))
-            ?? "5"
-        );
+            ?? "5";
+        return int.TryParse(value, out var result) ? result : 5;
     }
 
     public string? GetWebdavUser()
@@ -143,10 +140,9 @@ public class ConfigManager
 
     public int GetMaxQueueConnections()
     {
-        return int.Parse(
-            StringUtil.EmptyToNull(GetConfigValue("api.max-queue-connections"))
-            ?? GetMaxConnections().ToString()
-        );
+        var value = StringUtil.EmptyToNull(GetConfigValue("api.max-queue-connections"))
+            ?? GetMaxConnections().ToString();
+        return int.TryParse(value, out var result) ? result : GetMaxConnections();
     }
 
     public bool IsEnforceReadonlyWebdavEnabled()
@@ -179,10 +175,9 @@ public class ConfigManager
 
     public int GetMaxRepairConnections()
     {
-        return int.Parse(
-            StringUtil.EmptyToNull(GetConfigValue("repair.connections"))
-            ?? GetMaxConnections().ToString()
-        );
+        var value = StringUtil.EmptyToNull(GetConfigValue("repair.connections"))
+            ?? GetMaxConnections().ToString();
+        return int.TryParse(value, out var result) ? result : GetMaxConnections();
     }
 
     public bool IsRepairJobEnabled()

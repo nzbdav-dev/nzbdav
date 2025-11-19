@@ -297,7 +297,7 @@ public class HealthCheckService
 
             // if we could not find a corresponding arr instance
             // then we can delete both the item and the link-file.
-            File.Delete(symlinkOrStrmPath);
+            PathUtil.SafeDeleteFile(symlinkOrStrmPath);
             dbClient.Ctx.Items.Remove(davItem);
             dbClient.Ctx.HealthCheckResults.Add(SendStatus(new HealthCheckResult()
             {

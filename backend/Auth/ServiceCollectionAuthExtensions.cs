@@ -45,9 +45,12 @@ public static class ServiceCollectionAuthExtensions
         var passwordHash = configManager.GetWebdavPasswordHash();
 
         if (user == null || passwordHash == null)
+        {
             context.Fail("webdav user and password are not yet configured.");
+            return Task.CompletedTask;
+        }
 
-        if (context.Username == user && PasswordUtil.Verify(passwordHash!, context.Password))
+        if (context.Username == user && PasswordUtil.Verify(passwordHash, context.Password))
         {
             var claims = new[]
             {

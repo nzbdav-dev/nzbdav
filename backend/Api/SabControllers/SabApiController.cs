@@ -52,12 +52,13 @@ public class SabApiController(
                 Error = e.Message
             });
         }
-        catch (Exception e)
+        catch (Exception)
         {
+            // Don't leak internal error details to clients
             return StatusCode(500, new SabBaseResponse()
             {
                 Status = false,
-                Error = e.Message
+                Error = "An internal server error occurred. Please check the server logs for details."
             });
         }
     }

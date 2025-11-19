@@ -111,8 +111,15 @@ public class GetAndHeadHandlerPatch : IRequestHandler
                         // Check if a range was specified
                         if (range != null)
                         {
+                            // Validate stream has content
+                            if (length == 0)
+                            {
+                                response.SetStatus(DavStatusCode.RequestedRangeNotSatisfiable);
+                                return;
+                            }
+
                             var start = range.Start ?? 0;
-                            var end = Math.Min(range.End ?? long.MaxValue, length-1);
+                            var end = Math.Min(range.End ?? long.MaxValue, length - 1);
                             length = end - start + 1;
 
                             // Write the range

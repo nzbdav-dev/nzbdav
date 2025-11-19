@@ -51,6 +51,9 @@ public class DatabaseStoreWatchFolder(
 
     protected override async Task<StoreItemResult> CreateItemAsync(CreateItemRequest request)
     {
+        // HttpContext is null here because we're calling AddFileAsync directly (not HandleRequest),
+        // which bypasses authentication and doesn't use HttpContext.
+        // This is intentional for WebDAV uploads which have separate authentication.
         var controller = new AddFileController(null!, dbClient, queueManager, configManager, websocketManager);
         using var streamReader = new StreamReader(request.Stream);
         var nzbFileContents = await streamReader.ReadToEndAsync(request.CancellationToken);
