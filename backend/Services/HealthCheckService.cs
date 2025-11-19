@@ -102,6 +102,9 @@ public class HealthCheckService
     {
         var actionNeeded = HealthCheckResult.RepairAction.ActionNeeded;
         var healthCheckResults = dbClient.Ctx.HealthCheckResults;
+
+        // Filter out items that have ActionNeeded repair status
+        // EF Core translates .Any() to an efficient NOT EXISTS subquery
         return dbClient.Ctx.Items
             .Where(x => x.Type == DavItem.ItemType.NzbFile
                         || x.Type == DavItem.ItemType.RarFile
