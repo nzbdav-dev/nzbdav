@@ -227,7 +227,7 @@ export function SabnzbdSettings({ config, setNewConfig }: SabnzbdSettingsProps) 
                   })} 
               />
               <Form.Text id="nzb-backup-help" muted>
-                  When enabled, all incoming NZBs will be saved as .gz to your environment-configured /NZB_BACKUP_FOLDER before any processing.
+                  When enabled, all incoming NZBs will be backed up to your selected folder.
               </Form.Text>
           </Form.Group>
           {config["api.nzb-backup.enabled"] === "true" &&
