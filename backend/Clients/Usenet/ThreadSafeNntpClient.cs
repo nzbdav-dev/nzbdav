@@ -67,10 +67,12 @@ public class ThreadSafeNntpClient : INntpClient
                 cancellationToken.ThrowIfCancellationRequested();
                 var article = GetArticle(segmentId, includeHeaders);
                 var stream = YencStreamDecoder.Decode(article.Body);
+                // Increased buffer size from 1KB default to 64KB for better streaming throughput
+                // This reduces overhead and improves performance for large segment transfers
                 return new YencHeaderStream(
                     stream.Header,
                     article.Headers,
-                    new BufferToEndStream(stream.OnDispose(OnDispose))
+                    new BufferToEndStream(stream.OnDispose(OnDispose), minimumSegmentSize: 64 * 1024)
                 );
 
                 // we only want to release the semaphore once the stream is disposed.
