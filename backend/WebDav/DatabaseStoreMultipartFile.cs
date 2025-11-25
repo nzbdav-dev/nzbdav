@@ -15,7 +15,7 @@ public class DatabaseStoreMultipartFile(
     DavDatabaseClient dbClient,
     UsenetStreamingClient usenetClient,
     ConfigManager configManager
-) : BaseStoreReadonlyItem
+) : BaseStoreStreamFile
 {
     public DavItem DavItem => davMultipartFile;
     public override string Name => davMultipartFile.Name;
@@ -23,14 +23,14 @@ public class DatabaseStoreMultipartFile(
     public override long FileSize => davMultipartFile.FileSize!.Value;
     public override DateTime CreatedAt => davMultipartFile.CreatedAt;
 
-    public override async Task<Stream> GetReadableStreamAsync(CancellationToken ct)
+    public override async Task<Stream> GetStreamAsync(CancellationToken ct)
     {
         // store the DavItem being accessed in the http context
         httpContext.Items["DavItem"] = davMultipartFile;
 
         // return the stream
         var id = davMultipartFile.Id;
-        var multipartFile = await dbClient.Ctx.MultipartFiles.Where(x => x.Id == id).FirstOrDefaultAsync(ct);
+        var multipartFile = await dbClient.Ctx.MultipartFiles.Where(x => x.Id == id).FirstOrDefaultAsync(ct).ConfigureAwait(false);
         if (multipartFile is null) throw new FileNotFoundException($"Could not find nzb file with id: {id}");
         var packedStream = new DavMultipartFileStream(
             multipartFile.Metadata.FileParts,

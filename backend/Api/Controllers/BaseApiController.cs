@@ -25,7 +25,7 @@ public abstract class BaseApiController : ControllerBase
                     throw new UnauthorizedAccessException("API Key Incorrect");
             }
 
-            return await HandleRequest();
+            return await HandleRequest().ConfigureAwait(false);
         }
         catch (BadHttpRequestException e)
         {

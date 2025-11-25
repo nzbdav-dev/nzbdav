@@ -19,7 +19,7 @@ public class AddUrlController(
     public async Task<AddUrlResponse> AddUrlAsync(AddUrlRequest request)
     {
         var controller = new AddFileController(httpContext, dbClient, queueManager, configManager, websocketManager);
-        var response = await controller.AddFileAsync(request);
+        var response = await controller.AddFileAsync(request).ConfigureAwait(false);
         return new AddUrlResponse()
         {
             Status = response.Status,
@@ -29,7 +29,7 @@ public class AddUrlController(
 
     protected override async Task<IActionResult> Handle()
     {
-        var request = await AddUrlRequest.New(httpContext);
-        return Ok(await AddUrlAsync(request));
+        var request = await AddUrlRequest.New(httpContext).ConfigureAwait(false);
+        return Ok(await AddUrlAsync(request).ConfigureAwait(false));
     }
 }

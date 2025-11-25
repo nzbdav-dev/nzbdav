@@ -28,8 +28,8 @@ public class NzbFileStream(
 
     public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
     {
-        if (_innerStream == null) _innerStream = await GetFileStream(_position, cancellationToken);
-        var read = await _innerStream.ReadAsync(buffer, offset, count, cancellationToken);
+        if (_innerStream == null) _innerStream = await GetFileStream(_position, cancellationToken).ConfigureAwait(false);
+        var read = await _innerStream.ReadAsync(buffer, offset, count, cancellationToken).ConfigureAwait(false);
         _position += read;
         return read;
     }
@@ -76,19 +76,19 @@ public class NzbFileStream(
             new LongRange(0, fileSize),
             async (guess) =>
             {
-                var header = await client.GetSegmentYencHeaderAsync(fileSegmentIds[guess], ct);
+                var header = await client.GetSegmentYencHeaderAsync(fileSegmentIds[guess], ct).ConfigureAwait(false);
                 return new LongRange(header.PartOffset, header.PartOffset + header.PartSize);
             },
             ct
-        );
+        ).ConfigureAwait(false);
     }
 
     private async Task<CombinedStream> GetFileStream(long rangeStart, CancellationToken cancellationToken)
     {
         if (rangeStart == 0) return GetCombinedStream(0, cancellationToken);
-        var foundSegment = await SeekSegment(rangeStart, cancellationToken);
+        var foundSegment = await SeekSegment(rangeStart, cancellationToken).ConfigureAwait(false);
         var stream = GetCombinedStream(foundSegment.FoundIndex, cancellationToken);
-        await stream.DiscardBytesAsync(rangeStart - foundSegment.FoundByteRange.StartInclusive);
+        await stream.DiscardBytesAsync(rangeStart - foundSegment.FoundByteRange.StartInclusive).ConfigureAwait(false);
         return stream;
     }
 
@@ -96,7 +96,7 @@ public class NzbFileStream(
     {
         return new CombinedStream(
             fileSegmentIds[firstSegmentIndex..]
-                .Select(async x => (Stream)await client.GetSegmentStreamAsync(x, false, ct))
+                .Select(async x => (Stream)await client.GetSegmentStreamAsync(x, false, ct).ConfigureAwait(false))
                 .WithConcurrency(concurrentConnections)
         );
     }
@@ -111,7 +111,7 @@ public class NzbFileStream(
     public override async ValueTask DisposeAsync()
     {
         if (_disposed) return;
-        if (_innerStream != null) await _innerStream.DisposeAsync();
+        if (_innerStream != null) await _innerStream.DisposeAsync().ConfigureAwait(false);
         _disposed = true;
         GC.SuppressFinalize(this);
     }

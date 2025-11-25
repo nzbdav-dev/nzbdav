@@ -19,7 +19,7 @@ public class ProbingStream(Stream stream) : Stream
             return _isEmpty.Value;
 
         var buffer = new byte[1];
-        var bytesRead = await stream.ReadAsync(buffer.AsMemory(0, 1));
+        var bytesRead = await stream.ReadAsync(buffer.AsMemory(0, 1)).ConfigureAwait(false);
 
         if (bytesRead == 0)
         {
@@ -58,7 +58,7 @@ public class ProbingStream(Stream stream) : Stream
     {
         if (!_isEmpty.HasValue)
         {
-            var read = await stream.ReadAsync(buffer.AsMemory(offset, count), cancellationToken);
+            var read = await stream.ReadAsync(buffer.AsMemory(offset, count), cancellationToken).ConfigureAwait(false);
             _isEmpty = read == 0;
             return read;
         }
@@ -67,18 +67,18 @@ public class ProbingStream(Stream stream) : Stream
         {
             buffer[offset] = _probeByte.Value;
             _probeByte = null;
-            var read = await stream.ReadAsync(buffer.AsMemory(offset + 1, count - 1), cancellationToken);
+            var read = await stream.ReadAsync(buffer.AsMemory(offset + 1, count - 1), cancellationToken).ConfigureAwait(false);
             return 1 + read;
         }
 
-        return await stream.ReadAsync(buffer, offset, count, cancellationToken);
+        return await stream.ReadAsync(buffer, offset, count, cancellationToken).ConfigureAwait(false);
     }
 
     public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
     {
         if (!_isEmpty.HasValue)
         {
-            var read = await stream.ReadAsync(buffer, cancellationToken);
+            var read = await stream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
             _isEmpty = read == 0;
             return read;
         }
@@ -92,11 +92,11 @@ public class ProbingStream(Stream stream) : Stream
             span[0] = (byte)_probeByte.Value;
             _probeByte = null;
 
-            var read = await stream.ReadAsync(buffer[1..], cancellationToken);
+            var read = await stream.ReadAsync(buffer[1..], cancellationToken).ConfigureAwait(false);
             return 1 + read;
         }
 
-        return await stream.ReadAsync(buffer, cancellationToken);
+        return await stream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
     }
 
     public override void Flush() => stream.Flush();
@@ -125,7 +125,7 @@ public class ProbingStream(Stream stream) : Stream
     public override async ValueTask DisposeAsync()
     {
         if (_disposed) return;
-        await stream.DisposeAsync();
+        await stream.DisposeAsync().ConfigureAwait(false);
         _disposed = true;
         GC.SuppressFinalize(this);
     }

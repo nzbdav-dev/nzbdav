@@ -19,8 +19,8 @@ public class RarProcessor(
 {
     public override async Task<BaseProcessor.Result?> ProcessAsync()
     {
-        await using var stream = await GetNzbFileStream();
-        var headers = await RarUtil.GetRarHeadersAsync(stream, password, ct);
+        await using var stream = await GetNzbFileStream().ConfigureAwait(false);
+        var headers = await RarUtil.GetRarHeadersAsync(stream, password, ct).ConfigureAwait(false);
         var archiveName = GetArchiveName();
         var partNumber = GetPartNumber(headers);
         return new Result()
@@ -91,7 +91,7 @@ public class RarProcessor(
 
     private async Task<NzbFileStream> GetNzbFileStream()
     {
-        var filesize = fileInfo.FileSize ?? await usenet.GetFileSizeAsync(fileInfo.NzbFile, ct);
+        var filesize = fileInfo.FileSize ?? await usenet.GetFileSizeAsync(fileInfo.NzbFile, ct).ConfigureAwait(false);
         return usenet.GetFileStream(fileInfo.NzbFile, filesize, concurrentConnections: 1);
     }
 

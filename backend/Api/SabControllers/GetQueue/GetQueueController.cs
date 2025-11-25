@@ -20,10 +20,10 @@ public class GetQueueController(
 
         // get total count
         var ct = request.CancellationToken;
-        var totalCount = await dbClient.GetQueueItemsCount(request.Category, ct);
+        var totalCount = await dbClient.GetQueueItemsCount(request.Category, ct).ConfigureAwait(false);
 
         // get queued items
-        var queueItems = (await dbClient.GetQueueItems(request.Category, request.Start, request.Limit, ct))
+        var queueItems = (await dbClient.GetQueueItems(request.Category, request.Start, request.Limit, ct).ConfigureAwait(false))
             .Where(x => x.Id != inProgressQueueItem?.Id)
             .ToArray();
 
@@ -54,6 +54,6 @@ public class GetQueueController(
     protected override async Task<IActionResult> Handle()
     {
         var request = new GetQueueRequest(httpContext);
-        return Ok(await GetQueueAsync(request));
+        return Ok(await GetQueueAsync(request).ConfigureAwait(false));
     }
 }

@@ -24,7 +24,7 @@ public static class FetchFirstSegmentsStep
             .Where(x => x.Segments.Count > 0)
             .Select(x => FetchFirstSegment(x, client, cancellationToken))
             .WithConcurrencyAsync(configManager.GetMaxQueueConnections())
-            .GetAllAsync(cancellationToken, progress);
+            .GetAllAsync(cancellationToken, progress).ConfigureAwait(false);
     }
 
     private static async Task<NzbFileWithFirstSegment> FetchFirstSegment
@@ -38,7 +38,7 @@ public static class FetchFirstSegmentsStep
         {
             // get the first article stream
             var firstSegment = nzbFile.Segments[0].MessageId.Value;
-            await using var stream = await client.GetSegmentStreamAsync(firstSegment, true, cancellationToken);
+            await using var stream = await client.GetSegmentStreamAsync(firstSegment, true, cancellationToken).ConfigureAwait(false);
 
             // read up to the first 16KB from the stream
             var totalRead = 0;
@@ -46,7 +46,7 @@ public static class FetchFirstSegmentsStep
             while (totalRead < buffer.Length)
             {
                 var read = await stream.ReadAsync(buffer.AsMemory(totalRead, buffer.Length - totalRead),
-                    cancellationToken);
+                    cancellationToken).ConfigureAwait(false);
                 if (read == 0) break;
                 totalRead += read;
             }

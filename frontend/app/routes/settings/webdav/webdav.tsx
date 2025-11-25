@@ -2,6 +2,7 @@ import { Form } from "react-bootstrap";
 import styles from "./webdav.module.css"
 import { type Dispatch, type SetStateAction } from "react";
 import { className } from "~/utils/styling";
+import { isPositiveInteger } from "../usenet/usenet";
 
 type SabnzbdSettingsProps = {
     config: Record<string, string>
@@ -9,7 +10,6 @@ type SabnzbdSettingsProps = {
 };
 
 export function WebdavSettings({ config, setNewConfig }: SabnzbdSettingsProps) {
-
     return (
         <div className={styles.container}>
             <Form.Group>
@@ -38,6 +38,21 @@ export function WebdavSettings({ config, setNewConfig }: SabnzbdSettingsProps) {
                     onChange={e => setNewConfig({ ...config, "webdav.pass": e.target.value })} />
                 <Form.Text id="webdav-pass-help" muted>
                     Use this password to connect to the webdav.
+                </Form.Text>
+            </Form.Group>
+            <hr />
+            <Form.Group>
+                <Form.Label htmlFor="connections-per-stream-input">Connections Per Stream</Form.Label>
+                <Form.Control
+                    {...className([styles.input, !isValidConnectionsPerStream(config["usenet.connections-per-stream"]) && styles.error])}
+                    type="text"
+                    id="connections-per-stream-input"
+                    aria-describedby="connections-per-stream-help"
+                    placeholder="5"
+                    value={config["usenet.connections-per-stream"]}
+                    onChange={e => setNewConfig({ ...config, "usenet.connections-per-stream": e.target.value })} />
+                <Form.Text id="connections-per-stream-help" muted>
+                    When a file is requested from the webdav, how many usenet connections should be used to stream that file?
                 </Form.Text>
             </Form.Group>
             <hr />
@@ -89,16 +104,22 @@ export function WebdavSettings({ config, setNewConfig }: SabnzbdSettingsProps) {
 export function isWebdavSettingsUpdated(config: Record<string, string>, newConfig: Record<string, string>) {
     return config["webdav.user"] !== newConfig["webdav.user"]
         || config["webdav.pass"] !== newConfig["webdav.pass"]
+        || config["usenet.connections-per-stream"] !== newConfig["usenet.connections-per-stream"]
         || config["webdav.show-hidden-files"] !== newConfig["webdav.show-hidden-files"]
         || config["webdav.enforce-readonly"] !== newConfig["webdav.enforce-readonly"]
         || config["webdav.preview-par2-files"] !== newConfig["webdav.preview-par2-files"]
 }
 
 export function isWebdavSettingsValid(newConfig: Record<string, string>) {
-    return isValidUser(newConfig["webdav.user"]);
+    return isValidUser(newConfig["webdav.user"])
+        && isValidConnectionsPerStream(newConfig["usenet.connections-per-stream"]);
 }
 
 function isValidUser(user: string): boolean {
     const regex = /^[A-Za-z0-9_-]+$/;
     return regex.test(user);
+}
+
+function isValidConnectionsPerStream(value: string): boolean {
+    return isPositiveInteger(value);
 }

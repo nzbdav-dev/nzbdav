@@ -12,7 +12,7 @@ public class GetConfigController(DavDatabaseClient dbClient) : BaseApiController
     {
         var configItems = await dbClient.Ctx.ConfigItems
             .Where(x => request.ConfigKeys.Contains(x.ConfigName))
-            .ToListAsync(HttpContext.RequestAborted);
+            .ToListAsync(HttpContext.RequestAborted).ConfigureAwait(false);
 
         var response = new GetConfigResponse { ConfigItems = configItems };
         return response;
@@ -21,7 +21,7 @@ public class GetConfigController(DavDatabaseClient dbClient) : BaseApiController
     protected override async Task<IActionResult> HandleRequest()
     {
         var request = new GetConfigRequest(HttpContext);
-        var response = await GetConfig(request);
+        var response = await GetConfig(request).ConfigureAwait(false);
         return Ok(response);
     }
 }

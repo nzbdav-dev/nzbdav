@@ -17,7 +17,7 @@ public class RemoveUnlinkedFilesDryRunController(
     protected override async Task<IActionResult> HandleRequest()
     {
         var task = new RemoveUnlinkedFilesTask(configManager, dbClient, websocketManager, isDryRun: true);
-        var executed = await task.Execute();
+        var executed = await task.Execute().ConfigureAwait(false);
         return Ok(executed);
     }
 }

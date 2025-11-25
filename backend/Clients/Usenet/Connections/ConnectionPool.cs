@@ -22,7 +22,13 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
     /* -------------------------------- configuration -------------------------------- */
 
     public TimeSpan IdleTimeout { get; }
-    public event EventHandler<ConnectionPoolChangedEventArgs>? OnConnectionPoolChanged;
+    public int LiveConnections => _live;
+    public int IdleConnections => _idleConnections.Count;
+    public int ActiveConnections => _live - _idleConnections.Count;
+    public int AvailableConnections => _maxConnections - ActiveConnections;
+    public int RemainingSemaphoreSlots => _gate.RemainingSemaphoreSlots;
+
+    public event EventHandler<ConnectionPoolStats.ConnectionPoolChangedEventArgs>? OnConnectionPoolChanged;
 
     private readonly Func<CancellationToken, ValueTask<T>> _factory;
     private readonly int _maxConnections;
@@ -30,7 +36,7 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
     /* --------------------------------- state --------------------------------------- */
 
     private readonly ConcurrentStack<Pooled> _idleConnections = new();
-    private readonly ExtendedSemaphoreSlim _gate;
+    private readonly CombinedSemaphoreSlim _gate;
     private readonly CancellationTokenSource _sweepCts = new();
     private readonly Task _sweeperTask; // keeps timer alive
 
@@ -41,6 +47,7 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
 
     public ConnectionPool(
         int maxConnections,
+        ExtendedSemaphoreSlim pooledSemaphore,
         Func<CancellationToken, ValueTask<T>> connectionFactory,
         TimeSpan? idleTimeout = null)
     {
@@ -52,7 +59,7 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
         IdleTimeout = idleTimeout ?? TimeSpan.FromSeconds(30);
 
         _maxConnections = maxConnections;
-        _gate = new ExtendedSemaphoreSlim(maxConnections, maxConnections);
+        _gate = new CombinedSemaphoreSlim(maxConnections, pooledSemaphore);
         _sweeperTask = Task.Run(SweepLoop); // background idle-reaper
     }
 
@@ -66,9 +73,7 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
     public async Task<ConnectionLock<T>> GetConnectionLockAsync(
         CancellationToken cancellationToken = default)
     {
-        var reservedCount = cancellationToken.GetContext<ReservedConnectionsContext>().Count;
-        if (reservedCount < 0 || reservedCount > _maxConnections)
-            reservedCount = 0;
+        var reservedCount = cancellationToken.GetContext<ReservedPooledConnectionsContext>().Count;
 
         // Make caller cancellation also cancel the wait on the gate.
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(
@@ -115,7 +120,7 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
         return BuildLock(conn);
 
         ConnectionLock<T> BuildLock(T c)
-            => new ConnectionLock<T>(c, Return, ReturnAsync, Destroy, DestroyAsync);
+            => new(c, Return, Destroy);
 
         static void ThrowDisposed()
             => throw new ObjectDisposedException(nameof(ConnectionPool<T>));
@@ -148,12 +153,6 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
         TriggerConnectionPoolChangedEvent();
     }
 
-    private ValueTask ReturnAsync(T connection)
-    {
-        Return(connection);
-        return ValueTask.CompletedTask;
-    }
-
     private void Destroy(T connection)
     {
         // When a lock requests replacement, we dispose the connection instead of reusing.
@@ -163,24 +162,13 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
         {
             _gate.Release();
         }
-        TriggerConnectionPoolChangedEvent();
-    }
 
-    private ValueTask DestroyAsync(T connection)
-    {
-        _ = DisposeConnectionAsync(connection); // fire & forget
-        Interlocked.Decrement(ref _live);
-        if (Volatile.Read(ref _disposed) == 0)
-        {
-            _gate.Release();
-        }
         TriggerConnectionPoolChangedEvent();
-        return ValueTask.CompletedTask;
     }
 
     private void TriggerConnectionPoolChangedEvent()
     {
-        OnConnectionPoolChanged?.Invoke(this, new ConnectionPoolChangedEventArgs(
+        OnConnectionPoolChanged?.Invoke(this, new ConnectionPoolStats.ConnectionPoolChangedEventArgs(
             _live,
             _idleConnections.Count,
             _maxConnections
@@ -268,8 +256,7 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
             await DisposeConnectionAsync(item.Connection).ConfigureAwait(false);
 
         _sweepCts.Dispose();
-        // Intentionally NOT disposing _gate: outstanding handles may still try
-        // to Release().  A SemaphoreSlim with no waiters is effectively inert.
+        _gate.Dispose();
         GC.SuppressFinalize(this);
     }
 
@@ -278,13 +265,5 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
     public void Dispose()
     {
         _ = DisposeAsync().AsTask(); // fire-and-forget synchronous path
-    }
-
-    public sealed class ConnectionPoolChangedEventArgs(int live, int idle, int max) : EventArgs
-    {
-        public int Live { get; } = live;
-        public int Idle { get; } = idle;
-        public int Max { get; } = max;
-        public int Active => Live - Idle;
     }
 }

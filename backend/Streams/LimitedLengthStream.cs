@@ -14,7 +14,7 @@ public class LimitedLengthStream(Stream stream, long length) : Stream
 
     public override async Task<int>
         ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken) =>
-        await ReadAsync(buffer.AsMemory(offset, count), cancellationToken);
+        await ReadAsync(buffer.AsMemory(offset, count), cancellationToken).ConfigureAwait(false);
 
     public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
     {
@@ -27,7 +27,7 @@ public class LimitedLengthStream(Stream stream, long length) : Stream
         var bytesToRead = (int)Math.Min(remainingBytes, buffer.Length);
 
         // Read from the underlying stream
-        var bytesRead = await stream.ReadAsync(buffer[..bytesToRead], cancellationToken);
+        var bytesRead = await stream.ReadAsync(buffer[..bytesToRead], cancellationToken).ConfigureAwait(false);
 
         // Update the position by the number of bytes read
         _position += bytesRead;
@@ -61,7 +61,7 @@ public class LimitedLengthStream(Stream stream, long length) : Stream
     public override async ValueTask DisposeAsync()
     {
         if (_disposed) return;
-        await stream.DisposeAsync();
+        await stream.DisposeAsync().ConfigureAwait(false);
         _disposed = true;
         GC.SuppressFinalize(this);
     }

@@ -21,7 +21,7 @@ namespace NzbWebDAV.Par2Recovery.Packets
 
             // Read the calculated number of bytes from the stream.
             var body = new byte[bodyLength];
-            await stream.ReadExactlyAsync(body.AsMemory(0, (int)bodyLength));
+            await stream.ReadExactlyAsync(body.AsMemory(0, (int)bodyLength)).ConfigureAwait(false);
 
             // Pass the body to the further implementation for parsing.
             ParseBody(body);

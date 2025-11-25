@@ -21,15 +21,15 @@ public class GetHealthCheckHistoryController(DavDatabaseClient dbClient) : BaseA
 
         return new GetHealthCheckHistoryResponse()
         {
-            Stats = await statsPromise,
-            Items = await itemsPromise
+            Stats = await statsPromise.ConfigureAwait(false),
+            Items = await itemsPromise.ConfigureAwait(false)
         };
     }
 
     protected override async Task<IActionResult> HandleRequest()
     {
         var request = new GetHealthCheckHistoryRequest(HttpContext);
-        var response = await GetHealthCheckHistory(request);
+        var response = await GetHealthCheckHistory(request).ConfigureAwait(false);
         return Ok(response);
     }
 }

@@ -6,6 +6,7 @@ using NWebDav.Server.Stores;
 using NzbWebDAV.Config;
 using NzbWebDAV.Extensions;
 using NzbWebDAV.Par2Recovery;
+using NzbWebDAV.Utils;
 using NzbWebDAV.WebDav;
 
 namespace NzbWebDAV.Api.Controllers.GetWebdavItem;
@@ -18,16 +19,16 @@ public class ListWebdavDirectoryController(DatabaseStore store, ConfigManager co
 
     private async Task<Stream> GetWebdavItem(GetWebdavItemRequest request)
     {
-        var item = await store.GetItemAsync(request.Item, HttpContext.RequestAborted);
+        var item = await store.GetItemAsync(request.Item, HttpContext.RequestAborted).ConfigureAwait(false);
         if (item is null) throw new BadHttpRequestException("The file does not exist.");
         if (item is IStoreCollection) throw new BadHttpRequestException("The file does not exist.");
 
         // handle par2 preview
         if (Path.GetExtension(item.Name).ToLower() == ".par2" && configManager.IsPreviewPar2FilesEnabled())
-            return await GetPar2PreviewStream(item);
+            return await GetPar2PreviewStream(item).ConfigureAwait(false);
 
         // get the file stream and set the file-size in header
-        var stream = await item.GetReadableStreamAsync(HttpContext.RequestAborted);
+        var stream = await item.GetReadableStreamAsync(HttpContext.RequestAborted).ConfigureAwait(false);
         var fileSize = stream.Length;
 
         // set the content-typ header
@@ -64,8 +65,8 @@ public class ListWebdavDirectoryController(DatabaseStore store, ConfigManager co
         {
             HttpContext.Items["configManager"] = configManager;
             var request = new GetWebdavItemRequest(HttpContext);
-            await using var response = await GetWebdavItem(request);
-            await response.CopyToAsync(Response.Body, bufferSize: 1024, HttpContext.RequestAborted);
+            await using var response = await GetWebdavItem(request).ConfigureAwait(false);
+            await response.CopyToAsync(Response.Body, bufferSize: 1024, HttpContext.RequestAborted).ConfigureAwait(false);
         }
         catch (UnauthorizedAccessException)
         {
@@ -86,8 +87,9 @@ public class ListWebdavDirectoryController(DatabaseStore store, ConfigManager co
     private async Task<Stream> GetPar2PreviewStream(IStoreItem item)
     {
         Response.Headers.ContentType = "text/plain";
-        await using var stream = await item.GetReadableStreamAsync(HttpContext.RequestAborted);
-        var fileDescriptors = await Par2.ReadFileDescriptions(stream, HttpContext.RequestAborted).GetAllAsync();
+        await using var stream = await item.GetReadableStreamAsync(HttpContext.RequestAborted).ConfigureAwait(false);
+        var fileDescriptors = await Par2.ReadFileDescriptions(stream, HttpContext.RequestAborted).GetAllAsync()
+            .ConfigureAwait(false);
         return new MemoryStream(Encoding.UTF8.GetBytes(fileDescriptors.ToIndentedJson()));
     }
 }

@@ -16,11 +16,11 @@ public class WebsocketManager
     {
         if (context.WebSockets.IsWebSocketRequest)
         {
-            using var webSocket = await context.WebSockets.AcceptWebSocketAsync();
-            if (!await Authenticate(webSocket))
+            using var webSocket = await context.WebSockets.AcceptWebSocketAsync().ConfigureAwait(false);
+            if (!await Authenticate(webSocket).ConfigureAwait(false))
             {
                 Log.Warning($"Closing unauthenticated websocket connection from {context.Connection.RemoteIpAddress}");
-                await CloseUnauthorizedConnection(webSocket);
+                await CloseUnauthorizedConnection(webSocket).ConfigureAwait(false);
                 return;
             }
 
@@ -33,10 +33,10 @@ public class WebsocketManager
             lock (_lastMessage) lastMessage = _lastMessage.ToList();
             foreach (var message in lastMessage)
                 if (message.Key.Type == WebsocketTopic.TopicType.State)
-                    await SendMessage(webSocket, message.Key, message.Value);
+                    await SendMessage(webSocket, message.Key, message.Value).ConfigureAwait(false);
 
             // wait for the socket to disconnect
-            await WaitForDisconnected(webSocket);
+            await WaitForDisconnected(webSocket).ConfigureAwait(false);
             lock (_authenticatedSockets)
                 _authenticatedSockets.Remove(webSocket);
         }
@@ -68,7 +68,7 @@ public class WebsocketManager
     /// <returns>True if authenticated, False otherwise.</returns>
     private static async Task<bool> Authenticate(WebSocket socket)
     {
-        var apiKey = await ReceiveAuthToken(socket);
+        var apiKey = await ReceiveAuthToken(socket).ConfigureAwait(false);
         return apiKey == EnvironmentUtil.GetVariable("FRONTEND_BACKEND_API_KEY");
     }
 
@@ -84,8 +84,8 @@ public class WebsocketManager
             var buffer = new byte[1024];
             WebSocketReceiveResult? result = null;
             while (result is not { CloseStatus: not null })
-                result = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), SigtermUtil.GetCancellationToken());
-            await socket.CloseAsync(result.CloseStatus.Value, result.CloseStatusDescription, CancellationToken.None);
+                result = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), SigtermUtil.GetCancellationToken()).ConfigureAwait(false);
+            await socket.CloseAsync(result.CloseStatus.Value, result.CloseStatusDescription, CancellationToken.None).ConfigureAwait(false);
         }
         catch (Exception e)
         {
@@ -103,7 +103,7 @@ public class WebsocketManager
     {
         var topicMessage = new TopicMessage(topic, message);
         var bytes = new ArraySegment<byte>(Encoding.UTF8.GetBytes(topicMessage.ToJson()));
-        await SendMessage(socket, bytes);
+        await SendMessage(socket, bytes).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -115,7 +115,7 @@ public class WebsocketManager
     {
         try
         {
-            await socket.SendAsync(message, WebSocketMessageType.Text, true, SigtermUtil.GetCancellationToken());
+            await socket.SendAsync(message, WebSocketMessageType.Text, true, SigtermUtil.GetCancellationToken()).ConfigureAwait(false);
         }
         catch (Exception e)
         {
@@ -136,7 +136,7 @@ public class WebsocketManager
             var buffer = new byte[1024];
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(SigtermUtil.GetCancellationToken());
             cts.CancelAfter(TimeSpan.FromSeconds(5));
-            var result = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), cts.Token);
+            var result = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), cts.Token).ConfigureAwait(false);
             return result.MessageType == WebSocketMessageType.Text
                 ? Encoding.UTF8.GetString(buffer, 0, result.Count)
                 : null;
@@ -154,7 +154,7 @@ public class WebsocketManager
     private static async Task CloseUnauthorizedConnection(WebSocket socket)
     {
         if (socket.State == WebSocketState.Open)
-            await socket.CloseAsync(WebSocketCloseStatus.PolicyViolation, "Unauthorized", CancellationToken.None);
+            await socket.CloseAsync(WebSocketCloseStatus.PolicyViolation, "Unauthorized", CancellationToken.None).ConfigureAwait(false);
     }
 
     private sealed class TopicMessage(WebsocketTopic topic, string message)

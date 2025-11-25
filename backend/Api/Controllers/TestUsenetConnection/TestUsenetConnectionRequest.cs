@@ -1,4 +1,6 @@
 ﻿using Microsoft.AspNetCore.Http;
+using NzbWebDAV.Config;
+using NzbWebDAV.Models;
 
 namespace NzbWebDAV.Api.Controllers.TestUsenetConnection;
 
@@ -34,5 +36,19 @@ public class TestUsenetConnectionRequest
         UseSsl = !bool.TryParse(useSsl, out bool useSslValue)
             ? throw new BadHttpRequestException("Invalid use-ssl value")
             : useSslValue;
+    }
+
+    public UsenetProviderConfig.ConnectionDetails ToConnectionDetails()
+    {
+        return new UsenetProviderConfig.ConnectionDetails
+        {
+            Host = Host,
+            User = User,
+            Pass = Pass,
+            Port = Port,
+            UseSsl = UseSsl,
+            MaxConnections = 1,
+            Type = ProviderType.Disabled
+        };
     }
 }

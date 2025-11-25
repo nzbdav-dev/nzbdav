@@ -3,7 +3,7 @@ import styles from "./route.module.css"
 import { Tabs, Tab, Button, Form } from "react-bootstrap"
 import { backendClient } from "~/clients/backend-client.server";
 import { isUsenetSettingsUpdated, UsenetSettings } from "./usenet/usenet";
-import React, { useEffect } from "react";
+import React from "react";
 import { isSabnzbdSettingsUpdated, isSabnzbdSettingsValid, SabnzbdSettings } from "./sabnzbd/sabnzbd";
 import { isWebdavSettingsUpdated, isWebdavSettingsValid, WebdavSettings } from "./webdav/webdav";
 import { isArrsSettingsUpdated, isArrsSettingsValid, ArrsSettings } from "./arrs/arrs";
@@ -23,14 +23,9 @@ const defaultConfig = {
     "api.duplicate-nzb-behavior": "increment",
     "api.import-strategy": "symlinks",
     "api.completed-downloads-dir": "",
-    "usenet.host": "",
-    "usenet.port": "",
-    "usenet.use-ssl": "false",
-    "usenet.connections": "",
-    "usenet.connections-per-stream": "",
-    "usenet.user": "",
-    "usenet.pass": "",
-    "webdav.user": "",
+    "usenet.providers": "",
+    "usenet.connections-per-stream": "5",
+    "webdav.user": "admin",
     "webdav.pass": "",
     "webdav.show-hidden-files": "false",
     "webdav.enforce-readonly": "true",
@@ -68,7 +63,6 @@ function Body(props: BodyProps) {
     // stateful variables
     const [config, setConfig] = React.useState(props.config);
     const [newConfig, setNewConfig] = React.useState(config);
-    const [isUsenetSettingsReadyToSave, setIsUsenetSettingsReadyToSave] = React.useState(false);
     const [isSaving, setIsSaving] = React.useState(false);
     const [isSaved, setIsSaved] = React.useState(false);
     const [activeTab, setActiveTab] = React.useState('usenet');
@@ -90,7 +84,6 @@ function Body(props: BodyProps) {
     const saveButtonLabel = isSaving ? "Saving..."
         : !isUpdated && isSaved ? "Saved ✅"
         : !isUpdated && !isSaved ? "There are no changes to save"
-        : iseUsenetUpdated && !isUsenetSettingsReadyToSave ? "Must test the usenet connection to save"
         : isSabnzbdUpdated && !isSabnzbdSettingsValid(newConfig) ? "Invalid SABnzbd settings"
         : isWebdavUpdated && !isWebdavSettingsValid(newConfig) ? "Invalid WebDAV settings"
         : isArrsUpdated && !isArrsSettingsValid(newConfig) ? "Invalid Arrs settings"
@@ -106,10 +99,6 @@ function Body(props: BodyProps) {
         setNewConfig(config);
         setIsSaved(false);
     }, [config, setNewConfig]);
-
-    const onUsenetSettingsReadyToSave = React.useCallback((isReadyToSave: boolean) => {
-        setIsUsenetSettingsReadyToSave(isReadyToSave);
-    }, [setIsUsenetSettingsReadyToSave]);
 
     const onSave = React.useCallback(async () => {
         setIsSaving(true);
@@ -138,7 +127,7 @@ function Body(props: BodyProps) {
                 className={styles.tabs}
             >
                 <Tab eventKey="usenet" title={usenetTitle}>
-                    <UsenetSettings config={newConfig} setNewConfig={setNewConfig} onReadyToSave={onUsenetSettingsReadyToSave} />
+                    <UsenetSettings config={newConfig} setNewConfig={setNewConfig} />
                 </Tab>
                 <Tab eventKey="sabnzbd" title={sabnzbdTitle}>
                     <SabnzbdSettings config={newConfig} setNewConfig={setNewConfig} />

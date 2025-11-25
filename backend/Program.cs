@@ -28,9 +28,11 @@ class Program
     static async Task Main(string[] args)
     {
         // Update thread-pool
-        ThreadPool.GetMaxThreads(out var maxWorker, out var maxIo);
-        ThreadPool.SetMaxThreads(maxWorker, Math.Max(maxIo, 2000));
-        ThreadPool.SetMinThreads(100, 200);
+        var coreCount = Environment.ProcessorCount;
+        var minThreads = Math.Max(coreCount * 2, 50); // 2x cores, minimum 50
+        var maxThreads = Math.Max(coreCount * 50, 1000); // 50x cores, minimum 1000
+        ThreadPool.SetMinThreads(minThreads, minThreads);
+        ThreadPool.SetMaxThreads(maxThreads, maxThreads);
 
         // Initialize logger
         var defaultLevel = LogEventLevel.Information;
@@ -55,13 +57,13 @@ class Program
         {
             var argIndex = args.ToList().IndexOf("--db-migration");
             var targetMigration = args.Length > argIndex + 1 ? args[argIndex + 1] : null;
-            await databaseContext.Database.MigrateAsync(targetMigration, SigtermUtil.GetCancellationToken());
+            await databaseContext.Database.MigrateAsync(targetMigration, SigtermUtil.GetCancellationToken()).ConfigureAwait(false);
             return;
         }
 
         // initialize the config-manager
         var configManager = new ConfigManager();
-        await configManager.LoadConfig();
+        await configManager.LoadConfig().ConfigureAwait(false);
 
         // initialize websocket-manager
         var websocketManager = new WebsocketManager();
@@ -110,6 +112,6 @@ class Program
         app.UseWebdavBasicAuthentication();
         app.UseNWebDav();
         app.Lifetime.ApplicationStopping.Register(SigtermUtil.Cancel);
-        await app.RunAsync();
+        await app.RunAsync().ConfigureAwait(false);
     }
 }

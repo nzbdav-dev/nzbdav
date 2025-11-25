@@ -17,7 +17,7 @@ public class ConvertStrmToSymlinks(
     protected override async Task<IActionResult> HandleRequest()
     {
         var task = new StrmToSymlinksTask(configManager, dbClient, websocketManager);
-        var executed = await task.Execute();
+        var executed = await task.Execute().ConfigureAwait(false);
         return Ok(executed);
     }
 }

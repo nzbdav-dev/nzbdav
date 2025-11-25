@@ -40,7 +40,7 @@ public class DatabaseStoreIdsCollection(
             return new DatabaseStoreIdsCollection(dir, Path.Join(currentPath, dir), ctx, db, usenet, config);
         }
 
-        var item = await dbClient.GetFileById(request.Name);
+        var item = await dbClient.GetFileById(request.Name).ConfigureAwait(false);
         return item == null ? null : new DatabaseStoreIdFile(item, ctx, dbClient, usenet, config);
     }
 
@@ -55,7 +55,7 @@ public class DatabaseStoreIdsCollection(
                 .ToArray();
 
         var idPrefix = string.Join("", _currentPathParts);
-        return (await dbClient.GetFilesByIdPrefix(idPrefix))
+        return (await dbClient.GetFilesByIdPrefix(idPrefix).ConfigureAwait(false))
             .Select(x => new DatabaseStoreIdFile(x, ctx, db, usenet, config))
             .Select(x => x as IStoreItem)
             .ToArray();

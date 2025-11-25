@@ -14,7 +14,7 @@ public class ConfigManager
     public async Task LoadConfig()
     {
         await using var dbContext = new DavDatabaseContext();
-        var configItems = await dbContext.ConfigItems.ToListAsync();
+        var configItems = await dbContext.ConfigItems.ToListAsync().ConfigureAwait(false);
         lock (_config)
         {
             _config.Clear();
@@ -90,14 +90,6 @@ public class ConfigManager
                ?? "uncategorized";
     }
 
-    public int GetMaxConnections()
-    {
-        return int.Parse(
-            StringUtil.EmptyToNull(GetConfigValue("usenet.connections"))
-            ?? "50"
-        );
-    }
-
     public int GetConnectionsPerStream()
     {
         return int.Parse(
@@ -110,7 +102,8 @@ public class ConfigManager
     public string? GetWebdavUser()
     {
         return StringUtil.EmptyToNull(GetConfigValue("webdav.user"))
-               ?? StringUtil.EmptyToNull(Environment.GetEnvironmentVariable("WEBDAV_USER"));
+               ?? StringUtil.EmptyToNull(Environment.GetEnvironmentVariable("WEBDAV_USER"))
+               ?? "admin";
     }
 
     public string? GetWebdavPasswordHash()
@@ -145,7 +138,7 @@ public class ConfigManager
     {
         return int.Parse(
             StringUtil.EmptyToNull(GetConfigValue("api.max-queue-connections"))
-            ?? GetMaxConnections().ToString()
+            ?? GetUsenetProviderConfig().TotalPooledConnections.ToString()
         );
     }
 
@@ -181,7 +174,7 @@ public class ConfigManager
     {
         return int.Parse(
             StringUtil.EmptyToNull(GetConfigValue("repair.connections"))
-            ?? GetMaxConnections().ToString()
+            ?? GetUsenetProviderConfig().TotalPooledConnections.ToString()
         );
     }
 
@@ -200,6 +193,12 @@ public class ConfigManager
     {
         var defaultValue = new ArrConfig();
         return GetConfigValue<ArrConfig>("arr.instances") ?? defaultValue;
+    }
+
+    public UsenetProviderConfig GetUsenetProviderConfig()
+    {
+        var defaultValue = new UsenetProviderConfig();
+        return GetConfigValue<UsenetProviderConfig>("usenet.providers") ?? defaultValue;
     }
 
     public string GetDuplicateNzbBehavior()

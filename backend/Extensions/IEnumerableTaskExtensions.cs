@@ -76,16 +76,16 @@ public static class IEnumerableTaskExtensions
         {
             runningTasks.Add(task);
             if (runningTasks.Count < concurrency) continue;
-            var completedTask = await Task.WhenAny(runningTasks);
+            var completedTask = await Task.WhenAny(runningTasks).ConfigureAwait(false);
             runningTasks.Remove(completedTask);
-            yield return await completedTask;
+            yield return await completedTask.ConfigureAwait(false);
         }
 
         while (runningTasks.Count > 0)
         {
-            var completedTask = await Task.WhenAny(runningTasks);
+            var completedTask = await Task.WhenAny(runningTasks).ConfigureAwait(false);
             runningTasks.Remove(completedTask);
-            yield return await completedTask;
+            yield return await completedTask.ConfigureAwait(false);
         }
     }
 }

@@ -47,13 +47,13 @@ public class MultipartFileStream : Stream
             (
                 buffer.AsMemory(offset, count),
                 cancellationToken
-            );
+            ).ConfigureAwait(false);
             _position += readCount;
             if (readCount > 0) return readCount;
 
             // If we couldn't read anything from our current stream,
             // it's time to advance to the next stream.
-            await _currentStream.DisposeAsync();
+            await _currentStream.DisposeAsync().ConfigureAwait(false);
             _currentStream = null;
         }
 
@@ -113,7 +113,7 @@ public class MultipartFileStream : Stream
     public override async ValueTask DisposeAsync()
     {
         if (_isDisposed) return;
-        if (_currentStream != null) await _currentStream.DisposeAsync();
+        if (_currentStream != null) await _currentStream.DisposeAsync().ConfigureAwait(false);
         _isDisposed = true;
         GC.SuppressFinalize(this);
     }

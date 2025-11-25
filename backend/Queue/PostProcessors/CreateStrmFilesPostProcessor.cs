@@ -10,7 +10,7 @@ namespace NzbWebDAV.Queue.PostProcessors;
 
 public class CreateStrmFilesPostProcessor(ConfigManager configManager, DavDatabaseClient dbClient)
 {
-    public void CreateStrmFiles()
+    public async Task CreateStrmFilesAsync()
     {
         // Add strm files to the download dir
         var videoItems = dbClient.Ctx.ChangeTracker.Entries<DavItem>()
@@ -19,19 +19,20 @@ public class CreateStrmFilesPostProcessor(ConfigManager configManager, DavDataba
             .Where(x => x.Type != DavItem.ItemType.Directory)
             .Where(x => FilenameUtil.IsVideoFile(x.Name));
         foreach (var videoItem in videoItems)
-            CreateStrmFile(videoItem);
+            await CreateStrmFileAsync(videoItem).ConfigureAwait(false);
     }
 
-    private void CreateStrmFile(DavItem davItem)
+    private async Task CreateStrmFileAsync(DavItem davItem)
     {
         // create necessary directories if they don't already exist
         var strmFilePath = GetStrmFilePath(davItem);
         var directoryName = Path.GetDirectoryName(strmFilePath);
-        if (directoryName != null) Directory.CreateDirectory(directoryName);
+        if (directoryName != null)
+            await Task.Run(() => Directory.CreateDirectory(directoryName)).ConfigureAwait(false);
 
         // create the strm file
         var targetUrl = GetStrmTargetUrl(davItem);
-        File.WriteAllText(strmFilePath, targetUrl);
+        await File.WriteAllTextAsync(strmFilePath, targetUrl).ConfigureAwait(false);
     }
 
     private string GetStrmFilePath(DavItem davItem)

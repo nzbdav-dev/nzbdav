@@ -21,7 +21,7 @@ public class FileProcessor(
             {
                 NzbFile = fileInfo.NzbFile,
                 FileName = fileInfo.FileName,
-                FileSize = fileInfo.FileSize ?? await usenet.GetFileSizeAsync(fileInfo.NzbFile, ct),
+                FileSize = fileInfo.FileSize ?? await usenet.GetFileSizeAsync(fileInfo.NzbFile, ct).ConfigureAwait(false),
                 ReleaseDate = fileInfo.ReleaseDate,
             };
         }

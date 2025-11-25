@@ -34,14 +34,14 @@ public class GetHistoryController(
             .ToArrayAsync(request.CancellationToken);
 
         // await results
-        var totalCount = await totalCountPromise;
-        var historyItems = await historyItemsPromise;
+        var totalCount = await totalCountPromise.ConfigureAwait(false);
+        var historyItems = await historyItemsPromise.ConfigureAwait(false);
 
         // get download folders
         var downloadFolderIds = historyItems.Select(x => x.DownloadDirId).ToHashSet();
         var davItems = await dbClient.Ctx.Items
             .Where(x => downloadFolderIds.Contains(x.Id))
-            .ToArrayAsync(request.CancellationToken);
+            .ToArrayAsync(request.CancellationToken).ConfigureAwait(false);
         var davItemsDict = davItems
             .ToDictionary(x => x.Id, x => x);
 
@@ -70,6 +70,6 @@ public class GetHistoryController(
     protected override async Task<IActionResult> Handle()
     {
         var request = new GetHistoryRequest(httpContext, configManager);
-        return Ok(await GetHistoryAsync(request));
+        return Ok(await GetHistoryAsync(request).ConfigureAwait(false));
     }
 }

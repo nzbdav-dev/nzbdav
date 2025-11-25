@@ -43,7 +43,7 @@ public class YencHeaderStream(YencHeader header, UsenetArticleHeaders? articleHe
     public override async ValueTask DisposeAsync()
     {
         if (_disposed) return;
-        await stream.DisposeAsync();
+        await stream.DisposeAsync().ConfigureAwait(false);
         _disposed = true;
         GC.SuppressFinalize(this);
     }

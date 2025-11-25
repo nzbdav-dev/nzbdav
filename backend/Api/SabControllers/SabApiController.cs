@@ -34,7 +34,7 @@ public class SabApiController(
         try
         {
             var controller = GetController();
-            return await controller.HandleRequest();
+            return await controller.HandleRequest().ConfigureAwait(false);
         }
         catch (BadHttpRequestException e)
         {

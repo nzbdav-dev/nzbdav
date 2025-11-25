@@ -34,9 +34,9 @@ public class SevenZipProcessor : BaseProcessor
 
     public override async Task<BaseProcessor.Result?> ProcessAsync()
     {
-        var multipartFile = await GetMultipartFile();
+        var multipartFile = await GetMultipartFile().ConfigureAwait(false);
         await using var stream = new MultipartFileStream(multipartFile, _client);
-        var sevenZipEntries = await SevenZipUtil.GetSevenZipEntriesAsync(stream, _archivePassword, _ct);
+        var sevenZipEntries = await SevenZipUtil.GetSevenZipEntriesAsync(stream, _archivePassword, _ct).ConfigureAwait(false);
         if (sevenZipEntries.Any(x => x.CompressionType != CompressionType.None))
         {
             const string message = "Only uncompressed 7z files are supported.";
@@ -69,7 +69,7 @@ public class SevenZipProcessor : BaseProcessor
         foreach (var fileInfo in sortedFileInfos)
         {
             var nzbFile = fileInfo.NzbFile;
-            var fileSize = fileInfo.FileSize ?? await _client.GetFileSizeAsync(nzbFile, _ct);
+            var fileSize = fileInfo.FileSize ?? await _client.GetFileSizeAsync(nzbFile, _ct).ConfigureAwait(false);
             var endExclusive = startInclusive + fileSize;
             fileParts.Add(new MultipartFile.FilePart()
             {

@@ -16,7 +16,7 @@ public class UpdateConfigController(DavDatabaseClient dbClient, ConfigManager co
         var configNames = request.ConfigItems.Select(x => x.ConfigName).ToHashSet();
         var existingItems = await dbClient.Ctx.ConfigItems
             .Where(c => configNames.Contains(c.ConfigName))
-            .ToListAsync(HttpContext.RequestAborted);
+            .ToListAsync(HttpContext.RequestAborted).ConfigureAwait(false);
 
         // 2. Split the items into those that need to be updated and those that need to be inserted
         var existingItemsDict = existingItems.ToDictionary(i => i.ConfigName);
@@ -40,7 +40,7 @@ public class UpdateConfigController(DavDatabaseClient dbClient, ConfigManager co
         dbClient.Ctx.ConfigItems.UpdateRange(itemsToUpdate);
 
         // 4. Save changes in one call
-        await dbClient.Ctx.SaveChangesAsync(HttpContext.RequestAborted);
+        await dbClient.Ctx.SaveChangesAsync(HttpContext.RequestAborted).ConfigureAwait(false);
 
         // 5. Update the ConfigManager
         configManager.UpdateValues(request.ConfigItems);
@@ -52,7 +52,7 @@ public class UpdateConfigController(DavDatabaseClient dbClient, ConfigManager co
     protected override async Task<IActionResult> HandleRequest()
     {
         var request = new UpdateConfigRequest(HttpContext);
-        var response = await UpdateConfig(request);
+        var response = await UpdateConfig(request).ConfigureAwait(false);
         return Ok(response);
     }
 }

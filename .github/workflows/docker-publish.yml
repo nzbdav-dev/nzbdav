@@ -42,8 +42,8 @@ jobs:
         id: set_vars
         run: |
           MAJOR=0
-          MINOR=4
-          PATCH=$(( ${{ github.run_number }} - 73 ))
+          MINOR=5
+          PATCH=$(( ${{ github.run_number }} - 115 ))
 
           if [[ "${{ github.ref_name }}" == "main" ]]; then
             echo "NZBDAV_VERSION=${MAJOR}.${MINOR}.${PATCH}" >> $GITHUB_OUTPUT

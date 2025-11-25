@@ -39,15 +39,15 @@ public class DisposableCallbackStream : Stream
     {
         if (_disposed) return;
 
-        await _inner.DisposeAsync();
+        await _inner.DisposeAsync().ConfigureAwait(false);
 
         if (_onDisposeAsync != null)
-            await _onDisposeAsync();
+            await _onDisposeAsync().ConfigureAwait(false);
         else
             _onDispose?.Invoke();
 
         _disposed = true;
-        await base.DisposeAsync();
+        await base.DisposeAsync().ConfigureAwait(false);
     }
 
     // Core stream overrides

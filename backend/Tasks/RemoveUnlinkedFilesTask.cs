@@ -22,7 +22,7 @@ public class RemoveUnlinkedFilesTask(
     {
         try
         {
-            await RemoveUnlinkedFiles();
+            await RemoveUnlinkedFiles().ConfigureAwait(false);
         }
         catch (Exception e)
         {
@@ -37,7 +37,7 @@ public class RemoveUnlinkedFilesTask(
         var dryRun = isDryRun ? "Dry Run - " : string.Empty;
 
         Report(dryRun + "Enumerating all webdav files...");
-        var allDavItems = await dbClient.Ctx.Items.ToListAsync();
+        var allDavItems = await dbClient.Ctx.Items.ToListAsync().ConfigureAwait(false);
 
         // get linked file paths
         Report(dryRun + $"Found {allDavItems.Count} webdav files.\nEnumerating all linked files...");
@@ -77,7 +77,7 @@ public class RemoveUnlinkedFilesTask(
             RemoveItem(unlinkedFile, removedItems);
 
         // save changes to database
-        if (!isDryRun) await dbClient.Ctx.SaveChangesAsync();
+        if (!isDryRun) await dbClient.Ctx.SaveChangesAsync().ConfigureAwait(false);
 
         // return all removed paths
         _allRemovedPaths = allDavItems

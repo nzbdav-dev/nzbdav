@@ -19,7 +19,7 @@ public class DatabaseStoreQueueItem(
     public override async Task<Stream> GetReadableStreamAsync(CancellationToken ct)
     {
         var id = queueItem.Id;
-        var document = await dbClient.Ctx.QueueNzbContents.Where(x => x.Id == id).FirstOrDefaultAsync(ct);
+        var document = await dbClient.Ctx.QueueNzbContents.Where(x => x.Id == id).FirstOrDefaultAsync(ct).ConfigureAwait(false);
         if (document is null) throw new FileNotFoundException($"Could not find nzb document with id: {id}");
         return new MemoryStream(Encoding.UTF8.GetBytes(document.NzbContents));
     }

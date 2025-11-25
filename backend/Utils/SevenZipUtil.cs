@@ -17,7 +17,7 @@ public static class SevenZipUtil
     )
     {
         await using var cancellableStream = new CancellableStream(stream, ct);
-        return await Task.Run(() => GetSevenZipEntries(cancellableStream, password), ct);
+        return await Task.Run(() => GetSevenZipEntries(cancellableStream, password), ct).ConfigureAwait(false);
     }
 
     public static List<SevenZipEntry> GetSevenZipEntries(Stream stream, string? password = null)

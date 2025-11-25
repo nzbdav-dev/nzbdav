@@ -59,7 +59,7 @@ public class ThreadSafeNntpClient : INntpClient
         CancellationToken cancellationToken
     )
     {
-        await _semaphore.WaitAsync(cancellationToken);
+        await _semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
         return await Task.Run(() =>
         {
             try
@@ -82,25 +82,27 @@ public class ThreadSafeNntpClient : INntpClient
                 _semaphore.Release();
                 throw;
             }
-        });
+        }).ConfigureAwait(false);
     }
 
     public async Task<YencHeader> GetSegmentYencHeaderAsync(string segmentId, CancellationToken cancellationToken)
     {
-        await using var stream = await GetSegmentStreamAsync(new NntpMessageId(segmentId), false, cancellationToken);
+        await using var stream = await GetSegmentStreamAsync(new NntpMessageId(segmentId), false, cancellationToken)
+            .ConfigureAwait(false);
         return stream.Header;
     }
 
     public async Task<long> GetFileSizeAsync(NzbFile file, CancellationToken cancellationToken)
     {
         if (file.Segments.Count == 0) return 0;
-        var header = await GetSegmentYencHeaderAsync(file.Segments[^1].MessageId.Value, cancellationToken);
+        var header = await GetSegmentYencHeaderAsync(file.Segments[^1].MessageId.Value, cancellationToken)
+            .ConfigureAwait(false);
         return header.PartOffset + header.PartSize;
     }
 
     public async Task WaitForReady(CancellationToken cancellationToken)
     {
-        await _semaphore.WaitAsync(cancellationToken);
+        await _semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
         _semaphore.Release();
     }
 
@@ -111,10 +113,10 @@ public class ThreadSafeNntpClient : INntpClient
 
     private async Task<T> Synchronized<T>(Func<Task<T>> run, CancellationToken cancellationToken)
     {
-        await _semaphore.WaitAsync(cancellationToken);
+        await _semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            return await run();
+            return await run().ConfigureAwait(false);
         }
         finally
         {

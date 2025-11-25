@@ -20,14 +20,14 @@ public class CreateAccountController(DavDatabaseClient dbClient) : BaseApiContro
             PasswordHash = PasswordUtil.Hash(request.Password, randomSalt),
         };
         dbClient.Ctx.Accounts.Add(account);
-        await dbClient.Ctx.SaveChangesAsync(HttpContext.RequestAborted);
+        await dbClient.Ctx.SaveChangesAsync(HttpContext.RequestAborted).ConfigureAwait(false);
         return new CreateAccountResponse() { Status = true };
     }
 
     protected override async Task<IActionResult> HandleRequest()
     {
         var request = new CreateAccountRequest(HttpContext);
-        var response = await CreateAccount(request);
+        var response = await CreateAccount(request).ConfigureAwait(false);
         return Ok(response);
     }
 }

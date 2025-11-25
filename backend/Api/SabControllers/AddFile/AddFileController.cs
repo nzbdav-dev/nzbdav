@@ -26,7 +26,7 @@ public class AddFileController(
         var nzbFileContents = NormalizeNzbContents(request.NzbFileContents);
         var documentBytes = Encoding.UTF8.GetBytes(nzbFileContents);
         using var memoryStream = new MemoryStream(documentBytes);
-        var document = await NzbDocument.LoadAsync(memoryStream);
+        var document = await NzbDocument.LoadAsync(memoryStream).ConfigureAwait(false);
 
         // add the queueItem to the database
         var queueItem = new QueueItem
@@ -49,7 +49,7 @@ public class AddFileController(
         };
         dbClient.Ctx.QueueItems.Add(queueItem);
         dbClient.Ctx.QueueNzbContents.Add(queueNzbContents);
-        await dbClient.Ctx.SaveChangesAsync(request.CancellationToken);
+        await dbClient.Ctx.SaveChangesAsync(request.CancellationToken).ConfigureAwait(false);
         var message = GetQueueResponse.QueueSlot.FromQueueItem(queueItem).ToJson();
         _ = websocketManager.SendMessage(WebsocketTopic.QueueItemAdded, message);
 
@@ -63,8 +63,8 @@ public class AddFileController(
 
     protected override async Task<IActionResult> Handle()
     {
-        var request = await AddFileRequest.New(httpContext);
-        return Ok(await AddFileAsync(request));
+        var request = await AddFileRequest.New(httpContext).ConfigureAwait(false);
+        return Ok(await AddFileAsync(request).ConfigureAwait(false));
     }
 
     private static string NormalizeNzbContents(string nzbContents)

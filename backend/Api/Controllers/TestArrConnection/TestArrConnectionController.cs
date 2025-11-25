@@ -12,7 +12,7 @@ public class TestArrConnectionController() : BaseApiController
         try
         {
             var client = new ArrClient(request.Host, request.ApiKey);
-            var apiInfo = await client.GetApiInfo();
+            var apiInfo = await client.GetApiInfo().ConfigureAwait(false);
             return new TestArrConnectionResponse
             {
                 Status = true,
@@ -33,7 +33,7 @@ public class TestArrConnectionController() : BaseApiController
     protected override async Task<IActionResult> HandleRequest()
     {
         var request = new TestArrConnectionRequest(HttpContext);
-        var response = await TestArrConnection(request);
+        var response = await TestArrConnection(request).ConfigureAwait(false);
         return Ok(response);
     }
 }

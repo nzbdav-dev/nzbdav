@@ -17,7 +17,7 @@ public class RemoveFromQueueRequest()
         return new RemoveFromQueueRequest()
         {
             NzoIds = NzoIdsFromQueryParam(httpContext)
-                .Concat(await NzoIdsFromRequestBody(httpContext, cancellationToken))
+                .Concat(await NzoIdsFromRequestBody(httpContext, cancellationToken).ConfigureAwait(false))
                 .ToList(),
             CancellationToken = cancellationToken
         };
@@ -33,7 +33,7 @@ public class RemoveFromQueueRequest()
         try
         {
             await using var stream = httpContext.Request.Body;
-            var deserialized = await JsonSerializer.DeserializeAsync<RequestBody>(stream, cancellationToken: ct);
+            var deserialized = await JsonSerializer.DeserializeAsync<RequestBody>(stream, cancellationToken: ct).ConfigureAwait(false);
             return deserialized?.NzoIds ?? [];
         }
         catch

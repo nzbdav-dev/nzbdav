@@ -2,6 +2,7 @@
 using NWebDav.Server.Helpers;
 using NzbWebDAV.Database.Models;
 using NzbWebDAV.Exceptions;
+using NzbWebDAV.Utils;
 using Serilog;
 
 namespace NzbWebDAV.Middlewares;
@@ -12,16 +13,16 @@ public class ExceptionMiddleware(RequestDelegate next)
     {
         try
         {
-            await next(context);
+            await next(context).ConfigureAwait(false);
         }
-        catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
+        catch (Exception e) when (IsCausedByAbortedRequest(e, context))
         {
             // If the response has not started, we can write our custom response
             if (!context.Response.HasStarted)
             {
                 context.Response.Clear();
                 context.Response.StatusCode = 499; // Non-standard status code for client closed request
-                await context.Response.WriteAsync("Client closed request.");
+                await context.Response.WriteAsync("Client closed request.").ConfigureAwait(false);
             }
         }
         catch (UsenetArticleNotFoundException e)
@@ -56,8 +57,18 @@ public class ExceptionMiddleware(RequestDelegate next)
             }
 
             var filePath = GetRequestFilePath(context);
-            Log.Error($"File `{filePath}` could not be read due to unhandled {e.GetType()}: {e.Message}");
+            var seekPosition = context.Request.GetRange()?.Start?.ToString() ?? "0";
+            Log.Error($"File `{filePath}` could not be read from byte position: {seekPosition} " +
+                      $"due to unhandled {e.GetType()}: {e.Message}");
         }
+    }
+
+    private bool IsCausedByAbortedRequest(Exception e, HttpContext context)
+    {
+        var isAffectedException = e is OperationCanceledException or EndOfStreamException;
+        var isRequestAborted = context.RequestAborted.IsCancellationRequested ||
+                               SigtermUtil.GetCancellationToken().IsCancellationRequested;
+        return isAffectedException && isRequestAborted;
     }
 
     private static string GetRequestFilePath(HttpContext context)

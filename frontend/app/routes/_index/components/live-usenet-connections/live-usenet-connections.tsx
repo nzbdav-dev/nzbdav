@@ -8,8 +8,8 @@ const usenetConnectionsTopic = {'cxs': 'state'};
 export function LiveUsenetConnections() {
     const navigate = useNavigate();
     const [connections, setConnections] = useState<string | null>(null);
-    const parts = (connections || "0|1|0").split("|");
-    const [live, max, idle] = parts.map(x => Number(x));
+    const parts = (connections || "0|0|0|0|1|0").split("|");
+    const [_0, _1, _2, live, max, idle] = parts.map(x => Number(x));
     const active = live - idle;
     const activePercent = 100 * (active / max);
     const livePercent = 100 * (live / max);

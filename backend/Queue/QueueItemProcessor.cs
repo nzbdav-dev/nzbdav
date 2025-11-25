@@ -43,7 +43,7 @@ public class QueueItemProcessor(
         // process the job
         try
         {
-            await ProcessQueueItemAsync(startTime);
+            await ProcessQueueItemAsync(startTime).ConfigureAwait(false);
         }
 
         // When a queue-item is removed while processing,
@@ -67,7 +67,7 @@ public class QueueItemProcessor(
                 queueItem.PauseUntil = DateTime.Now.AddMinutes(1);
                 dbClient.Ctx.QueueItems.Attach(queueItem);
                 dbClient.Ctx.Entry(queueItem).Property(x => x.PauseUntil).IsModified = true;
-                await dbClient.Ctx.SaveChangesAsync();
+                await dbClient.Ctx.SaveChangesAsync().ConfigureAwait(false);
                 _ = websocketManager.SendMessage(WebsocketTopic.QueueItemStatus, $"{queueItem.Id}|Queued");
             }
             catch (Exception ex)
@@ -83,7 +83,7 @@ public class QueueItemProcessor(
         {
             try
             {
-                await MarkQueueItemCompleted(startTime, error: e.Message);
+                await MarkQueueItemCompleted(startTime, error: e.Message).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -94,7 +94,7 @@ public class QueueItemProcessor(
 
     private async Task ProcessQueueItemAsync(DateTime startTime)
     {
-        var existingMountFolder = await GetMountFolder();
+        var existingMountFolder = await GetMountFolder().ConfigureAwait(false);
         var duplicateNzbBehavior = configManager.GetDuplicateNzbBehavior();
 
         // if the mount folder already exists and setting is `marked-failed`
@@ -103,18 +103,20 @@ public class QueueItemProcessor(
         if (isDuplicateNzb && duplicateNzbBehavior == "mark-failed")
         {
             const string error = "Duplicate nzb: the download folder for this nzb already exists.";
-            await MarkQueueItemCompleted(startTime, error, () => Task.FromResult(existingMountFolder));
+            await MarkQueueItemCompleted(startTime, error, () => Task.FromResult(existingMountFolder)).ConfigureAwait(false);
             return;
         }
 
         // ensure we don't use more than max-queue-connections
-        var reservedConnections = configManager.GetMaxConnections() - configManager.GetMaxQueueConnections();
-        using var _ = ct.SetScopedContext(new ReservedConnectionsContext(reservedConnections));
+        var providerConfig = configManager.GetUsenetProviderConfig();
+        var concurrency = configManager.GetMaxQueueConnections();
+        var reservedConnections = providerConfig.TotalPooledConnections - concurrency;
+        using var _ = ct.SetScopedContext(new ReservedPooledConnectionsContext(reservedConnections));
 
         // read the nzb document
         var documentBytes = Encoding.UTF8.GetBytes(queueNzbContents.NzbContents);
         using var stream = new MemoryStream(documentBytes);
-        var nzb = await NzbDocument.LoadAsync(stream);
+        var nzb = await NzbDocument.LoadAsync(stream).ConfigureAwait(false);
         var archivePassword = nzb.MetaData.GetValueOrDefault("password")?.FirstOrDefault();
         var nzbFiles = nzb.Files.Where(x => x.Segments.Count > 0).ToList();
 
@@ -128,9 +130,9 @@ public class QueueItemProcessor(
             .Scale(50, 100)
             .ToPercentage(nzbFiles.Count);
         var segments = await FetchFirstSegmentsStep.FetchFirstSegments(
-            nzbFiles, usenetClient, configManager, ct, part1Progress);
+            nzbFiles, usenetClient, configManager, ct, part1Progress).ConfigureAwait(false);
         var par2FileDescriptors = await GetPar2FileDescriptorsStep.GetPar2FileDescriptors(
-            segments, usenetClient, ct);
+            segments, usenetClient, ct).ConfigureAwait(false);
         var fileInfos = GetFileInfosStep.GetFileInfos(
             segments, par2FileDescriptors);
 
@@ -142,8 +144,8 @@ public class QueueItemProcessor(
             .ToPercentage(fileProcessors.Count);
         var fileProcessingResultsAll = await fileProcessors
             .Select(x => x!.ProcessAsync())
-            .WithConcurrencyAsync(configManager.GetMaxQueueConnections())
-            .GetAllAsync(ct, part2Progress);
+            .WithConcurrencyAsync(concurrency)
+            .GetAllAsync(ct, part2Progress).ConfigureAwait(false);
         var fileProcessingResults = fileProcessingResultsAll
             .Where(x => x is not null)
             .Select(x => x!)
@@ -160,16 +162,15 @@ public class QueueItemProcessor(
             var part3Progress = progress
                 .Offset(100)
                 .ToPercentage(articlesToCheck.Count);
-            var concurrency = configManager.GetMaxQueueConnections();
-            await usenetClient.CheckAllSegmentsAsync(articlesToCheck, concurrency, part3Progress, ct);
+            await usenetClient.CheckAllSegmentsAsync(articlesToCheck, concurrency, part3Progress, ct).ConfigureAwait(false);
             checkedFullHealth = true;
         }
 
         // update the database
         await MarkQueueItemCompleted(startTime, error: null, async () =>
         {
-            var categoryFolder = await GetOrCreateCategoryFolder();
-            var mountFolder = await CreateMountFolder(categoryFolder, existingMountFolder, duplicateNzbBehavior);
+            var categoryFolder = await GetOrCreateCategoryFolder().ConfigureAwait(false);
+            var mountFolder = await CreateMountFolder(categoryFolder, existingMountFolder, duplicateNzbBehavior).ConfigureAwait(false);
             new RarAggregator(dbClient, mountFolder, checkedFullHealth).UpdateDatabase(fileProcessingResults);
             new FileAggregator(dbClient, mountFolder, checkedFullHealth).UpdateDatabase(fileProcessingResults);
             new SevenZipAggregator(dbClient, mountFolder, checkedFullHealth).UpdateDatabase(fileProcessingResults);
@@ -185,10 +186,10 @@ public class QueueItemProcessor(
 
             // create strm files, if necessary
             if (configManager.GetImportStrategy() == "strm")
-                new CreateStrmFilesPostProcessor(configManager, dbClient).CreateStrmFiles();
+                await new CreateStrmFilesPostProcessor(configManager, dbClient).CreateStrmFilesAsync().ConfigureAwait(false);
 
             return mountFolder;
-        });
+        }).ConfigureAwait(false);
     }
 
     private IEnumerable<BaseProcessor> GetFileProcessors
@@ -237,14 +238,14 @@ public class QueueItemProcessor(
                   && categoryFolder.ParentId == DavItem.ContentFolder.Id
             select mountFolder;
 
-        return await query.FirstOrDefaultAsync(ct);
+        return await query.FirstOrDefaultAsync(ct).ConfigureAwait(false);
     }
 
     private async Task<DavItem> GetOrCreateCategoryFolder()
     {
         // if the category item already exists, return it
         var categoryFolder = await dbClient.GetDirectoryChildAsync(
-            DavItem.ContentFolder.Id, queueItem.Category, ct);
+            DavItem.ContentFolder.Id, queueItem.Category, ct).ConfigureAwait(false);
         if (categoryFolder is not null)
             return categoryFolder;
 
@@ -290,7 +291,7 @@ public class QueueItemProcessor(
         for (var i = 2; i < 100; i++)
         {
             var name = $"{queueItem.JobName} ({i})";
-            var existingMountFolder = await dbClient.GetDirectoryChildAsync(categoryFolder.Id, name, ct);
+            var existingMountFolder = await dbClient.GetDirectoryChildAsync(categoryFolder.Id, name, ct).ConfigureAwait(false);
             if (existingMountFolder is not null) continue;
 
             var mountFolder = DavItem.New(
@@ -336,12 +337,12 @@ public class QueueItemProcessor(
     )
     {
         dbClient.Ctx.ChangeTracker.Clear();
-        var mountFolder = databaseOperations != null ? await databaseOperations.Invoke() : null;
+        var mountFolder = databaseOperations != null ? await databaseOperations.Invoke().ConfigureAwait(false) : null;
         var historyItem = CreateHistoryItem(mountFolder, startTime, error);
         var historySlot = GetHistoryResponse.HistorySlot.FromHistoryItem(historyItem, mountFolder, configManager);
         dbClient.Ctx.QueueItems.Remove(queueItem);
         dbClient.Ctx.HistoryItems.Add(historyItem);
-        await dbClient.Ctx.SaveChangesAsync(ct);
+        await dbClient.Ctx.SaveChangesAsync(ct).ConfigureAwait(false);
         _ = websocketManager.SendMessage(WebsocketTopic.QueueItemRemoved, queueItem.Id.ToString());
         _ = websocketManager.SendMessage(WebsocketTopic.HistoryItemAdded, historySlot.ToJson());
         _ = RefreshMonitoredDownloads();
@@ -353,17 +354,17 @@ public class QueueItemProcessor(
             .GetArrConfig()
             .GetArrClients()
             .Select(RefreshMonitoredDownloads);
-        await Task.WhenAll(tasks);
+        await Task.WhenAll(tasks).ConfigureAwait(false);
     }
 
     private async Task RefreshMonitoredDownloads(ArrClient arrClient)
     {
         try
         {
-            var downloadClients = await arrClient.GetDownloadClientsAsync();
+            var downloadClients = await arrClient.GetDownloadClientsAsync().ConfigureAwait(false);
             if (downloadClients.All(x => x.Category != queueItem.Category)) return;
-            var queueCount = await arrClient.GetQueueCountAsync();
-            if (queueCount < 60) await arrClient.RefreshMonitoredDownloads();
+            var queueCount = await arrClient.GetQueueCountAsync().ConfigureAwait(false);
+            if (queueCount < 60) await arrClient.RefreshMonitoredDownloads().ConfigureAwait(false);
         }
         catch (Exception e)
         {

@@ -31,7 +31,7 @@ public class DatabaseStore(
     public async Task<IStoreItem?> GetItemAsync(string path, CancellationToken cancellationToken)
     {
         path = path.Trim('/');
-        return path == "" ? _root : await _root.ResolvePath(path, cancellationToken);
+        return path == "" ? _root : await _root.ResolvePath(path, cancellationToken).ConfigureAwait(false);
     }
 
     public Task<IStoreItem?> GetItemAsync(Uri uri, CancellationToken cancellationToken)
@@ -41,6 +41,6 @@ public class DatabaseStore(
 
     public async Task<IStoreCollection?> GetCollectionAsync(Uri uri, CancellationToken cancellationToken)
     {
-        return await GetItemAsync(uri, cancellationToken) as IStoreCollection;
+        return await GetItemAsync(uri, cancellationToken).ConfigureAwait(false) as IStoreCollection;
     }
 }

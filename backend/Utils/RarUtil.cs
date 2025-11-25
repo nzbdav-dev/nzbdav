@@ -17,7 +17,7 @@ public static class RarUtil
     )
     {
         await using var cancellableStream = new CancellableStream(stream, ct);
-        return await Task.Run(() => GetRarHeaders(cancellableStream, password), ct);
+        return await Task.Run(() => GetRarHeaders(cancellableStream, password), ct).ConfigureAwait(false);
     }
 
     private static List<IRarHeader> GetRarHeaders(Stream stream, string? password)

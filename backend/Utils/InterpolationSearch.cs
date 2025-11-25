@@ -44,7 +44,7 @@ public static class InterpolationSearch
             var bytesPerIndex = (double)byteRangeToSearch.Count / indexRangeToSearch.Count;
             var guessFromStart = (long)Math.Floor(searchByteFromStart / bytesPerIndex);
             var guessedIndex = (int)(indexRangeToSearch.StartInclusive + guessFromStart);
-            var byteRangeOfGuessedIndex = await getByteRangeOfGuessedIndex(guessedIndex);
+            var byteRangeOfGuessedIndex = await getByteRangeOfGuessedIndex(guessedIndex).ConfigureAwait(false);
 
             // make sure the result is within the range of our search space
             if (!byteRangeOfGuessedIndex.IsContainedWithin(byteRangeToSearch))

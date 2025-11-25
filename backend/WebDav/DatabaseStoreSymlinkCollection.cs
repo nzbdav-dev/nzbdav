@@ -27,7 +27,7 @@ public class DatabaseStoreSymlinkCollection(
     {
         if (DeletedFiles.IsDeleted(request.Name)) return null;
         var name = Regex.Replace(request.Name, @"\.rclonelink$", "");
-        var child = await dbClient.GetDirectoryChildAsync(TargetId, name, request.CancellationToken);
+        var child = await dbClient.GetDirectoryChildAsync(TargetId, name, request.CancellationToken).ConfigureAwait(false);
         if (child is null) return null;
         return GetItem(child);
     }
@@ -38,8 +38,8 @@ public class DatabaseStoreSymlinkCollection(
         // then we only want to show children that correspond to Completed History items.
         var isCategoryFolder = davDirectory.ParentId == DavItem.ContentFolder.Id;
         var children = isCategoryFolder
-            ? await dbClient.GetCompletedSymlinkCategoryChildren(davDirectory.Name, cancellationToken)
-            : await dbClient.GetDirectoryChildrenAsync(TargetId, cancellationToken);
+            ? await dbClient.GetCompletedSymlinkCategoryChildren(davDirectory.Name, cancellationToken).ConfigureAwait(false)
+            : await dbClient.GetDirectoryChildrenAsync(TargetId, cancellationToken).ConfigureAwait(false);
 
         return children
             .Select(GetItem)

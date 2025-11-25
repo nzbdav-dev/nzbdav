@@ -21,7 +21,7 @@ public class StrmToSymlinksTask(
         try
         {
             var ct = SigtermUtil.GetCancellationToken();
-            await ConvertAllStrmFilesToSymlinks(ct);
+            await ConvertAllStrmFilesToSymlinks(ct).ConfigureAwait(false);
         }
         catch (Exception e)
         {
@@ -40,7 +40,7 @@ public class StrmToSymlinksTask(
 
         ReportProgress("Scanning library for strm files...", completedCount);
         foreach (var batch in batches)
-            await ConvertBatchOfStrmFilesToSymlinks(batch, OnItemCompleted, token);
+            await ConvertBatchOfStrmFilesToSymlinks(batch, OnItemCompleted, token).ConfigureAwait(false);
         ReportProgress("Done!", completedCount);
         return;
 
@@ -67,7 +67,7 @@ public class StrmToSymlinksTask(
             .ToList();
         var davItems = await dbClient.Ctx.Items
             .Where(x => davItemsToFetch.Contains(x.Id))
-            .ToDictionaryAsync(x => x.Id, x => x, token);
+            .ToDictionaryAsync(x => x.Id, x => x, token).ConfigureAwait(false);
         var itemsWithExtension = items
             .Select(x => new
             {
@@ -81,8 +81,11 @@ public class StrmToSymlinksTask(
         {
             var symlinkPath = PathUtil.ReplaceExtension(item.Link.LinkPath, item.Extension);
             var symlinkTarget = DatabaseStoreSymlinkFile.GetTargetPath(item.Link.DavItemId, mountDir);
-            File.CreateSymbolicLink(symlinkPath, symlinkTarget);
-            File.Delete(item.Link.LinkPath);
+            await Task.Run(() =>
+            {
+                File.CreateSymbolicLink(symlinkPath, symlinkTarget);
+                File.Delete(item.Link.LinkPath);
+            }).ConfigureAwait(false);
             onItemCompleted?.Invoke();
         }
     }

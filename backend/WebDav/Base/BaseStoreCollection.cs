@@ -48,7 +48,7 @@ public abstract class BaseStoreCollection : IStoreCollection
 
     public async IAsyncEnumerable<IStoreItem> GetItemsAsync(CancellationToken cancellationToken)
     {
-        var allItems = await GetAllItemsAsync(cancellationToken);
+        var allItems = await GetAllItemsAsync(cancellationToken).ConfigureAwait(false);
         foreach (var item in allItems)
         {
             yield return item;
@@ -64,7 +64,7 @@ public abstract class BaseStoreCollection : IStoreCollection
         {
             Name = name,
             CancellationToken = cancellationToken
-        }) ?? EmptyFileManager.Get(name);
+        }).ConfigureAwait(false) ?? EmptyFileManager.Get(name);
     }
 
     public async Task<StoreItemResult> CreateItemAsync
@@ -75,7 +75,7 @@ public abstract class BaseStoreCollection : IStoreCollection
         CancellationToken cancellationToken
     )
     {
-        var existingItem = await GetItemAsync(name, cancellationToken);
+        var existingItem = await GetItemAsync(name, cancellationToken).ConfigureAwait(false);
         var probingStream = new ProbingStream(stream);
 
         // if the item doesn't already exist, create it
@@ -88,7 +88,7 @@ public abstract class BaseStoreCollection : IStoreCollection
         if (existingItem is null)
         {
             // This handles step #1 in the note above.
-            if (await probingStream.IsEmptyAsync())
+            if (await probingStream.IsEmptyAsync().ConfigureAwait(false))
             {
                 var emptyFile = new BaseStoreEmptyFile(name);
                 EmptyFileManager.Add(emptyFile);
@@ -106,7 +106,7 @@ public abstract class BaseStoreCollection : IStoreCollection
                 Stream = probingStream,
                 Overwrite = overwrite,
                 CancellationToken = cancellationToken
-            });
+            }).ConfigureAwait(false);
         }
 
         return new StoreItemResult(DavStatusCode.Conflict);
@@ -187,7 +187,7 @@ public abstract class BaseStoreCollection : IStoreCollection
         IStoreCollection current = this;
         for (var i = 0; i < segments.Length; i++)
         {
-            var nextItem = await current.GetItemAsync(segments[i], cancellationToken);
+            var nextItem = await current.GetItemAsync(segments[i], cancellationToken).ConfigureAwait(false);
             if (nextItem is null) return null;
 
             if (i == segments.Length - 1)

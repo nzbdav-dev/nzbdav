@@ -39,7 +39,7 @@ public sealed class DavDatabaseClient(DavDatabaseContext ctx)
     {
         if (dirId == DavItem.Root.Id)
         {
-            return await Ctx.Items.SumAsync(x => x.FileSize, ct) ?? 0;
+            return await Ctx.Items.SumAsync(x => x.FileSize, ct).ConfigureAwait(false) ?? 0;
         }
 
         const string sql = @"
@@ -58,21 +58,21 @@ public sealed class DavDatabaseClient(DavDatabaseContext ctx)
             FROM RecursiveChildren;
         ";
         var connection = Ctx.Database.GetDbConnection();
-        if (connection.State != System.Data.ConnectionState.Open) await connection.OpenAsync(ct);
+        if (connection.State != System.Data.ConnectionState.Open) await connection.OpenAsync(ct).ConfigureAwait(false);
         await using var command = connection.CreateCommand();
         command.CommandText = sql;
         var parameter = command.CreateParameter();
         parameter.ParameterName = "@parentId";
         parameter.Value = dirId;
         command.Parameters.Add(parameter);
-        var result = await command.ExecuteScalarAsync(ct);
+        var result = await command.ExecuteScalarAsync(ct).ConfigureAwait(false);
         return Convert.ToInt64(result);
     }
 
     // nzbfile
     public async Task<DavNzbFile?> GetNzbFileAsync(Guid id, CancellationToken ct = default)
     {
-        return await ctx.NzbFiles.FirstOrDefaultAsync(x => x.Id == id, ct);
+        return await ctx.NzbFiles.FirstOrDefaultAsync(x => x.Id == id, ct).ConfigureAwait(false);
     }
 
     // queue
@@ -88,9 +88,9 @@ public sealed class DavDatabaseClient(DavDatabaseContext ctx)
             .Where(q => q.PauseUntil == null || nowTime >= q.PauseUntil)
             .Skip(0)
             .Take(1)
-            .FirstOrDefaultAsync(ct);
+            .FirstOrDefaultAsync(ct).ConfigureAwait(false);
         var queueNzbContents = queueItem != null
-            ? await Ctx.QueueNzbContents.FirstOrDefaultAsync(q => q.Id == queueItem.Id, ct)
+            ? await Ctx.QueueNzbContents.FirstOrDefaultAsync(q => q.Id == queueItem.Id, ct).ConfigureAwait(false)
             : null;
         return (queueItem, queueNzbContents);
     }
@@ -126,13 +126,13 @@ public sealed class DavDatabaseClient(DavDatabaseContext ctx)
     {
         await Ctx.QueueItems
             .Where(x => ids.Contains(x.Id))
-            .ExecuteDeleteAsync(ct);
+            .ExecuteDeleteAsync(ct).ConfigureAwait(false);
     }
 
     // history
     public async Task<HistoryItem?> GetHistoryItemAsync(string id)
     {
-        return await Ctx.HistoryItems.FirstOrDefaultAsync(x => x.Id == Guid.Parse(id));
+        return await Ctx.HistoryItems.FirstOrDefaultAsync(x => x.Id == Guid.Parse(id)).ConfigureAwait(false);
     }
 
     public async Task RemoveHistoryItemsAsync(List<Guid> ids, bool deleteFiles, CancellationToken ct = default)
@@ -144,12 +144,12 @@ public sealed class DavDatabaseClient(DavDatabaseContext ctx)
                     .Where(h => ids.Contains(h.Id) && h.DownloadDirId != null)
                     .Select(h => h.DownloadDirId!)
                     .Contains(d.Id))
-                .ExecuteDeleteAsync(ct);
+                .ExecuteDeleteAsync(ct).ConfigureAwait(false);
         }
 
         await Ctx.HistoryItems
             .Where(x => ids.Contains(x.Id))
-            .ExecuteDeleteAsync(ct);
+            .ExecuteDeleteAsync(ct).ConfigureAwait(false);
     }
 
     private class FileSizeResult
@@ -174,7 +174,7 @@ public sealed class DavDatabaseClient(DavDatabaseContext ctx)
                 RepairStatus = g.Key.RepairStatus,
                 Count = g.Select(r => r.Count).Sum(),
             })
-            .ToListAsync(ct);
+            .ToListAsync(ct).ConfigureAwait(false);
     }
 
     // completed-symlinks
@@ -188,6 +188,6 @@ public sealed class DavDatabaseClient(DavDatabaseContext ctx)
             join davItem in Ctx.Items on historyItem.DownloadDirId equals davItem.Id
             where davItem.Type == DavItem.ItemType.Directory
             select davItem;
-        return await query.Distinct().ToListAsync(ct);
+        return await query.Distinct().ToListAsync(ct).ConfigureAwait(false);
     }
 }

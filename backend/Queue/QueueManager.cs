@@ -53,14 +53,14 @@ public class QueueManager : IDisposable
             var inProgressId = _inProgressQueueItem?.QueueItem?.Id;
             if (inProgressId is not null && queueItemIds.Contains(inProgressId.Value))
             {
-                await _inProgressQueueItem!.CancellationTokenSource.CancelAsync();
-                await _inProgressQueueItem.ProcessingTask;
+                await _inProgressQueueItem!.CancellationTokenSource.CancelAsync().ConfigureAwait(false);
+                await _inProgressQueueItem.ProcessingTask.ConfigureAwait(false);
                 _inProgressQueueItem = null;
             }
 
-            await dbClient.RemoveQueueItemsAsync(queueItemIds, ct);
-            await dbClient.Ctx.SaveChangesAsync(ct);
-        });
+            await dbClient.RemoveQueueItemsAsync(queueItemIds, ct).ConfigureAwait(false);
+            await dbClient.Ctx.SaveChangesAsync(ct).ConfigureAwait(false);
+        }).ConfigureAwait(false);
     }
 
     private async Task ProcessQueueAsync(CancellationToken ct)
@@ -72,12 +72,12 @@ public class QueueManager : IDisposable
                 // get the next queue-item from the database
                 await using var dbContext = new DavDatabaseContext();
                 var dbClient = new DavDatabaseClient(dbContext);
-                var topItem = await LockAsync(() => dbClient.GetTopQueueItem(ct));
+                var topItem = await LockAsync(() => dbClient.GetTopQueueItem(ct)).ConfigureAwait(false);
                 if (topItem.queueItem is null || topItem.queueNzbContents is null)
                 {
                     // if we're done with the queue, wait
                     // five seconds before checking again.
-                    await Task.Delay(TimeSpan.FromSeconds(5), ct);
+                    await Task.Delay(TimeSpan.FromSeconds(5), ct).ConfigureAwait(false);
                     continue;
                 }
 
@@ -88,8 +88,8 @@ public class QueueManager : IDisposable
                     _inProgressQueueItem = BeginProcessingQueueItem(
                         dbClient, topItem.queueItem, topItem.queueNzbContents, queueItemCancellationTokenSource
                     );
-                });
-                await (_inProgressQueueItem?.ProcessingTask ?? Task.CompletedTask);
+                }).ConfigureAwait(false);
+                await (_inProgressQueueItem?.ProcessingTask ?? Task.CompletedTask).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -97,7 +97,7 @@ public class QueueManager : IDisposable
             }
             finally
             {
-                await LockAsync(() => { _inProgressQueueItem = null; });
+                await LockAsync(() => { _inProgressQueueItem = null; }).ConfigureAwait(false);
             }
         }
     }
@@ -136,10 +136,10 @@ public class QueueManager : IDisposable
 
     private async Task LockAsync(Func<Task> actionAsync)
     {
-        await _semaphore.WaitAsync();
+        await _semaphore.WaitAsync().ConfigureAwait(false);
         try
         {
-            await actionAsync();
+            await actionAsync().ConfigureAwait(false);
         }
         finally
         {
@@ -149,10 +149,10 @@ public class QueueManager : IDisposable
 
     private async Task<T> LockAsync<T>(Func<Task<T>> actionAsync)
     {
-        await _semaphore.WaitAsync();
+        await _semaphore.WaitAsync().ConfigureAwait(false);
         try
         {
-            return await actionAsync();
+            return await actionAsync().ConfigureAwait(false);
         }
         finally
         {
@@ -162,7 +162,7 @@ public class QueueManager : IDisposable
 
     private async Task LockAsync(Action action)
     {
-        await _semaphore.WaitAsync();
+        await _semaphore.WaitAsync().ConfigureAwait(false);
         try
         {
             action();

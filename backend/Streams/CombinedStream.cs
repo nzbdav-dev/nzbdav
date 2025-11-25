@@ -32,7 +32,7 @@ public class CombinedStream(IEnumerable<Task<Stream>> streams) : Stream
             if (_currentStream == null)
             {
                 if (!_streams.MoveNext()) return 0;
-                _currentStream = await _streams.Current;
+                _currentStream = await _streams.Current.ConfigureAwait(false);
             }
 
             // read from our current stream
@@ -40,15 +40,15 @@ public class CombinedStream(IEnumerable<Task<Stream>> streams) : Stream
             (
                 buffer.AsMemory(offset, count),
                 cancellationToken
-            );
+            ).ConfigureAwait(false);
             _position += readCount;
             if (readCount > 0) return readCount;
 
             // If we couldn't read anything from our current stream,
             // it's time to advance to the next stream.
-            await _currentStream.DisposeAsync();
+            await _currentStream.DisposeAsync().ConfigureAwait(false);
             if (!_streams.MoveNext()) return 0;
-            _currentStream = await _streams.Current;
+            _currentStream = await _streams.Current.ConfigureAwait(false);
         }
 
         return 0;
@@ -62,7 +62,7 @@ public class CombinedStream(IEnumerable<Task<Stream>> streams) : Stream
         while (remaining > 0)
         {
             var toRead = (int)Math.Min(remaining, throwaway.Length);
-            var read = await ReadAsync(throwaway, 0, toRead);
+            var read = await ReadAsync(throwaway, 0, toRead).ConfigureAwait(false);
             remaining -= read;
             if (read == 0) break;
         }
@@ -102,7 +102,7 @@ public class CombinedStream(IEnumerable<Task<Stream>> streams) : Stream
     public override async ValueTask DisposeAsync()
     {
         if (_isDisposed) return;
-        if (_currentStream != null) await _currentStream.DisposeAsync();
+        if (_currentStream != null) await _currentStream.DisposeAsync().ConfigureAwait(false);
         _streams.Dispose();
         _isDisposed = true;
         GC.SuppressFinalize(this);

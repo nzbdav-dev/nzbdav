@@ -12,8 +12,7 @@ public class TestUsenetConnectionController() : BaseApiController
     {
         try
         {
-            await UsenetStreamingClient.CreateNewConnection(
-                request.Host, request.Port, request.UseSsl, request.User, request.Pass, HttpContext.RequestAborted);
+            await UsenetStreamingClient.CreateNewConnection(request.ToConnectionDetails(), HttpContext.RequestAborted).ConfigureAwait(false);
             return new TestUsenetConnectionResponse { Status = true, Connected = true };
         }
         catch (CouldNotConnectToUsenetException)
@@ -29,7 +28,7 @@ public class TestUsenetConnectionController() : BaseApiController
     protected override async Task<IActionResult> HandleRequest()
     {
         var request = new TestUsenetConnectionRequest(HttpContext);
-        var response = await TestUsenetConnection(request);
+        var response = await TestUsenetConnection(request).ConfigureAwait(false);
         return Ok(response);
     }
 }

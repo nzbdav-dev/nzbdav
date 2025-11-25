@@ -26,7 +26,7 @@ namespace NzbWebDAV.Par2Recovery
             {
                 try
                 {
-                    packet = await ReadPacketAsync(stream);
+                    packet = await ReadPacketAsync(stream).ConfigureAwait(false);
                 }
                 catch (Exception e)
                 {
@@ -44,7 +44,7 @@ namespace NzbWebDAV.Par2Recovery
         private static async Task<Par2Packet> ReadPacketAsync(Stream stream)
         {
             // Read a Packet Header.
-            var header = await ReadStructAsync<Par2PacketHeader>(stream);
+            var header = await ReadStructAsync<Par2PacketHeader>(stream).ConfigureAwait(false);
 
             // Test if the magic constant matches.
             var magic = Encoding.ASCII.GetString(header.Magic);
@@ -65,7 +65,7 @@ namespace NzbWebDAV.Par2Recovery
             }
 
             // Let the packet type parse more of the stream as needed.
-            await result.ReadAsync(stream);
+            await result.ReadAsync(stream).ConfigureAwait(false);
 
             return result;
         }

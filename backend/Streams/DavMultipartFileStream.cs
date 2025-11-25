@@ -1,5 +1,6 @@
 ﻿using NzbWebDAV.Clients.Usenet;
 using NzbWebDAV.Database.Models;
+using NzbWebDAV.Exceptions;
 using NzbWebDAV.Extensions;
 
 namespace NzbWebDAV.Streams;
@@ -28,7 +29,7 @@ public class DavMultipartFileStream(
     public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
     {
         if (_innerStream == null) _innerStream = GetFileStream(_position, cancellationToken);
-        var read = await _innerStream.ReadAsync(buffer, offset, count, cancellationToken);
+        var read = await _innerStream.ReadAsync(buffer, offset, count, cancellationToken).ConfigureAwait(false);
         _position += read;
         return read;
     }
@@ -79,7 +80,7 @@ public class DavMultipartFileStream(
             offset = nextOffset;
         }
 
-        throw new ArgumentOutOfRangeException(nameof(byteOffset));
+        throw new SeekPositionNotFoundException($"Corrupt file. Cannot seek to byte position {byteOffset}.");
     }
 
     private CombinedStream GetFileStream(long rangeStart, CancellationToken cancellationToken)
@@ -113,7 +114,7 @@ public class DavMultipartFileStream(
     public override async ValueTask DisposeAsync()
     {
         if (_disposed) return;
-        if (_innerStream != null) await _innerStream.DisposeAsync();
+        if (_innerStream != null) await _innerStream.DisposeAsync().ConfigureAwait(false);
         _disposed = true;
         GC.SuppressFinalize(this);
     }

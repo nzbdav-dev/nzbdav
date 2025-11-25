@@ -13,13 +13,13 @@ public class IsOnboardingController(DavDatabaseClient dbClient) : BaseApiControl
     {
         var account = await dbClient.Ctx.Accounts
             .Where(a => a.Type == Account.AccountType.Admin)
-            .FirstOrDefaultAsync();
+            .FirstOrDefaultAsync().ConfigureAwait(false);
         return new IsOnboardingResponse() { IsOnboarding = account == null };
     }
 
     protected override async Task<IActionResult> HandleRequest()
     {
-        var response = await IsOnboarding();
+        var response = await IsOnboarding().ConfigureAwait(false);
         return Ok(response);
     }
 }

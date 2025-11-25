@@ -20,7 +20,7 @@ public static class TaskUtil
         var completedTasks = 0;
         while (taskList.Count > 0)
         {
-            var completedTask = await Task.WhenAny(taskList);
+            var completedTask = await Task.WhenAny(taskList).ConfigureAwait(false);
             taskList.Remove(completedTask);
 
             if (completedTask.IsFaulted)

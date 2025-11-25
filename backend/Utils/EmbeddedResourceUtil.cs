@@ -23,7 +23,7 @@ public static class EmbeddedResourceUtil
     {
         await using var stream = GetStream(resourcePath);
         using var reader = new StreamReader(stream);
-        return await reader.ReadToEndAsync();
+        return await reader.ReadToEndAsync().ConfigureAwait(false);
     }
 
     private static string GetFullResourcePath(string resourcePath)

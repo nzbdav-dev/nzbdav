@@ -9,7 +9,7 @@ public abstract class BaseTask
 
     public async Task<bool> Execute()
     {
-        await Semaphore.WaitAsync();
+        await Semaphore.WaitAsync().ConfigureAwait(false);
         Task? task;
         try
         {
@@ -27,7 +27,7 @@ public abstract class BaseTask
         }
 
         // and wait for it to finish.
-        await task;
+        await task.ConfigureAwait(false);
         return true;
     }
 }

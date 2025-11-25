@@ -28,7 +28,7 @@ public class RemoveFromHistoryRequest
         return new RemoveFromHistoryRequest()
         {
             NzoIds = NzoIdsFromQueryParam(httpContext)
-                .Concat(await NzoIdsFromRequestBody(httpContext, cancellationToken))
+                .Concat(await NzoIdsFromRequestBody(httpContext, cancellationToken).ConfigureAwait(false))
                 .ToList(),
             DeleteCompletedFiles = httpContext.GetQueryParam("del_completed_files") == "1",
             CancellationToken = cancellationToken
@@ -45,7 +45,7 @@ public class RemoveFromHistoryRequest
         try
         {
             await using var stream = httpContext.Request.Body;
-            var deserialized = await JsonSerializer.DeserializeAsync<RequestBody>(stream, cancellationToken: ct);
+            var deserialized = await JsonSerializer.DeserializeAsync<RequestBody>(stream, cancellationToken: ct).ConfigureAwait(false);
             return deserialized?.NzoIds ?? [];
         }
         catch

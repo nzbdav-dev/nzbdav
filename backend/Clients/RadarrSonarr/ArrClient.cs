@@ -8,6 +8,8 @@ namespace NzbWebDAV.Clients.RadarrSonarr;
 
 public class ArrClient(string host, string apiKey)
 {
+    protected static readonly HttpClient HttpClient = new HttpClient();
+
     public string Host { get; } = host;
     private string ApiKey { get; } = apiKey;
     private const string BasePath = "/api/v3";
@@ -52,23 +54,25 @@ public class ArrClient(string host, string apiKey)
 
     protected async Task<T> GetRoot<T>(string rootPath)
     {
-        using var httpClient = GetHttpClient();
-        await using var response = await httpClient.GetStreamAsync($"{Host}{rootPath}");
-        return await JsonSerializer.DeserializeAsync<T>(response) ?? throw new NullReferenceException();
+        var request = new HttpRequestMessage(HttpMethod.Get, $"{Host}{rootPath}");
+        using var response = await SendAsync(request);
+        await using var stream = await response.Content.ReadAsStreamAsync();
+        return await JsonSerializer.DeserializeAsync<T>(stream) ?? throw new NullReferenceException();
     }
 
     protected async Task<T> Post<T>(string path, object body)
     {
-        using var httpClient = GetHttpClient();
-        using var response = await httpClient.PostAsJsonAsync(GetRequestUri(path), body);
+        var request = new HttpRequestMessage(HttpMethod.Post, GetRequestUri(path));
+        request.Content = new StringContent(JsonSerializer.Serialize(body));
+        using var response = await SendAsync(request);
         await using var stream = await response.Content.ReadAsStreamAsync();
         return await JsonSerializer.DeserializeAsync<T>(stream) ?? throw new NullReferenceException();
     }
 
     protected async Task<HttpStatusCode> Delete(string path, Dictionary<string, string>? queryParams = null)
     {
-        using var httpClient = GetHttpClient();
-        using var response = await httpClient.DeleteAsync(GetRequestUri(path, queryParams));
+        var request = new HttpRequestMessage(HttpMethod.Delete, GetRequestUri(path, queryParams));
+        using var response = await SendAsync(request);
         return response.StatusCode;
     }
 
@@ -82,10 +86,9 @@ public class ArrClient(string host, string apiKey)
         return resource;
     }
 
-    private HttpClient GetHttpClient()
+    private Task<HttpResponseMessage> SendAsync(HttpRequestMessage request)
     {
-        var httpClient = new HttpClient();
-        httpClient.DefaultRequestHeaders.Add("X-Api-Key", ApiKey);
-        return httpClient;
+        request.Headers.Add("X-Api-Key", ApiKey);
+        return HttpClient.SendAsync(request);
     }
 }

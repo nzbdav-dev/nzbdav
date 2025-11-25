@@ -29,14 +29,14 @@ public class DatabaseStoreCollection(
 
     protected override async Task<IStoreItem?> GetItemAsync(GetItemRequest request)
     {
-        var child = await dbClient.GetDirectoryChildAsync(davDirectory.Id, request.Name, request.CancellationToken);
+        var child = await dbClient.GetDirectoryChildAsync(davDirectory.Id, request.Name, request.CancellationToken).ConfigureAwait(false);
         if (child is null) return null;
         return GetItem(child);
     }
 
     protected override async Task<IStoreItem[]> GetAllItemsAsync(CancellationToken cancellationToken)
     {
-        return (await dbClient.GetDirectoryChildrenAsync(davDirectory.Id, cancellationToken))
+        return (await dbClient.GetDirectoryChildrenAsync(davDirectory.Id, cancellationToken).ConfigureAwait(false))
             .Select(GetItem)
             .ToArray();
     }
@@ -57,14 +57,14 @@ public class DatabaseStoreCollection(
             return DavStatusCode.Forbidden;
 
         // Get the item being deleted
-        var davItem = await dbClient.GetDirectoryChildAsync(davDirectory.Id, request.Name, request.CancellationToken);
+        var davItem = await dbClient.GetDirectoryChildAsync(davDirectory.Id, request.Name, request.CancellationToken).ConfigureAwait(false);
         if (davItem is null) return DavStatusCode.NotFound;
 
         // If the item is a file, simply delete it and we're done.
         if (davItem.Type is DavItem.ItemType.NzbFile or DavItem.ItemType.RarFile or DavItem.ItemType.MultipartFile)
         {
             dbClient.Ctx.Items.Remove(davItem);
-            await dbClient.Ctx.SaveChangesAsync();
+            await dbClient.Ctx.SaveChangesAsync().ConfigureAwait(false);
             return DavStatusCode.Ok;
         }
 
@@ -72,7 +72,7 @@ public class DatabaseStoreCollection(
         if (davItem.Type == DavItem.ItemType.Directory && !davItem.IsProtected())
         {
             dbClient.Ctx.Items.Remove(davItem);
-            await dbClient.Ctx.SaveChangesAsync();
+            await dbClient.Ctx.SaveChangesAsync().ConfigureAwait(false);
             return DavStatusCode.Ok;
         }
 

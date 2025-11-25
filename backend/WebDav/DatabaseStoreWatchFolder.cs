@@ -36,14 +36,14 @@ public class DatabaseStoreWatchFolder(
     {
         var queueItem = await dbClient.Ctx.QueueItems
             .Where(x => x.FileName == request.Name)
-            .FirstOrDefaultAsync(request.CancellationToken);
+            .FirstOrDefaultAsync(request.CancellationToken).ConfigureAwait(false);
         if (queueItem is null) return null;
         return new DatabaseStoreQueueItem(queueItem, dbClient);
     }
 
     protected override async Task<IStoreItem[]> GetAllItemsAsync(CancellationToken cancellationToken)
     {
-        return (await dbClient.GetQueueItems(null, 0, int.MaxValue, cancellationToken))
+        return (await dbClient.GetQueueItems(null, 0, int.MaxValue, cancellationToken).ConfigureAwait(false))
             .Select(x => new DatabaseStoreQueueItem(x, dbClient))
             .Select(IStoreItem (x) => x)
             .ToArray();
@@ -53,7 +53,7 @@ public class DatabaseStoreWatchFolder(
     {
         var controller = new AddFileController(null!, dbClient, queueManager, configManager, websocketManager);
         using var streamReader = new StreamReader(request.Stream);
-        var nzbFileContents = await streamReader.ReadToEndAsync(request.CancellationToken);
+        var nzbFileContents = await streamReader.ReadToEndAsync(request.CancellationToken).ConfigureAwait(false);
         var addFileRequest = new AddFileRequest()
         {
             FileName = request.Name,
@@ -65,7 +65,7 @@ public class DatabaseStoreWatchFolder(
             NzbFileContents = nzbFileContents,
             CancellationToken = request.CancellationToken
         };
-        var response = await controller.AddFileAsync(addFileRequest);
+        var response = await controller.AddFileAsync(addFileRequest).ConfigureAwait(false);
         var queueItem = dbClient.Ctx.ChangeTracker
             .Entries<QueueItem>()
             .Select(x => x.Entity)
@@ -80,7 +80,7 @@ public class DatabaseStoreWatchFolder(
         // get the item to delete
         var item = await dbClient.Ctx.QueueItems
             .Where(x => x.FileName == request.Name)
-            .FirstOrDefaultAsync(request.CancellationToken);
+            .FirstOrDefaultAsync(request.CancellationToken).ConfigureAwait(false);
 
         // if the item doesn't exist, return 404
         if (item is null)
@@ -92,7 +92,7 @@ public class DatabaseStoreWatchFolder(
         {
             NzoIds = [item.Id],
             CancellationToken = request.CancellationToken
-        });
+        }).ConfigureAwait(false);
         return DavStatusCode.NoContent;
     }
 }

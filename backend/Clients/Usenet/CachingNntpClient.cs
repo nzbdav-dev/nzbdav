@@ -7,8 +7,6 @@ namespace NzbWebDAV.Clients.Usenet;
 
 public class CachingNntpClient(INntpClient client, MemoryCache cache) : WrappingNntpClient(client)
 {
-    private readonly INntpClient _client = client;
-
     private readonly MemoryCacheEntryOptions _cacheOptions = new()
     {
         Size = 1,
@@ -23,7 +21,7 @@ public class CachingNntpClient(INntpClient client, MemoryCache cache) : Wrapping
     )
     {
         var cacheKey = segmentId;
-        var stream = await _client.GetSegmentStreamAsync(segmentId, includeHeaders, ct);
+        var stream = await Client.GetSegmentStreamAsync(segmentId, includeHeaders, ct).ConfigureAwait(false);
         cache.Set(cacheKey, stream.Header, _cacheOptions);
         return stream;
     }
@@ -34,14 +32,14 @@ public class CachingNntpClient(INntpClient client, MemoryCache cache) : Wrapping
         return (await cache.GetOrCreateAsync(cacheKey, cacheEntry =>
         {
             cacheEntry.SetOptions(_cacheOptions);
-            return _client.GetSegmentYencHeaderAsync(segmentId, ct);
-        })!)!;
+            return Client.GetSegmentYencHeaderAsync(segmentId, ct);
+        }).ConfigureAwait(false))!;
     }
 
     public override async Task<long> GetFileSizeAsync(NzbFile file, CancellationToken ct)
     {
         if (file.Segments.Count == 0) return 0;
-        var header = await GetSegmentYencHeaderAsync(file.Segments[^1].MessageId, ct);
+        var header = await GetSegmentYencHeaderAsync(file.Segments[^1].MessageId.Value, ct).ConfigureAwait(false);
         return header.PartOffset + header.PartSize;
     }
 }

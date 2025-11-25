@@ -13,7 +13,7 @@ public class ListWebdavDirectoryController(DatabaseStore store, ConfigManager co
 {
     private async Task<ListWebdavDirectoryResponse> ListWebdavDirectory(ListWebdavDirectoryRequest request)
     {
-        var item = await store.GetItemAsync(request.Directory, HttpContext.RequestAborted);
+        var item = await store.GetItemAsync(request.Directory, HttpContext.RequestAborted).ConfigureAwait(false);
         if (item is null) throw new BadHttpRequestException("The directory does not exist.");
         if (item is not IStoreCollection dir) throw new BadHttpRequestException("The directory does not exist.");
         var children = new List<ListWebdavDirectoryResponse.DirectoryItem>();
@@ -37,7 +37,7 @@ public class ListWebdavDirectoryController(DatabaseStore store, ConfigManager co
     protected override async Task<IActionResult> HandleRequest()
     {
         var request = new ListWebdavDirectoryRequest(HttpContext);
-        var response = await ListWebdavDirectory(request);
+        var response = await ListWebdavDirectory(request).ConfigureAwait(false);
         return Ok(response);
     }
 }

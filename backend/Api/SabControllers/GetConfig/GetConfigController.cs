@@ -20,7 +20,7 @@ public class GetConfigController(
     protected override async Task<IActionResult> Handle()
     {
         // read the config template from file and deserialize it
-        var config = await EmbeddedResourceUtil.ReadAllTextAsync("config_template.json");
+        var config = await EmbeddedResourceUtil.ReadAllTextAsync("config_template.json").ConfigureAwait(false);
         var root = JsonNode.Parse(config)!;
 
         // update the complete_dir

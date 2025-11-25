@@ -29,7 +29,7 @@ public class ArrMonitoringService
         while (!_cancellationToken.IsCancellationRequested)
         {
             // Ensure delay runs on each iteration
-            await Task.Delay(TimeSpan.FromSeconds(10), _cancellationToken);
+            await Task.Delay(TimeSpan.FromSeconds(10), _cancellationToken).ConfigureAwait(false);
 
             // if all queue-actions are disabled, then do nothing
             var arrConfig = _configManager.GetArrConfig();
@@ -38,7 +38,7 @@ public class ArrMonitoringService
 
             // otherwise, handle stuck queue items according to the config
             foreach (var arrClient in arrConfig.GetArrClients())
-                await HandleStuckQueueItems(arrConfig, arrClient);
+                await HandleStuckQueueItems(arrConfig, arrClient).ConfigureAwait(false);
         }
     }
 
@@ -46,13 +46,13 @@ public class ArrMonitoringService
     {
         try
         {
-            var queueStatus = await client.GetQueueStatusAsync();
+            var queueStatus = await client.GetQueueStatusAsync().ConfigureAwait(false);
             if (queueStatus is { Warnings: false, UnknownWarnings: false }) return;
-            var queue = await client.GetQueueAsync();
+            var queue = await client.GetQueueAsync().ConfigureAwait(false);
             var actionableStatuses = arrConfig.QueueRules.Select(x => x.Message);
             var stuckRecords = queue.Records.Where(x => actionableStatuses.Any(x.HasStatusMessage));
             foreach (var record in stuckRecords)
-                await HandleStuckQueueItem(record, arrConfig, client);
+                await HandleStuckQueueItem(record, arrConfig, client).ConfigureAwait(false);
         }
         catch (Exception e)
         {
@@ -71,7 +71,7 @@ public class ArrMonitoringService
             .Max();
 
         if (action is ArrConfig.QueueAction.DoNothing) return;
-        await client.DeleteQueueRecord(item.Id, action);
+        await client.DeleteQueueRecord(item.Id, action).ConfigureAwait(false);
         Log.Warning($"Resolved stuck queue item `{item.Title}` from `{client.Host}, with action `{action}`");
     }
 }

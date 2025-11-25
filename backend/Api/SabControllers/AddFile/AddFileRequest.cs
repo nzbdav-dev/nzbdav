@@ -28,7 +28,7 @@ public class AddFileRequest()
         {
             FileName = file.FileName,
             MimeType = file.ContentType,
-            NzbFileContents = await streamReader.ReadToEndAsync(context.RequestAborted),
+            NzbFileContents = await streamReader.ReadToEndAsync(context.RequestAborted).ConfigureAwait(false),
             Category = context.GetQueryParam("cat") ?? throw new BadHttpRequestException("Invalid cat param"),
             Priority = MapPriorityOption(context.GetQueryParam("priority")),
             PostProcessing = MapPostProcessingOption(context.GetQueryParam("pp")),

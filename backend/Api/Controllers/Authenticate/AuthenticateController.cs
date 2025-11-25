@@ -13,7 +13,7 @@ public class AuthenticateController(DavDatabaseClient dbClient) : BaseApiControl
     {
         var account = await dbClient.Ctx.Accounts
             .Where(a => a.Type == request.Type && a.Username == request.Username)
-            .FirstOrDefaultAsync();
+            .FirstOrDefaultAsync().ConfigureAwait(false);
 
         return new AuthenticateResponse()
         {
@@ -25,7 +25,7 @@ public class AuthenticateController(DavDatabaseClient dbClient) : BaseApiControl
     protected override async Task<IActionResult> HandleRequest()
     {
         var request = new AuthenticateRequest(HttpContext);
-        var response = await Authenticate(request);
+        var response = await Authenticate(request).ConfigureAwait(false);
         return Ok(response);
     }
 }

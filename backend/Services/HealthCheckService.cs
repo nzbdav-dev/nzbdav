@@ -54,15 +54,18 @@ public class HealthCheckService
                 // if the repair-job is disabled, then don't do anything
                 if (!_configManager.IsRepairJobEnabled())
                 {
-                    await Task.Delay(TimeSpan.FromSeconds(5), _cancellationToken);
+                    await Task.Delay(TimeSpan.FromSeconds(5), _cancellationToken).ConfigureAwait(false);
                     continue;
                 }
 
+                // get concurrency
+                var concurrency = _configManager.GetMaxRepairConnections();
+
                 // set reserved-connections context
-                var maxRepairConnections = _configManager.GetMaxRepairConnections();
                 using var cts = CancellationTokenSource.CreateLinkedTokenSource(_cancellationToken);
-                var reservedConnections = _configManager.GetMaxConnections() - maxRepairConnections;
-                using var _ = cts.Token.SetScopedContext(new ReservedConnectionsContext(reservedConnections));
+                var providerConfig = _configManager.GetUsenetProviderConfig();
+                var reservedConnections = providerConfig.TotalPooledConnections - concurrency;
+                using var _ = cts.Token.SetScopedContext(new ReservedPooledConnectionsContext(reservedConnections));
 
                 // get the davItem to health-check
                 await using var dbContext = new DavDatabaseContext();
@@ -70,22 +73,22 @@ public class HealthCheckService
                 var currentDateTime = DateTimeOffset.UtcNow;
                 var davItem = await GetHealthCheckQueueItems(dbClient)
                     .Where(x => x.NextHealthCheck == null || x.NextHealthCheck < currentDateTime)
-                    .FirstOrDefaultAsync(cts.Token);
+                    .FirstOrDefaultAsync(cts.Token).ConfigureAwait(false);
 
                 // if there is no item to health-check, don't do anything
                 if (davItem == null)
                 {
-                    await Task.Delay(TimeSpan.FromSeconds(5), cts.Token);
+                    await Task.Delay(TimeSpan.FromSeconds(5), cts.Token).ConfigureAwait(false);
                     continue;
                 }
 
                 // perform the health check
-                await PerformHealthCheck(davItem, dbClient, maxRepairConnections, cts.Token);
+                await PerformHealthCheck(davItem, dbClient, concurrency, cts.Token).ConfigureAwait(false);
             }
             catch (Exception e)
             {
                 Log.Error(e, $"Unexpected error performing background health checks: {e.Message}");
-                await Task.Delay(TimeSpan.FromSeconds(5), _cancellationToken);
+                await Task.Delay(TimeSpan.FromSeconds(5), _cancellationToken).ConfigureAwait(false);
             }
         }
     }
@@ -120,8 +123,8 @@ public class HealthCheckService
         try
         {
             // update the release date, if null
-            var segments = await GetAllSegments(davItem, dbClient, ct);
-            if (davItem.ReleaseDate == null) await UpdateReleaseDate(davItem, segments, ct);
+            var segments = await GetAllSegments(davItem, dbClient, ct).ConfigureAwait(false);
+            if (davItem.ReleaseDate == null) await UpdateReleaseDate(davItem, segments, ct).ConfigureAwait(false);
 
 
             // setup progress tracking
@@ -135,7 +138,7 @@ public class HealthCheckService
 
             // perform health check
             var progress = progressHook.ToPercentage(segments.Count);
-            await _usenetClient.CheckAllSegmentsAsync(segments, concurrency, progress, ct);
+            await _usenetClient.CheckAllSegmentsAsync(segments, concurrency, progress, ct).ConfigureAwait(false);
             _ = _websocketManager.SendMessage(WebsocketTopic.HealthItemProgress, $"{davItem.Id}|100");
             _ = _websocketManager.SendMessage(WebsocketTopic.HealthItemProgress, $"{davItem.Id}|done");
 
@@ -152,7 +155,7 @@ public class HealthCheckService
                 RepairStatus = HealthCheckResult.RepairAction.None,
                 Message = "File is healthy."
             }));
-            await dbClient.Ctx.SaveChangesAsync(ct);
+            await dbClient.Ctx.SaveChangesAsync(ct).ConfigureAwait(false);
         }
         catch (UsenetArticleNotFoundException e)
         {
@@ -163,7 +166,7 @@ public class HealthCheckService
                     _missingSegmentIds.Add(e.SegmentId);
 
             // when usenet article is missing, perform repairs
-            await Repair(davItem, dbClient, ct);
+            await Repair(davItem, dbClient, ct).ConfigureAwait(false);
         }
     }
 
@@ -171,7 +174,7 @@ public class HealthCheckService
     {
         var firstSegmentId = StringUtil.EmptyToNull(segments.FirstOrDefault());
         if (firstSegmentId == null) return;
-        var articleHeaders = await _usenetClient.GetArticleHeadersAsync(firstSegmentId, ct);
+        var articleHeaders = await _usenetClient.GetArticleHeadersAsync(firstSegmentId, ct).ConfigureAwait(false);
         davItem.ReleaseDate = articleHeaders.Date;
     }
 
@@ -179,7 +182,7 @@ public class HealthCheckService
     {
         if (davItem.Type == DavItem.ItemType.NzbFile)
         {
-            var nzbFile = await dbClient.GetNzbFileAsync(davItem.Id, ct);
+            var nzbFile = await dbClient.GetNzbFileAsync(davItem.Id, ct).ConfigureAwait(false);
             return nzbFile?.SegmentIds?.ToList() ?? [];
         }
 
@@ -187,7 +190,7 @@ public class HealthCheckService
         {
             var rarFile = await dbClient.Ctx.RarFiles
                 .Where(x => x.Id == davItem.Id)
-                .FirstOrDefaultAsync(ct);
+                .FirstOrDefaultAsync(ct).ConfigureAwait(false);
             return rarFile?.RarParts?.SelectMany(x => x.SegmentIds)?.ToList() ?? [];
         }
 
@@ -195,7 +198,7 @@ public class HealthCheckService
         {
             var multipartFile = await dbClient.Ctx.MultipartFiles
                 .Where(x => x.Id == davItem.Id)
-                .FirstOrDefaultAsync(ct);
+                .FirstOrDefaultAsync(ct).ConfigureAwait(false);
             return multipartFile?.Metadata?.FileParts?.SelectMany(x => x.SegmentIds)?.ToList() ?? [];
         }
 
@@ -226,7 +229,7 @@ public class HealthCheckService
                         "Deleted file."
                     ])
                 }));
-                await dbClient.Ctx.SaveChangesAsync(ct);
+                await dbClient.Ctx.SaveChangesAsync(ct).ConfigureAwait(false);
                 return;
             }
 
@@ -250,7 +253,7 @@ public class HealthCheckService
                         "Deleted file."
                     ])
                 }));
-                await dbClient.Ctx.SaveChangesAsync(ct);
+                await dbClient.Ctx.SaveChangesAsync(ct).ConfigureAwait(false);
                 return;
             }
 
@@ -259,12 +262,12 @@ public class HealthCheckService
             var linkType = symlinkOrStrmPath.ToLower().EndsWith("strm") ? "strm-file" : "symlink";
             foreach (var arrClient in _configManager.GetArrConfig().GetArrClients())
             {
-                var rootFolders = await arrClient.GetRootFolders();
+                var rootFolders = await arrClient.GetRootFolders().ConfigureAwait(false);
                 if (!rootFolders.Any(x => symlinkOrStrmPath.StartsWith(x.Path!))) continue;
 
                 // if we found a corresponding arr instance,
                 // then remove and search.
-                if (await arrClient.RemoveAndSearch(symlinkOrStrmPath))
+                if (await arrClient.RemoveAndSearch(symlinkOrStrmPath).ConfigureAwait(false))
                 {
                     dbClient.Ctx.Items.Remove(davItem);
                     dbClient.Ctx.HealthCheckResults.Add(SendStatus(new HealthCheckResult()
@@ -281,7 +284,7 @@ public class HealthCheckService
                             "Triggered new Arr search."
                         ])
                     }));
-                    await dbClient.Ctx.SaveChangesAsync(ct);
+                    await dbClient.Ctx.SaveChangesAsync(ct).ConfigureAwait(false);
                     return;
                 }
 
@@ -294,7 +297,7 @@ public class HealthCheckService
 
             // if we could not find a corresponding arr instance
             // then we can delete both the item and the link-file.
-            File.Delete(symlinkOrStrmPath);
+            await Task.Run(() => File.Delete(symlinkOrStrmPath)).ConfigureAwait(false);
             dbClient.Ctx.Items.Remove(davItem);
             dbClient.Ctx.HealthCheckResults.Add(SendStatus(new HealthCheckResult()
             {
@@ -311,7 +314,7 @@ public class HealthCheckService
                     $"Deleted the webdav-file and {linkType}."
                 ])
             }));
-            await dbClient.Ctx.SaveChangesAsync(ct);
+            await dbClient.Ctx.SaveChangesAsync(ct).ConfigureAwait(false);
         }
         catch (Exception e)
         {
@@ -330,7 +333,7 @@ public class HealthCheckService
                 RepairStatus = HealthCheckResult.RepairAction.ActionNeeded,
                 Message = $"Error performing file repair: {e.Message}"
             }));
-            await dbClient.Ctx.SaveChangesAsync(ct);
+            await dbClient.Ctx.SaveChangesAsync(ct).ConfigureAwait(false);
         }
     }
 
