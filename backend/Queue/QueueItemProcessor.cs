@@ -1,4 +1,6 @@
+using System.Net.Http;
 using System.Text;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using NzbWebDAV.Api.SabControllers.GetHistory;
 using NzbWebDAV.Clients.RadarrSonarr;
@@ -343,6 +345,15 @@ public class QueueItemProcessor(
         dbClient.Ctx.QueueItems.Remove(queueItem);
         dbClient.Ctx.HistoryItems.Add(historyItem);
         await dbClient.Ctx.SaveChangesAsync(ct).ConfigureAwait(false);
+        if (error == null && mountFolder is not null)
+        {
+            var enabledRaw = Environment.GetEnvironmentVariable("SHARE_NZB_WITH_CACHE");
+            var isEnabled = enabledRaw is null || (bool.TryParse(enabledRaw, out var parsed) ? parsed : true);
+            if (isEnabled)
+            {
+                _ = Task.Run(() => TryShareNzbAsync(historyItem, mountFolder));
+            }
+        }
         _ = websocketManager.SendMessage(WebsocketTopic.QueueItemRemoved, queueItem.Id.ToString());
         _ = websocketManager.SendMessage(WebsocketTopic.HistoryItemAdded, historySlot.ToJson());
         _ = RefreshMonitoredDownloads();
@@ -355,6 +366,43 @@ public class QueueItemProcessor(
             .GetArrClients()
             .Select(RefreshMonitoredDownloads);
         await Task.WhenAll(tasks).ConfigureAwait(false);
+    }
+
+    private static readonly HttpClient ShareHttpClient = new();
+
+    private async Task TryShareNzbAsync(HistoryItem historyItem, DavItem mountFolder)
+    {
+        try
+        {
+            var url = Environment.GetEnvironmentVariable("SHARE_NZB_CACHE_URL");
+            if (string.IsNullOrWhiteSpace(url)) return;
+
+            // Minimal metadata name: prefer original when not obfuscated, otherwise fall back to the mount folder.
+            var originalName = historyItem.JobName;
+            var chosenName = ObfuscationUtil.IsProbablyObfuscated(originalName) ? mountFolder.Name : originalName;
+            var metadataJson = JsonSerializer.Serialize(new { name = chosenName });
+
+            var nzbBytes = Encoding.UTF8.GetBytes(queueNzbContents.NzbContents);
+
+            using var form = new MultipartFormDataContent();
+            form.Add(new StringContent(metadataJson, Encoding.UTF8, "application/json"), "metadata");
+            form.Add(new ByteArrayContent(nzbBytes), "nzb", historyItem.FileName + ".nzb");
+
+            using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            var response = await ShareHttpClient.PostAsync(url, form, timeoutCts.Token).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                Log.Warning("NZB share failed status={Status} job={JobName} body={Body}", (int)response.StatusCode, historyItem.JobName, body);
+                return;
+            }
+
+            Log.Information("NZB shared successfully job={JobName} status={Status}", historyItem.JobName, (int)response.StatusCode);
+        }
+        catch (Exception ex)
+        {
+            Log.Debug(ex, "Exception during NZB share job={JobName}", historyItem.JobName);
+        }
     }
 
     private async Task RefreshMonitoredDownloads(ArrClient arrClient)
