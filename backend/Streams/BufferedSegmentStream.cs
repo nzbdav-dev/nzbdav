@@ -70,23 +70,28 @@ public class BufferedSegmentStream : Stream
     {
         try
         {
-            // Use a producer-consumer pattern with a fixed worker pool to guarantee
-            // exact concurrency limits. This prevents exceeding connection pool limits.
-            var segmentQueue = Channel.CreateUnbounded<string>();
+            // Use a producer-consumer pattern with indexed segments to maintain order
+            // This is critical for video playback - segments MUST be in correct order
+            var segmentQueue = Channel.CreateUnbounded<(int index, string segmentId)>();
 
-            // Producer: Queue all segment IDs
-            foreach (var id in segmentIds)
+            // Producer: Queue all segment IDs with their index
+            for (int i = 0; i < segmentIds.Length; i++)
             {
                 if (ct.IsCancellationRequested) break;
-                await segmentQueue.Writer.WriteAsync(id, ct).ConfigureAwait(false);
+                await segmentQueue.Writer.WriteAsync((i, segmentIds[i]), ct).ConfigureAwait(false);
             }
             segmentQueue.Writer.Complete();
 
-            // Consumers: Create exactly N worker tasks, each processes segments sequentially
+            // Use a concurrent dictionary to store results temporarily
+            var fetchedSegments = new System.Collections.Concurrent.ConcurrentDictionary<int, SegmentData>();
+            var nextIndexToWrite = 0;
+            var writeLock = new SemaphoreSlim(1, 1);
+
+            // Consumers: Create exactly N worker tasks
             var workers = Enumerable.Range(0, concurrentConnections)
                 .Select(async workerId =>
                 {
-                    await foreach (var segmentId in segmentQueue.Reader.ReadAllAsync(ct).ConfigureAwait(false))
+                    await foreach (var (index, segmentId) in segmentQueue.Reader.ReadAllAsync(ct).ConfigureAwait(false))
                     {
                         var stream = await client.GetSegmentStreamAsync(segmentId, false, ct)
                             .ConfigureAwait(false);
@@ -102,14 +107,45 @@ public class BufferedSegmentStream : Stream
                             Data = ms.ToArray()
                         };
 
-                        // Write to channel (blocks if buffer is full)
-                        await _bufferChannel.Writer.WriteAsync(segmentData, ct).ConfigureAwait(false);
+                        // Store in dictionary temporarily
+                        fetchedSegments[index] = segmentData;
+
+                        // Try to write any consecutive segments to the buffer channel in order
+                        await writeLock.WaitAsync(ct).ConfigureAwait(false);
+                        try
+                        {
+                            while (fetchedSegments.TryRemove(nextIndexToWrite, out var orderedSegment))
+                            {
+                                await _bufferChannel.Writer.WriteAsync(orderedSegment, ct).ConfigureAwait(false);
+                                nextIndexToWrite++;
+                            }
+                        }
+                        finally
+                        {
+                            writeLock.Release();
+                        }
                     }
                 })
                 .ToList();
 
             // Wait for all workers to complete
             await Task.WhenAll(workers).ConfigureAwait(false);
+
+            // Ensure all segments were written (shouldn't have any left)
+            await writeLock.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                while (fetchedSegments.TryRemove(nextIndexToWrite, out var orderedSegment))
+                {
+                    await _bufferChannel.Writer.WriteAsync(orderedSegment, ct).ConfigureAwait(false);
+                    nextIndexToWrite++;
+                }
+            }
+            finally
+            {
+                writeLock.Release();
+                writeLock.Dispose();
+            }
 
             _bufferChannel.Writer.Complete();
         }
