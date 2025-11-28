@@ -55,9 +55,13 @@ namespace NzbWebDAV.Clients.Usenet.Connections
 
             // Fast path: no waiters and enough capacity -> try to take one with a single CAS.
             if (Volatile.Read(ref _waiterCount) == 0 && TryAcquireFast(requiredAvailable))
+            {
+                Serilog.Log.Debug($"[ExtSemaphore] Fast path acquired: CurrentCount={CurrentCount}, RequiredAvailable={requiredAvailable}, Waiters={_waiterCount}");
                 return Task.CompletedTask;
+            }
 
             // Slow path: enqueue and let the scheduler (by priority) grant slots.
+            Serilog.Log.Debug($"[ExtSemaphore] Slow path (waiting): CurrentCount={CurrentCount}, RequiredAvailable={requiredAvailable}, Waiters={_waiterCount}");
             var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var waiter = new Waiter(requiredAvailable, tcs);
 
@@ -127,7 +131,10 @@ namespace NzbWebDAV.Clients.Usenet.Connections
 
             // If there are no waiters, we're done.
             if (Volatile.Read(ref _waiterCount) == 0)
+            {
+                Serilog.Log.Debug($"[ExtSemaphore] Released: CurrentCount={CurrentCount}, Waiters=0");
                 return;
+            }
 
             List<Waiter>? toGrant;
             lock (_lock)
@@ -137,6 +144,7 @@ namespace NzbWebDAV.Clients.Usenet.Connections
 
             // Complete outside the lock to avoid running continuations under the lock.
             CompleteGranted(toGrant);
+            Serilog.Log.Debug($"[ExtSemaphore] Released and granted {toGrant?.Count ?? 0} waiters: CurrentCount={CurrentCount}, Waiters={_waiterCount}");
         }
 
         // ---------------- core scheduling ----------------

@@ -54,6 +54,7 @@ public class UsenetStreamingClient
         using var childCt = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         using var _1 = childCt.Token.SetScopedContext(cancellationToken.GetContext<ReservedPooledConnectionsContext>());
         using var _2 = childCt.Token.SetScopedContext(cancellationToken.GetContext<LastSuccessfulProviderContext>());
+        using var _3 = childCt.Token.SetScopedContext(cancellationToken.GetContext<ConnectionUsageContext>());
         var token = childCt.Token;
 
         var tasks = segmentIds
@@ -85,9 +86,9 @@ public class UsenetStreamingClient
         return new NzbFileStream(nzbFile.GetSegmentIds(), fileSize, _client, concurrentConnections);
     }
 
-    public NzbFileStream GetFileStream(string[] segmentIds, long fileSize, int concurrentConnections)
+    public NzbFileStream GetFileStream(string[] segmentIds, long fileSize, int concurrentConnections, ConnectionUsageContext? usageContext = null, bool useBufferedStreaming = true, int bufferSize = 10)
     {
-        return new NzbFileStream(segmentIds, fileSize, _client, concurrentConnections);
+        return new NzbFileStream(segmentIds, fileSize, _client, concurrentConnections, usageContext, useBufferedStreaming, bufferSize);
     }
 
     public Task<YencHeaderStream> GetSegmentStreamAsync(string segmentId, bool includeHeaders, CancellationToken ct)
@@ -110,11 +111,14 @@ public class UsenetStreamingClient
         int maxConnections,
         ExtendedSemaphoreSlim pooledSemaphore,
         Func<CancellationToken, ValueTask<INntpClient>> connectionFactory,
-        EventHandler<ConnectionPoolStats.ConnectionPoolChangedEventArgs> onConnectionPoolChanged
+        EventHandler<ConnectionPoolStats.ConnectionPoolChangedEventArgs> onConnectionPoolChanged,
+        ConnectionPoolStats connectionPoolStats,
+        int providerIndex
     )
     {
         var connectionPool = new ConnectionPool<INntpClient>(maxConnections, pooledSemaphore, connectionFactory);
         connectionPool.OnConnectionPoolChanged += onConnectionPoolChanged;
+        connectionPoolStats.RegisterConnectionPool(providerIndex, connectionPool);
         var args = new ConnectionPoolStats.ConnectionPoolChangedEventArgs(0, 0, maxConnections);
         onConnectionPoolChanged(connectionPool, args);
         return connectionPool;
@@ -128,7 +132,8 @@ public class UsenetStreamingClient
         var providerClients = providerConfig.Providers
             .Select((provider, index) => CreateProviderClient(
                 provider,
-                connectionPoolStats.GetOnConnectionPoolChanged(index),
+                connectionPoolStats,
+                index,
                 pooledSemaphore
             ))
             .ToList();
@@ -138,7 +143,8 @@ public class UsenetStreamingClient
     private MultiConnectionNntpClient CreateProviderClient
     (
         UsenetProviderConfig.ConnectionDetails connectionDetails,
-        EventHandler<ConnectionPoolStats.ConnectionPoolChangedEventArgs> onConnectionPoolChanged,
+        ConnectionPoolStats connectionPoolStats,
+        int providerIndex,
         ExtendedSemaphoreSlim pooledSemaphore
     )
     {
@@ -146,7 +152,9 @@ public class UsenetStreamingClient
             maxConnections: connectionDetails.MaxConnections,
             pooledSemaphore: pooledSemaphore,
             connectionFactory: ct => CreateNewConnection(connectionDetails, ct),
-            onConnectionPoolChanged
+            onConnectionPoolChanged: connectionPoolStats.GetOnConnectionPoolChanged(providerIndex),
+            connectionPoolStats: connectionPoolStats,
+            providerIndex: providerIndex
         );
         return new MultiConnectionNntpClient(connectionPool, connectionDetails.Type);
     }

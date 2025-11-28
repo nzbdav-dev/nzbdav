@@ -43,6 +43,9 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
     private int _live; // number of connections currently alive
     private int _disposed; // 0 == false, 1 == true
 
+    // Track active connections by usage type
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, ConnectionUsageContext> _activeConnections = new();
+
     /* ------------------------------------------------------------------------------ */
 
     public ConnectionPool(
@@ -74,11 +77,14 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
         CancellationToken cancellationToken = default)
     {
         var reservedCount = cancellationToken.GetContext<ReservedPooledConnectionsContext>().Count;
+        var usageContext = cancellationToken.GetContext<ConnectionUsageContext>();
 
         // Make caller cancellation also cancel the wait on the gate.
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(
             cancellationToken, _sweepCts.Token);
 
+        var usageBreakdown = GetUsageBreakdownString();
+        Serilog.Log.Debug($"[ConnPool] Requesting connection for {usageContext}: Live={_live}, Idle={IdleConnections}, Active={ActiveConnections}, Available={AvailableConnections}, RequiredReserved={reservedCount}, RemainingSemaphore={RemainingSemaphoreSlots}, Usage={usageBreakdown}");
         await _gate.WaitAsync(reservedCount, linked.Token).ConfigureAwait(false);
 
         // Pool might have been disposed after wait returned:
@@ -88,13 +94,18 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
             ThrowDisposed();
         }
 
+        // Generate connection ID for tracking
+        var connectionId = Guid.NewGuid().ToString();
+
         // Try to reuse an existing idle connection.
         while (_idleConnections.TryPop(out var item))
         {
             if (!item.IsExpired(IdleTimeout))
             {
                 TriggerConnectionPoolChangedEvent();
-                return BuildLock(item.Connection);
+                _activeConnections[connectionId] = usageContext;
+                Serilog.Log.Debug($"[ConnPool] Connection reused for {usageContext}: Live={_live}, Idle={IdleConnections}, Active={ActiveConnections}, ConnId={connectionId}");
+                return BuildLock(item.Connection, connectionId);
             }
 
             // Stale – destroy and continue looking.
@@ -117,10 +128,13 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
 
         Interlocked.Increment(ref _live);
         TriggerConnectionPoolChangedEvent();
-        return BuildLock(conn);
 
-        ConnectionLock<T> BuildLock(T c)
-            => new(c, Return, Destroy);
+        _activeConnections[connectionId] = usageContext;
+        Serilog.Log.Debug($"[ConnPool] Connection acquired for {usageContext}: Live={_live}, Idle={IdleConnections}, Active={ActiveConnections}, ConnId={connectionId}");
+        return BuildLock(conn, connectionId);
+
+        ConnectionLock<T> BuildLock(T c, string connId)
+            => new(c, conn => Return(conn, connId), conn => Destroy(conn, connId));
 
         static void ThrowDisposed()
             => throw new ObjectDisposedException(nameof(ConnectionPool<T>));
@@ -138,8 +152,10 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
         }
     }
 
-    private void Return(T connection)
+    private void Return(T connection, string connectionId)
     {
+        _activeConnections.TryRemove(connectionId, out var usageContext);
+
         if (Volatile.Read(ref _disposed) == 1)
         {
             _ = DisposeConnectionAsync(connection); // fire & forget
@@ -151,10 +167,13 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
         _idleConnections.Push(new Pooled(connection, Environment.TickCount64));
         _gate.Release();
         TriggerConnectionPoolChangedEvent();
+        Serilog.Log.Debug($"[ConnPool] Connection returned from {usageContext}: Live={_live}, Idle={IdleConnections}, Active={ActiveConnections}");
     }
 
-    private void Destroy(T connection)
+    private void Destroy(T connection, string connectionId)
     {
+        _activeConnections.TryRemove(connectionId, out _);
+
         // When a lock requests replacement, we dispose the connection instead of reusing.
         _ = DisposeConnectionAsync(connection); // fire & forget
         Interlocked.Decrement(ref _live);
@@ -164,6 +183,23 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
         }
 
         TriggerConnectionPoolChangedEvent();
+    }
+
+    public Dictionary<ConnectionUsageType, int> GetUsageBreakdown()
+    {
+        return _activeConnections.Values
+            .GroupBy(x => x.UsageType)
+            .ToDictionary(g => g.Key, g => g.Count());
+    }
+
+    private string GetUsageBreakdownString()
+    {
+        var breakdown = GetUsageBreakdown();
+        var parts = breakdown
+            .OrderBy(x => x.Key)
+            .Select(kv => $"{kv.Key}={kv.Value}")
+            .ToArray();
+        return parts.Length > 0 ? string.Join(",", parts) : "none";
     }
 
     private void TriggerConnectionPoolChangedEvent()

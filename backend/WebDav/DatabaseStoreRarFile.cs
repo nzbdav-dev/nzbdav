@@ -1,9 +1,11 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using NzbWebDAV.Clients.Usenet;
+using NzbWebDAV.Clients.Usenet.Connections;
 using NzbWebDAV.Config;
 using NzbWebDAV.Database;
 using NzbWebDAV.Database.Models;
+using NzbWebDAV.Extensions;
 using NzbWebDAV.Streams;
 using NzbWebDAV.WebDav.Base;
 
@@ -28,6 +30,12 @@ public class DatabaseStoreRarFile(
         // store the DavItem being accessed in the http context
         httpContext.Items["DavItem"] = davRarFile;
 
+        // create streaming usage context
+        var usageContext = new ConnectionUsageContext(
+            ConnectionUsageType.Streaming,
+            davRarFile.Path
+        );
+
         // return the stream
         var id = davRarFile.Id;
         var rarFile = await dbClient.Ctx.RarFiles.Where(x => x.Id == id).FirstOrDefaultAsync(ct).ConfigureAwait(false);
@@ -36,7 +44,8 @@ public class DatabaseStoreRarFile(
         (
             rarFile.ToDavMultipartFileMeta().FileParts,
             usenetClient,
-            configManager.GetConnectionsPerStream()
+            configManager.GetConnectionsPerStream(),
+            usageContext
         );
     }
 }

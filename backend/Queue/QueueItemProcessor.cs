@@ -111,7 +111,9 @@ public class QueueItemProcessor(
         var providerConfig = configManager.GetUsenetProviderConfig();
         var concurrency = configManager.GetMaxQueueConnections();
         var reservedConnections = providerConfig.TotalPooledConnections - concurrency;
-        using var _ = ct.SetScopedContext(new ReservedPooledConnectionsContext(reservedConnections));
+        Log.Debug($"[Queue] Processing '{queueItem.JobName}': TotalConnections={providerConfig.TotalPooledConnections}, MaxQueueConnections={concurrency}, ReservedForNonQueue={reservedConnections}");
+        using var _1 = ct.SetScopedContext(new ReservedPooledConnectionsContext(reservedConnections));
+        using var _2 = ct.SetScopedContext(new ConnectionUsageContext(ConnectionUsageType.Queue, queueItem.JobName));
 
         // read the nzb document
         var documentBytes = Encoding.UTF8.GetBytes(queueNzbContents.NzbContents);
@@ -126,6 +128,7 @@ public class QueueItemProcessor(
         healthCheckService.CheckCachedMissingSegmentIds(articlesToPrecheck);
 
         // step 1 -- get name and size of each nzb file
+        Log.Debug($"[Queue] Step 1: Fetching first segments for {nzbFiles.Count} files with concurrency={concurrency}");
         var part1Progress = progress
             .Scale(50, 100)
             .ToPercentage(nzbFiles.Count);
@@ -138,6 +141,7 @@ public class QueueItemProcessor(
 
         // step 2 -- perform file processing
         var fileProcessors = GetFileProcessors(fileInfos, archivePassword).ToList();
+        Log.Debug($"[Queue] Step 2: Processing {fileProcessors.Count} file groups with concurrency={concurrency}");
         var part2Progress = progress
             .Offset(50)
             .Scale(50, 100)
@@ -159,6 +163,7 @@ public class QueueItemProcessor(
                 .Where(x => x.IsRar || FilenameUtil.IsImportantFileType(x.FileName))
                 .SelectMany(x => x.NzbFile.GetSegmentIds())
                 .ToList();
+            Log.Debug($"[Queue] Step 3: Checking {articlesToCheck.Count} article segments with concurrency={concurrency}");
             var part3Progress = progress
                 .Offset(100)
                 .ToPercentage(articlesToCheck.Count);

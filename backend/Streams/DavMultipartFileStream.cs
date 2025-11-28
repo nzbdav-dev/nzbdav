@@ -1,4 +1,5 @@
 ﻿using NzbWebDAV.Clients.Usenet;
+using NzbWebDAV.Clients.Usenet.Connections;
 using NzbWebDAV.Database.Models;
 using NzbWebDAV.Exceptions;
 using NzbWebDAV.Extensions;
@@ -8,12 +9,15 @@ namespace NzbWebDAV.Streams;
 public class DavMultipartFileStream(
     DavMultipartFile.FilePart[] fileParts,
     UsenetStreamingClient usenet,
-    int concurrentConnections
+    int concurrentConnections,
+    ConnectionUsageContext? usageContext = null
 ) : Stream
 {
     private long _position = 0;
     private CombinedStream? _innerStream;
     private bool _disposed;
+    private readonly ConnectionUsageContext _usageContext = usageContext ?? new ConnectionUsageContext(ConnectionUsageType.Unknown);
+    private CancellationTokenSource? _streamCts;
 
 
     public override void Flush()
@@ -93,11 +97,15 @@ public class DavMultipartFileStream(
 
     private CombinedStream GetCombinedStream(int firstFilePartIndex, long additionalOffset, CancellationToken ct)
     {
+        // Create a child cancellation token that will live for the stream's lifetime
+        _streamCts?.Dispose();
+        _streamCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+
         var streams = fileParts[firstFilePartIndex..]
             .Select((x, i) =>
             {
                 var offset = (i == 0) ? additionalOffset : 0;
-                var stream = usenet.GetFileStream(x.SegmentIds, x.SegmentIdByteRange.Count, concurrentConnections);
+                var stream = usenet.GetFileStream(x.SegmentIds, x.SegmentIdByteRange.Count, concurrentConnections, _usageContext);
                 stream.Seek(x.FilePartByteRange.StartInclusive + offset, SeekOrigin.Begin);
                 return Task.FromResult(stream.LimitLength(x.FilePartByteRange.Count - offset));
             });
@@ -108,6 +116,7 @@ public class DavMultipartFileStream(
     {
         if (_disposed) return;
         _innerStream?.Dispose();
+        _streamCts?.Dispose();
         _disposed = true;
     }
 
@@ -115,6 +124,7 @@ public class DavMultipartFileStream(
     {
         if (_disposed) return;
         if (_innerStream != null) await _innerStream.DisposeAsync().ConfigureAwait(false);
+        _streamCts?.Dispose();
         _disposed = true;
         GC.SuppressFinalize(this);
     }

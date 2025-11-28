@@ -65,7 +65,8 @@ public class HealthCheckService
                 using var cts = CancellationTokenSource.CreateLinkedTokenSource(_cancellationToken);
                 var providerConfig = _configManager.GetUsenetProviderConfig();
                 var reservedConnections = providerConfig.TotalPooledConnections - concurrency;
-                using var _ = cts.Token.SetScopedContext(new ReservedPooledConnectionsContext(reservedConnections));
+                using var _1 = cts.Token.SetScopedContext(new ReservedPooledConnectionsContext(reservedConnections));
+                using var _2 = cts.Token.SetScopedContext(new ConnectionUsageContext(ConnectionUsageType.HealthCheck));
 
                 // get the davItem to health-check
                 await using var dbContext = new DavDatabaseContext();
@@ -166,7 +167,9 @@ public class HealthCheckService
                     _missingSegmentIds.Add(e.SegmentId);
 
             // when usenet article is missing, perform repairs
-            await Repair(davItem, dbClient, ct).ConfigureAwait(false);
+            using var cts2 = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            using var _3 = cts2.Token.SetScopedContext(new ConnectionUsageContext(ConnectionUsageType.Repair, davItem.Path));
+            await Repair(davItem, dbClient, cts2.Token).ConfigureAwait(false);
         }
     }
 

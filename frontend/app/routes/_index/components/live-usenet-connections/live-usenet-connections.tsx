@@ -8,11 +8,27 @@ const usenetConnectionsTopic = {'cxs': 'state'};
 export function LiveUsenetConnections() {
     const navigate = useNavigate();
     const [connections, setConnections] = useState<string | null>(null);
-    const parts = (connections || "0|0|0|0|1|0").split("|");
-    const [_0, _1, _2, live, max, idle] = parts.map(x => Number(x));
-    const active = live - idle;
-    const activePercent = 100 * (active / max);
-    const livePercent = 100 * (live / max);
+    const parts = (connections || "0|0|0|0|1|0|none").split("|");
+    const [_0, _1, _2, live, max, idle, usageBreakdown] = parts;
+    const liveNum = Number(live);
+    const maxNum = Number(max);
+    const idleNum = Number(idle);
+    const active = liveNum - idleNum;
+    const activePercent = 100 * (active / maxNum);
+    const livePercent = 100 * (liveNum / maxNum);
+
+    // Parse usage breakdown (e.g., "Queue=5,Streaming=3,HealthCheck=2,BufferedStreaming=5")
+    const usageMap: Record<string, number> = {};
+    if (usageBreakdown && usageBreakdown !== 'none') {
+        usageBreakdown.split(',').forEach(part => {
+            const [type, count] = part.split('=');
+            if (type && count) {
+                // Map BufferedStreaming to a more user-friendly name
+                const displayType = type === 'BufferedStreaming' ? 'Buffered' : type;
+                usageMap[displayType] = Number(count);
+            }
+        });
+    }
 
     useEffect(() => {
         let ws: WebSocket;
@@ -44,12 +60,22 @@ export function LiveUsenetConnections() {
                 <div className={styles.active} style={{ width: `${activePercent}%` }} />
             </div>
             <div className={styles.caption}>
-                {connections && `${live} connected / ${max} max`}
+                {connections && `${liveNum} connected / ${maxNum} max`}
                 {!connections && `Loading...`}
             </div>
             {connections &&
                 <div className={styles.caption}>
                     ( {active} active )
+                </div>
+            }
+            {connections && Object.keys(usageMap).length > 0 &&
+                <div className={styles.usageBreakdown}>
+                    {Object.entries(usageMap).map(([type, count]) => (
+                        <div key={type} className={styles.usageItem}>
+                            <span className={styles.usageType} data-type={type}>{type}:</span>
+                            <span className={styles.usageCount}>{count}</span>
+                        </div>
+                    ))}
                 </div>
             }
         </div>

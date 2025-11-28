@@ -1,9 +1,11 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using NzbWebDAV.Clients.Usenet;
+using NzbWebDAV.Clients.Usenet.Connections;
 using NzbWebDAV.Config;
 using NzbWebDAV.Database;
 using NzbWebDAV.Database.Models;
+using NzbWebDAV.Extensions;
 using NzbWebDAV.Streams;
 using NzbWebDAV.WebDav.Base;
 
@@ -28,6 +30,12 @@ public class DatabaseStoreMultipartFile(
         // store the DavItem being accessed in the http context
         httpContext.Items["DavItem"] = davMultipartFile;
 
+        // create streaming usage context
+        var usageContext = new ConnectionUsageContext(
+            ConnectionUsageType.Streaming,
+            davMultipartFile.Path
+        );
+
         // return the stream
         var id = davMultipartFile.Id;
         var multipartFile = await dbClient.Ctx.MultipartFiles.Where(x => x.Id == id).FirstOrDefaultAsync(ct).ConfigureAwait(false);
@@ -35,7 +43,8 @@ public class DatabaseStoreMultipartFile(
         var packedStream = new DavMultipartFileStream(
             multipartFile.Metadata.FileParts,
             usenetClient,
-            configManager.GetConnectionsPerStream()
+            configManager.GetConnectionsPerStream(),
+            usageContext
         );
         return multipartFile.Metadata.AesParams != null
             ? new AesDecoderStream(packedStream, multipartFile.Metadata.AesParams)

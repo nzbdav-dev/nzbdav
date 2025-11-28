@@ -1,4 +1,5 @@
 ﻿using NzbWebDAV.Clients.Usenet;
+using NzbWebDAV.Clients.Usenet.Connections;
 using NzbWebDAV.Extensions;
 using NzbWebDAV.Models;
 using NzbWebDAV.Utils;
@@ -9,12 +10,18 @@ public class NzbFileStream(
     string[] fileSegmentIds,
     long fileSize,
     INntpClient client,
-    int concurrentConnections
+    int concurrentConnections,
+    ConnectionUsageContext? usageContext = null,
+    bool useBufferedStreaming = true,
+    int bufferSize = 10
 ) : Stream
 {
     private long _position = 0;
     private CombinedStream? _innerStream;
     private bool _disposed;
+    private readonly ConnectionUsageContext _usageContext = usageContext ?? new ConnectionUsageContext(ConnectionUsageType.Unknown);
+    private CancellationTokenSource? _streamCts;
+    private IDisposable? _contextScope;
 
     public override void Flush()
     {
@@ -94,9 +101,44 @@ public class NzbFileStream(
 
     private CombinedStream GetCombinedStream(int firstSegmentIndex, CancellationToken ct)
     {
+        // Create a child cancellation token that will live for the stream's lifetime
+        _streamCts?.Dispose();
+        _streamCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+
+        // Dispose previous context scope if any
+        _contextScope?.Dispose();
+
+        // Use buffered streaming if configured for better performance
+        if (useBufferedStreaming && concurrentConnections >= 3 && fileSegmentIds.Length > concurrentConnections)
+        {
+            // Update context to BufferedStreaming and keep the scope alive for the stream's lifetime
+            var bufferedContext = new ConnectionUsageContext(
+                ConnectionUsageType.BufferedStreaming,
+                _usageContext.Details
+            );
+            _contextScope = _streamCts.Token.SetScopedContext(bufferedContext);
+            var bufferedContextCt = _streamCts.Token;
+
+            var remainingSegments = fileSegmentIds[firstSegmentIndex..];
+            var bufferedStream = new BufferedSegmentStream(
+                remainingSegments,
+                fileSize - firstSegmentIndex * (fileSize / fileSegmentIds.Length), // Approximate remaining size
+                client,
+                concurrentConnections,
+                bufferSize,
+                bufferedContextCt
+            );
+            return new CombinedStream(new[] { Task.FromResult<Stream>(bufferedStream) });
+        }
+
+        // Fallback to original implementation for small files or low concurrency
+        // Set context for non-buffered streaming and keep scope alive
+        _contextScope = _streamCts.Token.SetScopedContext(_usageContext);
+        var contextCt = _streamCts.Token;
+
         return new CombinedStream(
             fileSegmentIds[firstSegmentIndex..]
-                .Select(async x => (Stream)await client.GetSegmentStreamAsync(x, false, ct).ConfigureAwait(false))
+                .Select(async x => (Stream)await client.GetSegmentStreamAsync(x, false, contextCt).ConfigureAwait(false))
                 .WithConcurrency(concurrentConnections)
         );
     }
@@ -105,6 +147,8 @@ public class NzbFileStream(
     {
         if (_disposed) return;
         _innerStream?.Dispose();
+        _streamCts?.Dispose();
+        _contextScope?.Dispose();
         _disposed = true;
     }
 
@@ -112,6 +156,8 @@ public class NzbFileStream(
     {
         if (_disposed) return;
         if (_innerStream != null) await _innerStream.DisposeAsync().ConfigureAwait(false);
+        _streamCts?.Dispose();
+        _contextScope?.Dispose();
         _disposed = true;
         GC.SuppressFinalize(this);
     }

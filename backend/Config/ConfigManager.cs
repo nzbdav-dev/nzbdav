@@ -99,6 +99,24 @@ public class ConfigManager
         );
     }
 
+    public bool UseBufferedStreaming()
+    {
+        return bool.Parse(
+            StringUtil.EmptyToNull(GetConfigValue("usenet.use-buffered-streaming"))
+            ?? StringUtil.EmptyToNull(Environment.GetEnvironmentVariable("USE_BUFFERED_STREAMING"))
+            ?? "true"
+        );
+    }
+
+    public int GetStreamBufferSize()
+    {
+        return int.Parse(
+            StringUtil.EmptyToNull(GetConfigValue("usenet.stream-buffer-size"))
+            ?? StringUtil.EmptyToNull(Environment.GetEnvironmentVariable("STREAM_BUFFER_SIZE"))
+            ?? "10"
+        );
+    }
+
     public string? GetWebdavUser()
     {
         return StringUtil.EmptyToNull(GetConfigValue("webdav.user"))

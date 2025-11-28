@@ -42,3 +42,38 @@
     margin-right: 5px;
     font-size: 12px;
 }
+
+.usageBreakdown {
+    margin-top: 8px;
+    font-size: 11px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.usageItem {
+    display: flex;
+    gap: 4px;
+    padding: 2px 6px;
+    background-color: rgba(147, 161, 161, 0.1);
+    border-radius: 3px;
+}
+
+.usageType {
+    font-weight: 500;
+    color: #93a1a1;
+}
+
+.usageCount {
+    font-weight: 600;
+    color: #268bd2;
+}
+
+/* Highlight buffered streaming with a green accent */
+.usageItem:has(.usageType:is([data-type="Buffered"])) {
+    background-color: rgba(133, 153, 0, 0.15);
+}
+
+.usageItem:has(.usageType:is([data-type="Buffered"])) .usageCount {
+    color: #859900;
+}
