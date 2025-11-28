@@ -143,7 +143,7 @@ public class QueueItemProcessor(
         var filesWithoutSize = fileInfos.Where(f => f.FileSize == null).Select(f => f.NzbFile).ToList();
         if (filesWithoutSize.Count > 0)
         {
-            Log.Debug($"[Queue] Step 1b: Batch fetching file sizes for {filesWithoutSize.Count} files");
+            Log.Debug($"[Queue] Step 1b: Batch fetching file sizes for {filesWithoutSize.Count} files (Par2 provided {fileInfos.Count - filesWithoutSize.Count} sizes)");
             var fileSizes = await usenetClient.GetFileSizesBatchAsync(filesWithoutSize, concurrency, ct).ConfigureAwait(false);
             foreach (var fileInfo in fileInfos.Where(f => f.FileSize == null))
             {
@@ -152,6 +152,10 @@ public class QueueItemProcessor(
                     fileInfo.FileSize = size;
                 }
             }
+        }
+        else
+        {
+            Log.Debug($"[Queue] Step 1b: Skipped - Par2 file provided all {fileInfos.Count} file sizes");
         }
 
         // step 2 -- perform file processing
@@ -223,6 +227,14 @@ public class QueueItemProcessor(
             .DistinctBy(x => x.FileName)
             .GroupBy(GetGroup);
 
+        // Calculate adaptive concurrency per RAR to avoid connection pool exhaustion
+        // WithConcurrencyAsync will run multiple RARs in parallel, so we need to limit per-RAR connections
+        var rarCount = groups.Count(g => g.Key == "rar");
+        var connectionsPerRar = rarCount > 0
+            ? Math.Max(1, Math.Min(5, maxConnections / Math.Max(1, rarCount / 3)))
+            : 1;
+        Log.Debug($"[Queue] Adaptive RAR concurrency: {connectionsPerRar} connections per RAR ({rarCount} RAR files, {maxConnections} total connections)");
+
         foreach (var group in groups)
         {
             if (group.Key == "7z")
@@ -230,7 +242,7 @@ public class QueueItemProcessor(
 
             else if (group.Key == "rar")
                 foreach (var fileInfo in group)
-                    yield return new RarProcessor(fileInfo, usenetClient, archivePassword, ct, maxConnections);
+                    yield return new RarProcessor(fileInfo, usenetClient, archivePassword, ct, connectionsPerRar);
 
             else if (group.Key == "multipart-mkv")
                 yield return new MultipartMkvProcessor(group.ToList(), usenetClient, ct);
