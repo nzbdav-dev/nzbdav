@@ -14,7 +14,8 @@ public class RarProcessor(
     GetFileInfosStep.FileInfo fileInfo,
     UsenetStreamingClient usenet,
     string? password,
-    CancellationToken ct
+    CancellationToken ct,
+    int maxConcurrentConnections = 1
 ) : BaseProcessor
 {
     public override async Task<BaseProcessor.Result?> ProcessAsync()
@@ -92,7 +93,9 @@ public class RarProcessor(
     private async Task<NzbFileStream> GetNzbFileStream()
     {
         var filesize = fileInfo.FileSize ?? await usenet.GetFileSizeAsync(fileInfo.NzbFile, ct).ConfigureAwait(false);
-        return usenet.GetFileStream(fileInfo.NzbFile, filesize, concurrentConnections: 1);
+        // Use adaptive concurrency for faster header reading (limited to 10 to avoid over-subscription)
+        var concurrency = Math.Min(maxConcurrentConnections, 10);
+        return usenet.GetFileStream(fileInfo.NzbFile, filesize, concurrentConnections: concurrency);
     }
 
     public new class Result : BaseProcessor.Result

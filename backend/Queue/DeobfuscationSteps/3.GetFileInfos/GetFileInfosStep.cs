@@ -100,7 +100,7 @@ public static class GetFileInfosStep
         public required NzbFile NzbFile { get; init; }
         public required string FileName { get; init; }
         public required DateTimeOffset ReleaseDate { get; init; }
-        public long? FileSize { get; init; }
+        public long? FileSize { get; set; }
         public bool IsRar { get; init; }
     }
 }

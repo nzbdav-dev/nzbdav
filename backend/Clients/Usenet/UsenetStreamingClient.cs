@@ -101,6 +101,33 @@ public class UsenetStreamingClient
         return _client.GetFileSizeAsync(file, cancellationToken);
     }
 
+    public async Task<Dictionary<NzbFile, long>> GetFileSizesBatchAsync(
+        IEnumerable<NzbFile> files,
+        int concurrentConnections,
+        CancellationToken cancellationToken)
+    {
+        var results = new Dictionary<NzbFile, long>();
+        var filesToFetch = files.Where(f => f.Segments.Count > 0).ToList();
+
+        if (filesToFetch.Count == 0)
+            return results;
+
+        var tasks = filesToFetch
+            .Select(async file =>
+            {
+                var size = await _client.GetFileSizeAsync(file, cancellationToken).ConfigureAwait(false);
+                return (file, size);
+            })
+            .WithConcurrencyAsync(concurrentConnections);
+
+        await foreach (var (file, size) in tasks.ConfigureAwait(false))
+        {
+            results[file] = size;
+        }
+
+        return results;
+    }
+
     public Task<UsenetArticleHeaders> GetArticleHeadersAsync(string segmentId, CancellationToken cancellationToken)
     {
         return _client.GetArticleHeadersAsync(segmentId, cancellationToken);

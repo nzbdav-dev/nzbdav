@@ -139,6 +139,21 @@ public class QueueItemProcessor(
         var fileInfos = GetFileInfosStep.GetFileInfos(
             segments, par2FileDescriptors);
 
+        // step 1b -- batch fetch file sizes for files without Par2 descriptors
+        var filesWithoutSize = fileInfos.Where(f => f.FileSize == null).Select(f => f.NzbFile).ToList();
+        if (filesWithoutSize.Count > 0)
+        {
+            Log.Debug($"[Queue] Step 1b: Batch fetching file sizes for {filesWithoutSize.Count} files");
+            var fileSizes = await usenetClient.GetFileSizesBatchAsync(filesWithoutSize, concurrency, ct).ConfigureAwait(false);
+            foreach (var fileInfo in fileInfos.Where(f => f.FileSize == null))
+            {
+                if (fileSizes.TryGetValue(fileInfo.NzbFile, out var size))
+                {
+                    fileInfo.FileSize = size;
+                }
+            }
+        }
+
         // step 2 -- perform file processing
         var fileProcessors = GetFileProcessors(fileInfos, archivePassword).ToList();
         Log.Debug($"[Queue] Step 2: Processing {fileProcessors.Count} file groups with concurrency={concurrency}");
@@ -203,6 +218,7 @@ public class QueueItemProcessor(
         string? archivePassword
     )
     {
+        var maxConnections = configManager.GetMaxQueueConnections();
         var groups = fileInfos
             .DistinctBy(x => x.FileName)
             .GroupBy(GetGroup);
@@ -214,7 +230,7 @@ public class QueueItemProcessor(
 
             else if (group.Key == "rar")
                 foreach (var fileInfo in group)
-                    yield return new RarProcessor(fileInfo, usenetClient, archivePassword, ct);
+                    yield return new RarProcessor(fileInfo, usenetClient, archivePassword, ct, maxConnections);
 
             else if (group.Key == "multipart-mkv")
                 yield return new MultipartMkvProcessor(group.ToList(), usenetClient, ct);
