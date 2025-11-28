@@ -70,19 +70,23 @@ public class BufferedSegmentStream : Stream
     {
         try
         {
-            // Use SemaphoreSlim to limit concurrent segment fetches
-            using var semaphore = new SemaphoreSlim(concurrentConnections, concurrentConnections);
-            var fetchTasks = new List<Task>();
+            // Use a producer-consumer pattern with a fixed worker pool to guarantee
+            // exact concurrency limits. This prevents exceeding connection pool limits.
+            var segmentQueue = Channel.CreateUnbounded<string>();
 
-            foreach (var segmentId in segmentIds)
+            // Producer: Queue all segment IDs
+            foreach (var id in segmentIds)
             {
                 if (ct.IsCancellationRequested) break;
+                await segmentQueue.Writer.WriteAsync(id, ct).ConfigureAwait(false);
+            }
+            segmentQueue.Writer.Complete();
 
-                await semaphore.WaitAsync(ct).ConfigureAwait(false);
-
-                var fetchTask = Task.Run(async () =>
+            // Consumers: Create exactly N worker tasks, each processes segments sequentially
+            var workers = Enumerable.Range(0, concurrentConnections)
+                .Select(async workerId =>
                 {
-                    try
+                    await foreach (var segmentId in segmentQueue.Reader.ReadAllAsync(ct).ConfigureAwait(false))
                     {
                         var stream = await client.GetSegmentStreamAsync(segmentId, false, ct)
                             .ConfigureAwait(false);
@@ -101,28 +105,11 @@ public class BufferedSegmentStream : Stream
                         // Write to channel (blocks if buffer is full)
                         await _bufferChannel.Writer.WriteAsync(segmentData, ct).ConfigureAwait(false);
                     }
-                    finally
-                    {
-                        semaphore.Release();
-                    }
-                }, ct);
+                })
+                .ToList();
 
-                fetchTasks.Add(fetchTask);
-
-                // Clean up completed tasks periodically
-                if (fetchTasks.Count >= concurrentConnections * 2)
-                {
-                    var completed = fetchTasks.Where(t => t.IsCompleted).ToList();
-                    foreach (var task in completed)
-                    {
-                        await task.ConfigureAwait(false); // Propagate exceptions
-                        fetchTasks.Remove(task);
-                    }
-                }
-            }
-
-            // Wait for all remaining fetch tasks
-            await Task.WhenAll(fetchTasks).ConfigureAwait(false);
+            // Wait for all workers to complete
+            await Task.WhenAll(workers).ConfigureAwait(false);
 
             _bufferChannel.Writer.Complete();
         }
