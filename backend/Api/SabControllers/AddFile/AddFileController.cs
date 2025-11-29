@@ -53,6 +53,9 @@ public class AddFileController(
         var message = GetQueueResponse.QueueSlot.FromQueueItem(queueItem).ToJson();
         _ = websocketManager.SendMessage(WebsocketTopic.QueueItemAdded, message);
 
+        // awaken the queue if it is sleeping
+        queueManager.AwakenQueue();
+
         // return response
         return new AddFileResponse()
         {

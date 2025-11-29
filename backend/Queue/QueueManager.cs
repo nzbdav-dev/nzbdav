@@ -20,6 +20,9 @@ public class QueueManager : IDisposable
     private readonly WebsocketManager _websocketManager;
     private readonly HealthCheckService _healthCheckService;
 
+    private CancellationTokenSource _sleepingQueueToken = new();
+    private readonly object _sleepingQueueLock = new();
+
     public QueueManager(
         UsenetStreamingClient usenetClient,
         ConfigManager configManager,
@@ -39,6 +42,14 @@ public class QueueManager : IDisposable
     public (QueueItem? queueItem, int? progress) GetInProgressQueueItem()
     {
         return (_inProgressQueueItem?.QueueItem, _inProgressQueueItem?.ProgressPercentage);
+    }
+
+    public void AwakenQueue()
+    {
+        lock (_sleepingQueueLock)
+        {
+            _sleepingQueueToken.Cancel();
+        }
     }
 
     public async Task RemoveQueueItemsAsync
@@ -75,9 +86,21 @@ public class QueueManager : IDisposable
                 var topItem = await LockAsync(() => dbClient.GetTopQueueItem(ct)).ConfigureAwait(false);
                 if (topItem.queueItem is null || topItem.queueNzbContents is null)
                 {
-                    // if we're done with the queue, wait
-                    // five seconds before checking again.
-                    await Task.Delay(TimeSpan.FromSeconds(5), ct).ConfigureAwait(false);
+                    try
+                    {
+                        // if we're done with the queue, wait a minute before checking again.
+                        // or wait until awoken by cancellation of _sleepingQueueToken
+                        await Task.Delay(TimeSpan.FromMinutes(1), _sleepingQueueToken.Token).ConfigureAwait(false);
+                    }
+                    catch when (_sleepingQueueToken.IsCancellationRequested)
+                    {
+                        lock (_sleepingQueueLock)
+                        {
+                            _sleepingQueueToken.Dispose();
+                            _sleepingQueueToken = new CancellationTokenSource();
+                        }
+                    }
+
                     continue;
                 }
 
@@ -112,7 +135,7 @@ public class QueueManager : IDisposable
     {
         var progressHook = new Progress<int>();
         var task = new QueueItemProcessor(
-            queueItem, queueNzbContents, dbClient, _usenetClient, 
+            queueItem, queueNzbContents, dbClient, _usenetClient,
             _configManager, _websocketManager, _healthCheckService,
             progressHook, cts.Token
         ).ProcessAsync();
