@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Http;
+using NzbWebDAV.Config;
 using NzbWebDAV.Database.Models;
 using NzbWebDAV.Extensions;
 
@@ -15,7 +16,7 @@ public class AddFileRequest()
     public DateTime? PauseUntil { get; init; }
     public CancellationToken CancellationToken { get; init; }
 
-    public static async Task<AddFileRequest> New(HttpContext context)
+    public static async Task<AddFileRequest> New(HttpContext context, ConfigManager configManager)
     {
         var file =
             context.Request.Form.Files["nzbFile"] ??
@@ -29,7 +30,7 @@ public class AddFileRequest()
             FileName = file.FileName,
             MimeType = file.ContentType,
             NzbFileContents = await streamReader.ReadToEndAsync(context.RequestAborted).ConfigureAwait(false),
-            Category = context.GetQueryParam("cat") ?? throw new BadHttpRequestException("Invalid cat param"),
+            Category = context.GetQueryParam("cat") ?? configManager.GetManualUploadCategory(),
             Priority = MapPriorityOption(context.GetQueryParam("priority")),
             PostProcessing = MapPostProcessingOption(context.GetQueryParam("pp")),
             CancellationToken = context.RequestAborted

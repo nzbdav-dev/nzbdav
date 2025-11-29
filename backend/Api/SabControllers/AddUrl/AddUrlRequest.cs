@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Http;
 using NzbWebDAV.Api.SabControllers.AddFile;
+using NzbWebDAV.Config;
 using NzbWebDAV.Extensions;
 using NzbWebDAV.Utils;
 
@@ -14,7 +15,7 @@ public class AddUrlRequest() : AddFileRequest
         "Mozilla/5.0 (Windows NT 11.0; Win64; x64) AppleWebKit/537.36 " +
         "(KHTML, like Gecko) Chrome/134.0.6998.166 Safari/537.36";
 
-    public static async Task<AddUrlRequest> New(HttpContext context)
+    public static async Task<AddUrlRequest> New(HttpContext context, ConfigManager configManager)
     {
         var nzbUrl = context.GetQueryParam("name");
         var nzbName = context.GetQueryParam("nzbname");
@@ -24,7 +25,7 @@ public class AddUrlRequest() : AddFileRequest
             FileName = nzbFile.FileName,
             MimeType = nzbFile.ContentType,
             NzbFileContents = nzbFile.FileContents,
-            Category = context.GetQueryParam("cat") ?? throw new BadHttpRequestException("Invalid cat param"),
+            Category = context.GetQueryParam("cat") ?? configManager.GetManualUploadCategory(),
             Priority = MapPriorityOption(context.GetQueryParam("priority")),
             PostProcessing = MapPostProcessingOption(context.GetQueryParam("pp")),
             CancellationToken = context.RequestAborted

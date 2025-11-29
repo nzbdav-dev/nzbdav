@@ -66,7 +66,7 @@ public class AddFileController(
 
     protected override async Task<IActionResult> Handle()
     {
-        var request = await AddFileRequest.New(httpContext).ConfigureAwait(false);
+        var request = await AddFileRequest.New(httpContext, configManager).ConfigureAwait(false);
         return Ok(await AddFileAsync(request).ConfigureAwait(false));
     }
 
