@@ -18,7 +18,7 @@
       <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
       <PackageReference Include="Serilog.Sinks.Console" Version="6.0.1-dev-00953" />
       <PackageReference Include="SharpCompress" Version="0.39.0" />
-      <PackageReference Include="Usenet" Version="3.1.0" />
+      <PackageReference Include="Usenet.Custom" Version="3.1.1-nzbdav" />
     </ItemGroup>
 
     <ItemGroup>
