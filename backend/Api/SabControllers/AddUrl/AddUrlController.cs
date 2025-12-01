@@ -29,7 +29,7 @@ public class AddUrlController(
 
     protected override async Task<IActionResult> Handle()
     {
-        var request = await AddUrlRequest.New(httpContext).ConfigureAwait(false);
+        var request = await AddUrlRequest.New(httpContext, configManager).ConfigureAwait(false);
         return Ok(await AddUrlAsync(request).ConfigureAwait(false));
     }
 }
