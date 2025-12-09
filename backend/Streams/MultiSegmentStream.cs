@@ -1,4 +1,5 @@
-﻿using System.Threading.Channels;
+﻿using System.Linq.Expressions;
+using System.Threading.Channels;
 using NzbWebDAV.Clients.Usenet;
 using NzbWebDAV.Clients.Usenet.Models;
 using UsenetSharp.Streams;
@@ -14,8 +15,14 @@ public class MultiSegmentStream : FastReadOnlyNonSeekableStream
     private Stream? _stream;
     private bool _disposed;
 
+    public static Stream Create(Memory<string> segmentIds, INntpClient usenetClient, int articleBufferSize)
+    {
+        return articleBufferSize == 0
+            ? new UnbufferedMultiSegmentStream(segmentIds, usenetClient)
+            : new MultiSegmentStream(segmentIds, usenetClient, articleBufferSize);
+    }
 
-    public MultiSegmentStream(Memory<string> segmentIds, INntpClient usenetClient, int articleBufferSize)
+    private MultiSegmentStream(Memory<string> segmentIds, INntpClient usenetClient, int articleBufferSize)
     {
         _segmentIds = segmentIds;
         _usenetClient = usenetClient;

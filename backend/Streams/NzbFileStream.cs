@@ -15,7 +15,7 @@ public class NzbFileStream(
 {
     private long _position;
     private bool _disposed;
-    private MultiSegmentStream? _innerStream;
+    private Stream? _innerStream;
 
     public override bool CanSeek => true;
     public override long Length => fileSize;
@@ -67,7 +67,7 @@ public class NzbFileStream(
         ).ConfigureAwait(false);
     }
 
-    private async Task<MultiSegmentStream> GetFileStream(long rangeStart, CancellationToken cancellationToken)
+    private async Task<Stream> GetFileStream(long rangeStart, CancellationToken cancellationToken)
     {
         if (rangeStart == 0) return GetMultiSegmentStream(0);
         var foundSegment = await SeekSegment(rangeStart, cancellationToken).ConfigureAwait(false);
@@ -77,10 +77,10 @@ public class NzbFileStream(
         return stream;
     }
 
-    private MultiSegmentStream GetMultiSegmentStream(int firstSegmentIndex)
+    private Stream GetMultiSegmentStream(int firstSegmentIndex)
     {
         var segmentIds = fileSegmentIds.AsMemory()[firstSegmentIndex..];
-        return new MultiSegmentStream(segmentIds, usenetClient, articleBufferSize);
+        return MultiSegmentStream.Create(segmentIds, usenetClient, articleBufferSize);
     }
 
     protected override void Dispose(bool disposing)

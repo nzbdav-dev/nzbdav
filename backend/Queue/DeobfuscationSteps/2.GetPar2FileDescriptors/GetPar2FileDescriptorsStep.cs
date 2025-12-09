@@ -28,7 +28,7 @@ public static class GetPar2FileDescriptorsStep
         var filesize = par2Index.NzbFile.Segments.Count == 1
             ? par2Index.Header!.PartOffset + par2Index.Header!.PartSize
             : await usenetClient.GetFileSizeAsync(par2Index.NzbFile, cancellationToken).ConfigureAwait(false);
-        await using var stream = usenetClient.GetFileStream(segments, filesize, articleBufferSize: 1);
+        await using var stream = usenetClient.GetFileStream(segments, filesize, articleBufferSize: 0);
         await foreach (var fileDescriptor in Par2.ReadFileDescriptions(stream, cancellationToken).ConfigureAwait(false))
             fileDescriptors.Add(fileDescriptor);
         return fileDescriptors;
