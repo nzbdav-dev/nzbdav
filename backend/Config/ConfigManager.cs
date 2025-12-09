@@ -25,7 +25,7 @@ public class ConfigManager
         }
     }
 
-    public string? GetConfigValue(string configName)
+    private string? GetConfigValue(string configName)
     {
         lock (_config)
         {
@@ -33,7 +33,7 @@ public class ConfigManager
         }
     }
 
-    public T? GetConfigValue<T>(string configName)
+    private T? GetConfigValue<T>(string configName)
     {
         var rawValue = StringUtil.EmptyToNull(GetConfigValue(configName));
         return rawValue == null ? default : JsonSerializer.Deserialize<T>(rawValue);
@@ -47,20 +47,17 @@ public class ConfigManager
             {
                 _config[configItem.ConfigName] = configItem.ConfigValue;
             }
-
-            OnConfigChanged?.Invoke(this, new ConfigEventArgs
-            {
-                ChangedConfig = configItems.ToDictionary(x => x.ConfigName, x => x.ConfigValue),
-                NewConfig = _config
-            });
         }
+
+        var changedConfig = configItems.ToDictionary(x => x.ConfigName, x => x.ConfigValue);
+        OnConfigChanged?.Invoke(this, new ConfigEventArgs { ChangedConfig = changedConfig });
     }
 
     public string GetRcloneMountDir()
     {
         var mountDir = StringUtil.EmptyToNull(GetConfigValue("rclone.mount-dir"))
-               ?? StringUtil.EmptyToNull(Environment.GetEnvironmentVariable("MOUNT_DIR"))
-               ?? "/mnt/nzbdav";
+                       ?? StringUtil.EmptyToNull(Environment.GetEnvironmentVariable("MOUNT_DIR"))
+                       ?? "/mnt/nzbdav";
         if (mountDir.EndsWith('/')) mountDir = mountDir.TrimEnd('/');
         return mountDir;
     }
@@ -235,7 +232,6 @@ public class ConfigManager
 
     public class ConfigEventArgs : EventArgs
     {
-        public Dictionary<string, string> ChangedConfig { get; set; } = new();
-        public Dictionary<string, string> NewConfig { get; set; } = new();
+        public required Dictionary<string, string> ChangedConfig { get; init; }
     }
 }
