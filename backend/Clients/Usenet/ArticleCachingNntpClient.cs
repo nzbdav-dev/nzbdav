@@ -29,33 +29,43 @@ public class ArticleCachingNntpClient(
         UsenetArticleHeader? ArticleHeaders);
 
     public override Task<UsenetDecodedBodyResponse> DecodedBodyAsync(
-        SegmentId segmentId, Action<ArticleBodyResult>? onConnectionReadyAgain, CancellationToken cancellationToken)
+        SegmentId segmentId, CancellationToken cancellationToken)
     {
-        throw new NotImplementedException();
+        return DecodedBodyAsync(segmentId, onConnectionReadyAgain: null, cancellationToken);
     }
 
     public override Task<UsenetDecodedArticleResponse> DecodedArticleAsync(
-        SegmentId segmentId, Action<ArticleBodyResult>? onConnectionReadyAgain, CancellationToken cancellationToken)
+        SegmentId segmentId, CancellationToken cancellationToken)
     {
-        throw new NotImplementedException();
+        return DecodedArticleAsync(segmentId, onConnectionReadyAgain: null, cancellationToken);
     }
 
     public override async Task<UsenetDecodedBodyResponse> DecodedBodyAsync(
-        SegmentId segmentId, CancellationToken cancellationToken)
+        SegmentId segmentId, Action<ArticleBodyResult>? onConnectionReadyAgain, CancellationToken cancellationToken)
     {
         var semaphore = _pendingRequests.GetOrAdd(segmentId, _ => new SemaphoreSlim(1, 1));
 
-        await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch
+        {
+            onConnectionReadyAgain?.Invoke(ArticleBodyResult.NotRetrieved);
+            throw;
+        }
+
         try
         {
             // Check if already cached
             if (_cachedSegments.TryGetValue(segmentId, out var existingEntry))
             {
+                onConnectionReadyAgain?.Invoke(ArticleBodyResult.Retrieved);
                 return ReadCachedBodyAsync(segmentId, existingEntry.YencHeaders);
             }
 
             // Fetch and cache the body
-            var response = await base.DecodedBodyAsync(segmentId, cancellationToken)
+            var response = await base.DecodedBodyAsync(segmentId, onConnectionReadyAgain, cancellationToken)
                 .ConfigureAwait(false);
 
             // Get the decoded stream
@@ -86,11 +96,20 @@ public class ArticleCachingNntpClient(
     }
 
     public override async Task<UsenetDecodedArticleResponse> DecodedArticleAsync(
-        SegmentId segmentId, CancellationToken cancellationToken)
+        SegmentId segmentId, Action<ArticleBodyResult>? onConnectionReadyAgain, CancellationToken cancellationToken)
     {
         var semaphore = _pendingRequests.GetOrAdd(segmentId, _ => new SemaphoreSlim(1, 1));
 
-        await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch
+        {
+            onConnectionReadyAgain?.Invoke(ArticleBodyResult.NotRetrieved);
+            throw;
+        }
+
         try
         {
             // Check if already cached with headers
@@ -99,12 +118,21 @@ public class ArticleCachingNntpClient(
                 if (cacheEntry.HasArticleHeaders)
                 {
                     // Full article is cached, read from cache
+                    onConnectionReadyAgain?.Invoke(ArticleBodyResult.Retrieved);
                     return ReadCachedArticleAsync(segmentId, cacheEntry.YencHeaders, cacheEntry.ArticleHeaders!);
                 }
                 else
                 {
                     // Only body is cached, fetch article headers separately
-                    var headResponse = await base.HeadAsync(segmentId, cancellationToken).ConfigureAwait(false);
+                    UsenetHeadResponse? headResponse = null;
+                    try
+                    {
+                        headResponse = await base.HeadAsync(segmentId, cancellationToken).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        onConnectionReadyAgain?.Invoke(ArticleBodyResult.Retrieved);
+                    }
 
                     // Update cache entry to include article headers
                     var updatedEntry = new CacheEntry(
@@ -119,7 +147,7 @@ public class ArticleCachingNntpClient(
             }
 
             // Fetch and cache the full article
-            var response = await base.DecodedArticleAsync(segmentId, cancellationToken)
+            var response = await base.DecodedArticleAsync(segmentId, onConnectionReadyAgain, cancellationToken)
                 .ConfigureAwait(false);
 
             // Get the decoded stream
@@ -149,33 +177,46 @@ public class ArticleCachingNntpClient(
         }
     }
 
-    public virtual Task<UsenetExclusiveConnection> AcquireExclusiveConnectionAsync
+    public override async Task<UsenetExclusiveConnection> AcquireExclusiveConnectionAsync
     (
         string segmentId,
         CancellationToken cancellationToken
     )
     {
-        throw new NotImplementedException();
+        var semaphore = _pendingRequests.GetOrAdd(segmentId, _ => new SemaphoreSlim(1, 1));
+        await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return _cachedSegments.ContainsKey(segmentId)
+                ? new UsenetExclusiveConnection(onConnectionReadyAgain: null)
+                : await base.AcquireExclusiveConnectionAsync(segmentId, cancellationToken);
+        }
+        finally
+        {
+            semaphore.Release();
+        }
     }
 
-    public virtual Task<UsenetDecodedBodyResponse> DecodedBodyAsync
+    public override Task<UsenetDecodedBodyResponse> DecodedBodyAsync
     (
         SegmentId segmentId,
         UsenetExclusiveConnection exclusiveConnection,
         CancellationToken cancellationToken
     )
     {
-        throw new NotImplementedException();
+        var onConnectionReadyAgain = exclusiveConnection.OnConnectionReadyAgain;
+        return DecodedBodyAsync(segmentId, onConnectionReadyAgain, cancellationToken);
     }
 
-    public virtual Task<UsenetDecodedArticleResponse> DecodedArticleAsync
+    public override Task<UsenetDecodedArticleResponse> DecodedArticleAsync
     (
         SegmentId segmentId,
         UsenetExclusiveConnection exclusiveConnection,
         CancellationToken cancellationToken
     )
     {
-        throw new NotImplementedException();
+        var onConnectionReadyAgain = exclusiveConnection.OnConnectionReadyAgain;
+        return DecodedArticleAsync(segmentId, onConnectionReadyAgain, cancellationToken);
     }
 
     public override Task<UsenetYencHeader> GetYencHeadersAsync(string segmentId, CancellationToken ct)
