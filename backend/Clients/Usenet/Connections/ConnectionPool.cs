@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
-using UsenetSharp.Concurrency;
+using NzbWebDAV.Clients.Usenet.Concurrency;
 
 namespace NzbWebDAV.Clients.Usenet.Connections;
 
@@ -35,7 +35,7 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
     /* --------------------------------- state --------------------------------------- */
 
     private readonly ConcurrentStack<Pooled> _idleConnections = new();
-    private readonly AsyncSemaphore _gate;
+    private readonly PrioritizedSemaphore _gate;
     private readonly CancellationTokenSource _sweepCts = new();
     private readonly Task _sweeperTask; // keeps timer alive
 
@@ -57,7 +57,7 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
         IdleTimeout = idleTimeout ?? TimeSpan.FromSeconds(30);
 
         _maxConnections = maxConnections;
-        _gate = new AsyncSemaphore(maxConnections);
+        _gate = new PrioritizedSemaphore(maxConnections);
         _sweeperTask = Task.Run(SweepLoop); // background idle-reaper
     }
 
@@ -68,14 +68,17 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
     /// Waits until at least (`reservedCount` + 1) slots are free before acquiring one,
     /// ensuring that after acquisition at least `reservedCount` remain available.
     /// </summary>
-    public async Task<ConnectionLock<T>> GetConnectionLockAsync(
-        CancellationToken cancellationToken = default)
+    public async Task<ConnectionLock<T>> GetConnectionLockAsync
+    (
+        SemaphorePriority priority,
+        CancellationToken cancellationToken = default
+    )
     {
         // Make caller cancellation also cancel the wait on the gate.
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(
             cancellationToken, _sweepCts.Token);
 
-        await _gate.WaitAsync(linked.Token).ConfigureAwait(false);
+        await _gate.WaitAsync(priority, linked.Token).ConfigureAwait(false);
 
         // Pool might have been disposed after wait returned:
         if (Volatile.Read(ref _disposed) == 1)

@@ -36,9 +36,6 @@ public interface INntpClient : IDisposable
     Task<UsenetDateResponse> DateAsync(
         CancellationToken cancellationToken);
 
-    Task WaitForReadyAsync(
-        CancellationToken cancellationToken);
-
     public async Task<UsenetYencHeader> GetYencHeadersAsync(string segmentId, CancellationToken ct)
     {
         var decodedBodyResponse = await DecodedBodyAsync(segmentId, ct).ConfigureAwait(false);

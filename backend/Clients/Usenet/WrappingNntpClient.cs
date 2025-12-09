@@ -43,11 +43,6 @@ public class WrappingNntpClient(INntpClient usenetClient) : INntpClient
         return _usenetClient.DateAsync(cancellationToken);
     }
 
-    public Task WaitForReadyAsync(CancellationToken cancellationToken)
-    {
-        return _usenetClient.WaitForReadyAsync(cancellationToken);
-    }
-
     public Task<UsenetDecodedBodyResponse> DecodedBodyAsync(SegmentId segmentId,
         Action<ArticleBodyResult>? onConnectionReadyAgain, CancellationToken cancellationToken)
     {
