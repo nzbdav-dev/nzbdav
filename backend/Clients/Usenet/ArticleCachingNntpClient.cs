@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using NzbWebDAV.Clients.Usenet.Models;
 using NzbWebDAV.Streams;
+using NzbWebDAV.Utils;
 using UsenetSharp.Models;
 using UsenetSharp.Streams;
 
@@ -288,7 +289,26 @@ public class ArticleCachingNntpClient(
         _pendingRequests.Clear();
         _cachedSegments.Clear();
 
-        Task.Run(() => Directory.Delete(_cacheDir, recursive: true));
+        Task.Run(async () => await DeleteCacheDir(_cacheDir));
         GC.SuppressFinalize(this);
+    }
+
+    private static async Task DeleteCacheDir(string cacheDir)
+    {
+        var ct = SigtermUtil.GetCancellationToken();
+        var delay = 1000;
+        while (!ct.IsCancellationRequested)
+        {
+            try
+            {
+                Directory.Delete(cacheDir, recursive: true);
+                return;
+            }
+            catch (Exception)
+            {
+                await Task.Delay(delay, ct).ConfigureAwait(false);
+                delay = Math.Min(delay * 2, 10000);
+            }
+        }
     }
 }
