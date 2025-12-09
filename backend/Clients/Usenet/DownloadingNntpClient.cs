@@ -8,7 +8,7 @@ using UsenetSharp.Models;
 namespace NzbWebDAV.Clients.Usenet;
 
 /// <summary>
-/// This client is only responsible for limiting download operations (HEAD/ARTICLE)
+/// This client is only responsible for limiting download operations (BODY/ARTICLE)
 /// to the configured number of maximum download connections.
 /// </summary>
 /// <param name="usenetClient"></param>
@@ -44,19 +44,19 @@ public class DownloadingNntpClient : WrappingNntpClient
     public override Task<UsenetDecodedBodyResponse> DecodedBodyAsync(SegmentId segmentId,
         CancellationToken cancellationToken)
     {
-        return DecodedBodyAsync(segmentId, null, cancellationToken);
+        return DecodedBodyAsync(segmentId, onConnectionReadyAgain: null, cancellationToken);
     }
 
     public override Task<UsenetDecodedArticleResponse> DecodedArticleAsync(SegmentId segmentId,
         CancellationToken cancellationToken)
     {
-        return DecodedArticleAsync(segmentId, null, cancellationToken);
+        return DecodedArticleAsync(segmentId, onConnectionReadyAgain: null, cancellationToken);
     }
 
     public override async Task<UsenetDecodedBodyResponse> DecodedBodyAsync(SegmentId segmentId,
         Action<ArticleBodyResult>? onConnectionReadyAgain, CancellationToken cancellationToken)
     {
-        await WaitForDownloadConnection(onConnectionReadyAgain, cancellationToken).ConfigureAwait(false);
+        await AcquireExclusiveConnectionAsync(onConnectionReadyAgain, cancellationToken).ConfigureAwait(false);
         return await base.DecodedBodyAsync(segmentId, OnConnectionReadyAgain, cancellationToken).ConfigureAwait(false);
 
         void OnConnectionReadyAgain(ArticleBodyResult articleBodyResult)
@@ -69,7 +69,7 @@ public class DownloadingNntpClient : WrappingNntpClient
     public override async Task<UsenetDecodedArticleResponse> DecodedArticleAsync(SegmentId segmentId,
         Action<ArticleBodyResult>? onConnectionReadyAgain, CancellationToken cancellationToken)
     {
-        await WaitForDownloadConnection(onConnectionReadyAgain, cancellationToken).ConfigureAwait(false);
+        await AcquireExclusiveConnectionAsync(onConnectionReadyAgain, cancellationToken).ConfigureAwait(false);
         return await base.DecodedArticleAsync(segmentId, OnConnectionReadyAgain, cancellationToken)
             .ConfigureAwait(false);
 
@@ -80,22 +80,51 @@ public class DownloadingNntpClient : WrappingNntpClient
         }
     }
 
-    private async Task WaitForDownloadConnection(Action<ArticleBodyResult>? onConnectionReadyAgain,
+    private async Task AcquireExclusiveConnectionAsync(Action<ArticleBodyResult>? onConnectionReadyAgain,
         CancellationToken cancellationToken)
     {
         try
         {
-            var downloadPriorityContext = cancellationToken.GetContext<DownloadPriorityContext>();
-            var semaphorePriority = downloadPriorityContext == DownloadPriorityContext.Low
-                ? SemaphorePriority.Low
-                : SemaphorePriority.High;
-            await _semaphore.WaitAsync(semaphorePriority, cancellationToken);
+            await AcquireExclusiveConnectionAsync(cancellationToken);
         }
         catch
         {
             onConnectionReadyAgain?.Invoke(ArticleBodyResult.NotRetrieved);
             throw;
         }
+    }
+
+    private Task AcquireExclusiveConnectionAsync(CancellationToken cancellationToken)
+    {
+        var downloadPriorityContext = cancellationToken.GetContext<DownloadPriorityContext>();
+        var semaphorePriority = downloadPriorityContext == DownloadPriorityContext.Low
+            ? SemaphorePriority.Low
+            : SemaphorePriority.High;
+        return _semaphore.WaitAsync(semaphorePriority, cancellationToken);
+    }
+
+    public override async Task<UsenetExclusiveConnection> AcquireExclusiveConnectionAsync
+    (
+        string segmentId,
+        CancellationToken cancellationToken
+    )
+    {
+        await AcquireExclusiveConnectionAsync(cancellationToken).ConfigureAwait(false);
+        return new UsenetExclusiveConnection(_ => _semaphore.Release());
+    }
+
+    public override Task<UsenetDecodedBodyResponse> DecodedBodyAsync(SegmentId segmentId,
+        UsenetExclusiveConnection exclusiveConnection, CancellationToken cancellationToken)
+    {
+        var onConnectionReadyAgain = exclusiveConnection.OnConnectionReadyAgain;
+        return base.DecodedBodyAsync(segmentId, onConnectionReadyAgain, cancellationToken);
+    }
+
+    public override Task<UsenetDecodedArticleResponse> DecodedArticleAsync(SegmentId segmentId,
+        UsenetExclusiveConnection exclusiveConnection, CancellationToken cancellationToken)
+    {
+        var onConnectionReadyAgain = exclusiveConnection.OnConnectionReadyAgain;
+        return base.DecodedArticleAsync(segmentId, onConnectionReadyAgain, cancellationToken);
     }
 
     public override void Dispose()

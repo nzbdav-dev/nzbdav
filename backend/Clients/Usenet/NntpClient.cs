@@ -41,6 +41,38 @@ public abstract class NntpClient : INntpClient
 
     public abstract void Dispose();
 
+    public virtual Task<UsenetExclusiveConnection> AcquireExclusiveConnectionAsync
+    (
+        string segmentId,
+        CancellationToken cancellationToken
+    )
+    {
+        var message = $"{GetType().Name} does not support acquiring exclusive connections.";
+        throw new NotSupportedException(message);
+    }
+
+    public virtual Task<UsenetDecodedBodyResponse> DecodedBodyAsync
+    (
+        SegmentId segmentId,
+        UsenetExclusiveConnection exclusiveConnection,
+        CancellationToken cancellationToken
+    )
+    {
+        var message = $"{GetType().Name} does not support DecodedBodyAsync with exclusive connections.";
+        throw new NotSupportedException(message);
+    }
+
+    public virtual Task<UsenetDecodedArticleResponse> DecodedArticleAsync
+    (
+        SegmentId segmentId,
+        UsenetExclusiveConnection exclusiveConnection,
+        CancellationToken cancellationToken
+    )
+    {
+        var message = $"{GetType().Name} does not support DecodedArticleAsync with exclusive connections.";
+        throw new NotSupportedException(message);
+    }
+
     public virtual async Task<UsenetYencHeader> GetYencHeadersAsync(string segmentId, CancellationToken ct)
     {
         var decodedBodyResponse = await DecodedBodyAsync(segmentId, ct).ConfigureAwait(false);
@@ -56,21 +88,21 @@ public abstract class NntpClient : INntpClient
         return headers!.PartOffset + headers!.PartSize;
     }
 
-    public virtual async Task<NzbFileStream> GetFileStream(NzbFile nzbFile, int concurrency, CancellationToken ct)
+    public virtual async Task<NzbFileStream> GetFileStream(NzbFile nzbFile, int articleBufferSize, CancellationToken ct)
     {
         var segmentIds = nzbFile.GetSegmentIds();
         var fileSize = await GetFileSizeAsync(nzbFile, ct).ConfigureAwait(false);
-        return new NzbFileStream(segmentIds, fileSize, this, concurrency);
+        return new NzbFileStream(segmentIds, fileSize, this, articleBufferSize);
     }
 
-    public virtual NzbFileStream GetFileStream(NzbFile nzbFile, long fileSize, int concurrency)
+    public virtual NzbFileStream GetFileStream(NzbFile nzbFile, long fileSize, int articleBufferSize)
     {
-        return new NzbFileStream(nzbFile.GetSegmentIds(), fileSize, this, concurrency);
+        return new NzbFileStream(nzbFile.GetSegmentIds(), fileSize, this, articleBufferSize);
     }
 
-    public virtual NzbFileStream GetFileStream(string[] segmentIds, long fileSize, int concurrency)
+    public virtual NzbFileStream GetFileStream(string[] segmentIds, long fileSize, int articleBufferSize)
     {
-        return new NzbFileStream(segmentIds, fileSize, this, concurrency);
+        return new NzbFileStream(segmentIds, fileSize, this, articleBufferSize);
     }
 
     public virtual async Task CheckAllSegmentsAsync

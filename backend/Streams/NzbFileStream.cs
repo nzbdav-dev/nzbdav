@@ -9,8 +9,8 @@ namespace NzbWebDAV.Streams;
 public class NzbFileStream(
     string[] fileSegmentIds,
     long fileSize,
-    INntpClient client,
-    int concurrency
+    INntpClient usenetClient,
+    int articleBufferSize
 ) : FastReadOnlyStream
 {
     private long _position;
@@ -60,7 +60,7 @@ public class NzbFileStream(
             new LongRange(0, fileSize),
             async (guess) =>
             {
-                var header = await client.GetYencHeadersAsync(fileSegmentIds[guess], ct).ConfigureAwait(false);
+                var header = await usenetClient.GetYencHeadersAsync(fileSegmentIds[guess], ct).ConfigureAwait(false);
                 return new LongRange(header.PartOffset, header.PartOffset + header.PartSize);
             },
             ct
@@ -80,8 +80,8 @@ public class NzbFileStream(
     {
         return new CombinedStream(
             fileSegmentIds[firstSegmentIndex..]
-                .Select(async x => (Stream)(await client.DecodedBodyAsync(x, ct).ConfigureAwait(false)).Stream)
-                .WithConcurrency(concurrency)
+                .Select(async x => (Stream)(await usenetClient.DecodedBodyAsync(x, ct).ConfigureAwait(false)).Stream)
+                .WithConcurrency(articleBufferSize)
         );
     }
 

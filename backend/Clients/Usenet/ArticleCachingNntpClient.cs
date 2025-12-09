@@ -14,7 +14,10 @@ namespace NzbWebDAV.Clients.Usenet;
 /// </summary>
 /// <param name="usenetClient">The underlying client to cache.</param>
 /// <param name="leaveOpen">Indicates whether disposing this client also disposes the underlying client.</param>
-public class ArticleCachingNntpClient(INntpClient usenetClient, bool leaveOpen = true) : WrappingNntpClient(usenetClient)
+public class ArticleCachingNntpClient(
+    INntpClient usenetClient,
+    bool leaveOpen = true
+) : WrappingNntpClient(usenetClient)
 {
     private readonly string _cacheDir = Directory.CreateTempSubdirectory().FullName;
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _pendingRequests = new();
@@ -144,6 +147,35 @@ public class ArticleCachingNntpClient(INntpClient usenetClient, bool leaveOpen =
         {
             semaphore.Release();
         }
+    }
+
+    public virtual Task<UsenetExclusiveConnection> AcquireExclusiveConnectionAsync
+    (
+        string segmentId,
+        CancellationToken cancellationToken
+    )
+    {
+        throw new NotImplementedException();
+    }
+
+    public virtual Task<UsenetDecodedBodyResponse> DecodedBodyAsync
+    (
+        SegmentId segmentId,
+        UsenetExclusiveConnection exclusiveConnection,
+        CancellationToken cancellationToken
+    )
+    {
+        throw new NotImplementedException();
+    }
+
+    public virtual Task<UsenetDecodedArticleResponse> DecodedArticleAsync
+    (
+        SegmentId segmentId,
+        UsenetExclusiveConnection exclusiveConnection,
+        CancellationToken cancellationToken
+    )
+    {
+        throw new NotImplementedException();
     }
 
     public override Task<UsenetYencHeader> GetYencHeadersAsync(string segmentId, CancellationToken ct)

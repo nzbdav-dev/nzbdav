@@ -93,7 +93,7 @@ public class RarProcessor(
     {
         var filesize = fileInfo.FileSize;
         filesize ??= await usenetClient.GetFileSizeAsync(fileInfo.NzbFile, ct).ConfigureAwait(false);
-        return usenetClient.GetFileStream(fileInfo.NzbFile, filesize!.Value, concurrentConnections: 1);
+        return usenetClient.GetFileStream(fileInfo.NzbFile, filesize!.Value, articleBufferSize: 1);
     }
 
     public new class Result : BaseProcessor.Result

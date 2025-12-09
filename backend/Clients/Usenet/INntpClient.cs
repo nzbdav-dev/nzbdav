@@ -35,6 +35,16 @@ public interface INntpClient : IDisposable
     Task<UsenetDateResponse> DateAsync(
         CancellationToken cancellationToken);
 
+    // optimized for concurrency
+    Task<UsenetExclusiveConnection> AcquireExclusiveConnectionAsync(
+        string segmentId, CancellationToken cancellationToken);
+
+    Task<UsenetDecodedBodyResponse> DecodedBodyAsync(
+        SegmentId segmentId, UsenetExclusiveConnection connection, CancellationToken cancellationToken);
+
+    Task<UsenetDecodedArticleResponse> DecodedArticleAsync(
+        SegmentId segmentId, UsenetExclusiveConnection connection, CancellationToken cancellationToken);
+
     // helpers
     Task<UsenetYencHeader> GetYencHeadersAsync(
         string segmentId, CancellationToken ct);
@@ -43,13 +53,13 @@ public interface INntpClient : IDisposable
         NzbFile file, CancellationToken ct);
 
     Task<NzbFileStream> GetFileStream(
-        NzbFile nzbFile, int concurrentConnections, CancellationToken ct);
+        NzbFile nzbFile, int articleBufferSize, CancellationToken ct);
 
     NzbFileStream GetFileStream(
-        NzbFile nzbFile, long fileSize, int concurrentConnections);
+        NzbFile nzbFile, long fileSize, int articleBufferSize);
 
     NzbFileStream GetFileStream(
-        string[] segmentIds, long fileSize, int concurrentConnections);
+        string[] segmentIds, long fileSize, int articleBufferSize);
 
     Task CheckAllSegmentsAsync(
         IEnumerable<string> segmentIds, int concurrency, IProgress<int>? progress, CancellationToken cancellationToken);

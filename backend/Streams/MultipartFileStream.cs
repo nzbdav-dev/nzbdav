@@ -57,7 +57,7 @@ public class MultipartFileStream(MultipartFile multipartFile, INntpClient usenet
         );
 
         var filePart = multipartFile.FileParts[searchResult.FoundIndex];
-        var stream = usenetClient.GetFileStream(filePart.NzbFile, filePart.PartSize, concurrentConnections: 1);
+        var stream = usenetClient.GetFileStream(filePart.NzbFile, filePart.PartSize, articleBufferSize: 1);
         stream.Seek(_position - searchResult.FoundByteRange.StartInclusive, SeekOrigin.Begin);
         return stream;
     }

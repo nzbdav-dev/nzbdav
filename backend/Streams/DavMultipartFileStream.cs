@@ -8,7 +8,7 @@ namespace NzbWebDAV.Streams;
 public class DavMultipartFileStream(
     DavMultipartFile.FilePart[] fileParts,
     INntpClient usenetClient,
-    int concurrency
+    int articleBufferSize
 ) : Stream
 {
     private long _position = 0;
@@ -28,7 +28,7 @@ public class DavMultipartFileStream(
 
     public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
     {
-        if (_innerStream == null) _innerStream = GetFileStream(_position, cancellationToken);
+        if (_innerStream == null) _innerStream = GetFileStream(_position);
         var read = await _innerStream.ReadAsync(buffer, offset, count, cancellationToken).ConfigureAwait(false);
         _position += read;
         return read;
@@ -83,21 +83,21 @@ public class DavMultipartFileStream(
         throw new SeekPositionNotFoundException($"Corrupt file. Cannot seek to byte position {byteOffset}.");
     }
 
-    private CombinedStream GetFileStream(long rangeStart, CancellationToken cancellationToken)
+    private CombinedStream GetFileStream(long rangeStart)
     {
-        if (rangeStart == 0) return GetCombinedStream(0, 0, cancellationToken);
+        if (rangeStart == 0) return GetCombinedStream(0, 0);
         var (filePartIndex, filePartOffset) = SeekFilePart(rangeStart);
-        var stream = GetCombinedStream(filePartIndex, rangeStart - filePartOffset, cancellationToken);
+        var stream = GetCombinedStream(filePartIndex, rangeStart - filePartOffset);
         return stream;
     }
 
-    private CombinedStream GetCombinedStream(int firstFilePartIndex, long additionalOffset, CancellationToken ct)
+    private CombinedStream GetCombinedStream(int firstFilePartIndex, long additionalOffset)
     {
         var streams = fileParts[firstFilePartIndex..]
             .Select((x, i) =>
             {
                 var offset = (i == 0) ? additionalOffset : 0;
-                var stream = usenetClient.GetFileStream(x.SegmentIds, x.SegmentIdByteRange.Count, concurrency);
+                var stream = usenetClient.GetFileStream(x.SegmentIds, x.SegmentIdByteRange.Count, articleBufferSize);
                 stream.Seek(x.FilePartByteRange.StartInclusive + offset, SeekOrigin.Begin);
                 return Task.FromResult(stream.LimitLength(x.FilePartByteRange.Count - offset));
             });

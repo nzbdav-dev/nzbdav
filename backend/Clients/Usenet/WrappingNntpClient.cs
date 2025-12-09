@@ -43,6 +43,18 @@ public class WrappingNntpClient(INntpClient usenetClient) : NntpClient
         SegmentId segmentId, Action<ArticleBodyResult>? onConnectionReadyAgain, CancellationToken cancellationToken) =>
         _usenetClient.DecodedArticleAsync(segmentId, onConnectionReadyAgain, cancellationToken);
 
+    public override Task<UsenetExclusiveConnection> AcquireExclusiveConnectionAsync(
+        string segmentId, CancellationToken cancellationToken) =>
+        _usenetClient.AcquireExclusiveConnectionAsync(segmentId, cancellationToken);
+
+    public override Task<UsenetDecodedBodyResponse> DecodedBodyAsync(
+        SegmentId segmentId, UsenetExclusiveConnection exclusiveConnection, CancellationToken cancellationToken) =>
+        _usenetClient.DecodedBodyAsync(segmentId, exclusiveConnection, cancellationToken);
+
+    public override Task<UsenetDecodedArticleResponse> DecodedArticleAsync(
+        SegmentId segmentId, UsenetExclusiveConnection exclusiveConnection, CancellationToken cancellationToken) =>
+        _usenetClient.DecodedArticleAsync(segmentId, exclusiveConnection, cancellationToken);
+
 
     protected void ReplaceUnderlyingClient(INntpClient usenetClient)
     {
