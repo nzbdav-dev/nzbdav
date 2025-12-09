@@ -15,7 +15,7 @@ public class NzbFileStream(
 {
     private long _position;
     private bool _disposed;
-    private CombinedStream? _innerStream;
+    private MultiSegmentStream? _innerStream;
 
     public override bool CanSeek => true;
     public override long Length => fileSize;
@@ -67,22 +67,20 @@ public class NzbFileStream(
         ).ConfigureAwait(false);
     }
 
-    private async Task<CombinedStream> GetFileStream(long rangeStart, CancellationToken cancellationToken)
+    private async Task<MultiSegmentStream> GetFileStream(long rangeStart, CancellationToken cancellationToken)
     {
-        if (rangeStart == 0) return GetCombinedStream(0, cancellationToken);
+        if (rangeStart == 0) return GetMultiSegmentStream(0);
         var foundSegment = await SeekSegment(rangeStart, cancellationToken).ConfigureAwait(false);
-        var stream = GetCombinedStream(foundSegment.FoundIndex, cancellationToken);
-        await stream.DiscardBytesAsync(rangeStart - foundSegment.FoundByteRange.StartInclusive).ConfigureAwait(false);
+        var stream = GetMultiSegmentStream(foundSegment.FoundIndex);
+        await stream.DiscardBytesAsync(rangeStart - foundSegment.FoundByteRange.StartInclusive, cancellationToken)
+            .ConfigureAwait(false);
         return stream;
     }
 
-    private CombinedStream GetCombinedStream(int firstSegmentIndex, CancellationToken ct)
+    private MultiSegmentStream GetMultiSegmentStream(int firstSegmentIndex)
     {
-        return new CombinedStream(
-            fileSegmentIds[firstSegmentIndex..]
-                .Select(async x => (Stream)(await usenetClient.DecodedBodyAsync(x, ct).ConfigureAwait(false)).Stream)
-                .WithConcurrency(articleBufferSize)
-        );
+        var segmentIds = fileSegmentIds.AsMemory()[firstSegmentIndex..];
+        return new MultiSegmentStream(segmentIds, usenetClient, articleBufferSize);
     }
 
     protected override void Dispose(bool disposing)

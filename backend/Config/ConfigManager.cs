@@ -131,6 +131,14 @@ public class ConfigManager
         );
     }
 
+    public int GetArticleBufferSize()
+    {
+        return int.Parse(
+            StringUtil.EmptyToNull(GetConfigValue("usenet.article-buffer-size"))
+            ?? "40"
+        );
+    }
+
     public SemaphorePriorityOdds GetStreamingPriority()
     {
         var stringValue = StringUtil.EmptyToNull(GetConfigValue("usenet.streaming-priority"));

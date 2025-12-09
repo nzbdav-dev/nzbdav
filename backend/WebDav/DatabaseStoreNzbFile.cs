@@ -30,6 +30,6 @@ public class DatabaseStoreNzbFile(
         var id = davNzbFile.Id;
         var file = await dbClient.GetNzbFileAsync(id, cancellationToken).ConfigureAwait(false);
         if (file is null) throw new FileNotFoundException($"Could not find nzb file with id: {id}");
-        return usenetClient.GetFileStream(file.SegmentIds, FileSize, configManager.GetMaxDownloadConnections());
+        return usenetClient.GetFileStream(file.SegmentIds, FileSize, configManager.GetArticleBufferSize());
     }
 }

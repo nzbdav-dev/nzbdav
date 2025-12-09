@@ -35,7 +35,7 @@ public class DatabaseStoreMultipartFile(
         var packedStream = new DavMultipartFileStream(
             multipartFile.Metadata.FileParts,
             usenetClient,
-            configManager.GetMaxDownloadConnections()
+            configManager.GetArticleBufferSize()
         );
         return multipartFile.Metadata.AesParams != null
             ? new AesDecoderStream(packedStream, multipartFile.Metadata.AesParams)
