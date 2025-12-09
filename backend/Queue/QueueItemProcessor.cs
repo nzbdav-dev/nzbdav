@@ -135,11 +135,11 @@ public class QueueItemProcessor(
         var part2Progress = progress
             .Offset(50)
             .Scale(50, 100)
-            .ToPercentage(fileProcessors.Count);
+            .ToMultiProgress(fileProcessors.Count);
         var fileProcessingResultsAll = await fileProcessors
-            .Select(x => x!.ProcessAsync())
+            .Select(x => x!.ProcessAsync(part2Progress.SubProgress))
             .WithConcurrencyAsync(configManager.GetMaxDownloadConnections() + 5)
-            .GetAllAsync(ct, part2Progress).ConfigureAwait(false);
+            .GetAllAsync(ct).ConfigureAwait(false);
         var fileProcessingResults = fileProcessingResultsAll
             .Where(x => x is not null)
             .Select(x => x!)
@@ -206,7 +206,7 @@ public class QueueItemProcessor(
         foreach (var group in groups)
         {
             if (group.Key == "7z")
-                yield return new SevenZipProcessor(group.ToList(), usenetClient, archivePassword, ct);
+                yield return new SevenZipProcessor(group.ToList(), usenetClient, configManager, archivePassword, ct);
 
             else if (group.Key == "rar")
                 foreach (var fileInfo in group)

@@ -1,6 +1,4 @@
-﻿using System.Threading.Channels;
-using NzbWebDAV.Clients.Usenet;
-using NzbWebDAV.Clients.Usenet.Models;
+﻿using NzbWebDAV.Clients.Usenet;
 using UsenetSharp.Streams;
 
 namespace NzbWebDAV.Streams;
