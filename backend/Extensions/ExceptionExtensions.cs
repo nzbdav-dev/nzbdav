@@ -15,4 +15,9 @@ public static class ExceptionExtensions
             or SharpCompress.Common.InvalidFormatException
             or Usenet.Exceptions.InvalidYencDataException;
     }
+
+    public static bool IsCancellationException(this Exception exception)
+    {
+        return exception is TaskCanceledException or OperationCanceledException;
+    }
 }

@@ -1,5 +1,6 @@
 ﻿using System.Runtime.ExceptionServices;
 using NzbWebDAV.Clients.Usenet.Models;
+using NzbWebDAV.Extensions;
 using NzbWebDAV.Models;
 using Serilog;
 using UsenetSharp.Models;
@@ -30,7 +31,7 @@ public class MultiProviderNntpClient(List<MultiConnectionNntpClient> providers) 
 
     public override Task<UsenetDecodedBodyResponse> DecodedBodyAsync
     (
-        SegmentId segmentId, 
+        SegmentId segmentId,
         CancellationToken cancellationToken
     )
     {
@@ -147,7 +148,7 @@ public class MultiProviderNntpClient(List<MultiConnectionNntpClient> providers) 
 
                 return result;
             }
-            catch (Exception e) when (e is not OperationCanceledException and not TaskCanceledException)
+            catch (Exception e) when (!e.IsCancellationException())
             {
                 lastException = ExceptionDispatchInfo.Capture(e);
             }

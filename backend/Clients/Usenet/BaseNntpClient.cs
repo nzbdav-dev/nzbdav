@@ -1,5 +1,6 @@
 ﻿using NzbWebDAV.Clients.Usenet.Models;
 using NzbWebDAV.Exceptions;
+using NzbWebDAV.Extensions;
 using UsenetSharp.Clients;
 using UsenetSharp.Models;
 using UsenetSharp.Streams;
@@ -23,7 +24,7 @@ public class BaseNntpClient : NntpClient
         {
             await _client.ConnectAsync(host, port, useSsl, cancellationToken);
         }
-        catch (Exception e)
+        catch (Exception e) when (!e.IsCancellationException())
         {
             const string message = "Could not connect to usenet host. Check connection settings.";
             throw new CouldNotConnectToUsenetException(message, e);
@@ -48,7 +49,7 @@ public class BaseNntpClient : NntpClient
 
             return response;
         }
-        catch (Exception e)
+        catch (Exception e) when (!e.IsCancellationException())
         {
             throw new CouldNotLoginToUsenetException("Could not login to usenet host.", e);
         }
