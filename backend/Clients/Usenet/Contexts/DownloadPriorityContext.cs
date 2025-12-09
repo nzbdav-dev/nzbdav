@@ -1,7 +1,8 @@
-﻿namespace NzbWebDAV.Clients.Usenet.Contexts;
+﻿using NzbWebDAV.Clients.Usenet.Concurrency;
 
-public enum DownloadPriorityContext
+namespace NzbWebDAV.Clients.Usenet.Contexts;
+
+public record DownloadPriorityContext
 {
-    Low,
-    High,
+    public required SemaphorePriority Priority { get; init; }
 }

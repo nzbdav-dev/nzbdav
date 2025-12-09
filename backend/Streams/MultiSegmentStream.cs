@@ -1,5 +1,7 @@
 ﻿using System.Threading.Channels;
 using NzbWebDAV.Clients.Usenet;
+using NzbWebDAV.Clients.Usenet.Concurrency;
+using NzbWebDAV.Clients.Usenet.Contexts;
 using NzbWebDAV.Clients.Usenet.Models;
 using UsenetSharp.Streams;
 
@@ -10,23 +12,35 @@ public class MultiSegmentStream : FastReadOnlyNonSeekableStream
     private readonly Memory<string> _segmentIds;
     private readonly INntpClient _usenetClient;
     private readonly Channel<Task<Stream>> _streamTasks;
-    private readonly CancellationTokenSource _cts;
+    private readonly ContextualCancellationTokenSource _cts;
     private Stream? _stream;
     private bool _disposed;
 
-    public static Stream Create(Memory<string> segmentIds, INntpClient usenetClient, int articleBufferSize)
+    public static Stream Create
+    (
+        Memory<string> segmentIds,
+        INntpClient usenetClient,
+        int articleBufferSize,
+        CancellationToken cancellationToken
+    )
     {
         return articleBufferSize == 0
             ? new UnbufferedMultiSegmentStream(segmentIds, usenetClient)
-            : new MultiSegmentStream(segmentIds, usenetClient, articleBufferSize);
+            : new MultiSegmentStream(segmentIds, usenetClient, articleBufferSize, cancellationToken);
     }
 
-    private MultiSegmentStream(Memory<string> segmentIds, INntpClient usenetClient, int articleBufferSize)
+    private MultiSegmentStream
+    (
+        Memory<string> segmentIds,
+        INntpClient usenetClient,
+        int articleBufferSize,
+        CancellationToken cancellationToken
+    )
     {
         _segmentIds = segmentIds;
         _usenetClient = usenetClient;
         _streamTasks = Channel.CreateBounded<Task<Stream>>(articleBufferSize);
-        _cts = new CancellationTokenSource();
+        _cts = ContextualCancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _ = DownloadSegments(_cts.Token);
     }
 

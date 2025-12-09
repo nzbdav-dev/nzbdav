@@ -69,18 +69,18 @@ public class NzbFileStream(
 
     private async Task<Stream> GetFileStream(long rangeStart, CancellationToken cancellationToken)
     {
-        if (rangeStart == 0) return GetMultiSegmentStream(0);
+        if (rangeStart == 0) return GetMultiSegmentStream(0, cancellationToken);
         var foundSegment = await SeekSegment(rangeStart, cancellationToken).ConfigureAwait(false);
-        var stream = GetMultiSegmentStream(foundSegment.FoundIndex);
+        var stream = GetMultiSegmentStream(foundSegment.FoundIndex, cancellationToken);
         await stream.DiscardBytesAsync(rangeStart - foundSegment.FoundByteRange.StartInclusive, cancellationToken)
             .ConfigureAwait(false);
         return stream;
     }
 
-    private Stream GetMultiSegmentStream(int firstSegmentIndex)
+    private Stream GetMultiSegmentStream(int firstSegmentIndex, CancellationToken cancellationToken)
     {
         var segmentIds = fileSegmentIds.AsMemory()[firstSegmentIndex..];
-        return MultiSegmentStream.Create(segmentIds, usenetClient, articleBufferSize);
+        return MultiSegmentStream.Create(segmentIds, usenetClient, articleBufferSize, cancellationToken);
     }
 
     protected override void Dispose(bool disposing)
