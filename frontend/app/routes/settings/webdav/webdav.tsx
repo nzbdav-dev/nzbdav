@@ -58,7 +58,7 @@ export function WebdavSettings({ config, setNewConfig }: SabnzbdSettingsProps) {
             </Form.Group>
             <hr />
             <Form.Group>
-                <Form.Label htmlFor="streaming-priority-input">Streaming Priority</Form.Label>
+                <Form.Label htmlFor="streaming-priority-input">Streaming Priority (vs Queue)</Form.Label>
                 <InputGroup className={styles.input}>
                     <Form.Control
                         className={!isValidStreamingPriority(config["usenet.streaming-priority"]) ? styles.error : undefined}
