@@ -76,6 +76,21 @@ export function WebdavSettings({ config, setNewConfig }: SabnzbdSettingsProps) {
             </Form.Group>
             <hr />
             <Form.Group>
+                <Form.Label htmlFor="article-buffer-size-input">Article Buffer Size</Form.Label>
+                <Form.Control
+                    {...className([styles.input, !isValidArticleBufferSize(config["usenet.article-buffer-size"]) && styles.error])}
+                    type="text"
+                    id="article-buffer-size-input"
+                    aria-describedby="article-buffer-size-help"
+                    placeholder="40"
+                    value={config["usenet.article-buffer-size"]}
+                    onChange={e => setNewConfig({ ...config, "usenet.article-buffer-size": e.target.value })} />
+                <Form.Text id="article-buffer-size-help" muted>
+                    The number of articles to buffer ahead, per stream, when reading from the webdav.
+                </Form.Text>
+            </Form.Group>
+            <hr />
+            <Form.Group>
                 <Form.Check
                     className={styles.input}
                     type="checkbox"
@@ -125,6 +140,7 @@ export function isWebdavSettingsUpdated(config: Record<string, string>, newConfi
         || config["webdav.pass"] !== newConfig["webdav.pass"]
         || config["usenet.max-download-connections"] !== newConfig["usenet.max-download-connections"]
         || config["usenet.streaming-priority"] !== newConfig["usenet.streaming-priority"]
+        || config["usenet.article-buffer-size"] !== newConfig["usenet.article-buffer-size"]
         || config["webdav.show-hidden-files"] !== newConfig["webdav.show-hidden-files"]
         || config["webdav.enforce-readonly"] !== newConfig["webdav.enforce-readonly"]
         || config["webdav.preview-par2-files"] !== newConfig["webdav.preview-par2-files"]
@@ -133,7 +149,8 @@ export function isWebdavSettingsUpdated(config: Record<string, string>, newConfi
 export function isWebdavSettingsValid(newConfig: Record<string, string>) {
     return isValidUser(newConfig["webdav.user"])
         && isValidMaxDownloadConnections(newConfig["usenet.max-download-connections"])
-        && isValidStreamingPriority(newConfig["usenet.streaming-priority"]);
+        && isValidStreamingPriority(newConfig["usenet.streaming-priority"])
+        && isValidArticleBufferSize(newConfig["usenet.article-buffer-size"]);
 }
 
 function isValidUser(user: string): boolean {
@@ -149,4 +166,8 @@ function isValidStreamingPriority(value: string): boolean {
     if (value.trim() === "") return false;
     const num = Number(value);
     return Number.isInteger(num) && num >= 0 && num <= 100;
+}
+
+function isValidArticleBufferSize(value: string): boolean {
+    return isPositiveInteger(value);
 }
