@@ -23,14 +23,14 @@ public class PrioritizedSemaphore : IDisposable
     private int _enteredCount;
     private bool _disposed = false;
     private readonly Lock _lock = new();
-    private readonly Random _random = new();
+    private int _accumulatedOdds;
 
     public PrioritizedSemaphore(int initialAllowed, int maxAllowed, SemaphorePriorityOdds? priorityOdds = null)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(initialAllowed);
         ArgumentOutOfRangeException.ThrowIfNegative(maxAllowed);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(initialAllowed, maxAllowed);
-        _priorityOdds = priorityOdds ?? new SemaphorePriorityOdds { HighPriorityOdds = 1 };
+        _priorityOdds = priorityOdds ?? new SemaphorePriorityOdds { HighPriorityOdds = 100 };
         _enteredCount = maxAllowed - initialAllowed;
         _maxAllowed = maxAllowed;
     }
@@ -114,13 +114,15 @@ public class PrioritizedSemaphore : IDisposable
             {
                 // if there are both high-priority waiters and low-priority waiters,
                 // then roll the dice to determine which to release, based on the given odds.
-                var result = _random.NextDouble();
+                _accumulatedOdds += _priorityOdds.LowPriorityOdds;
                 var (one, two) = (_highPriorityWaiters, _lowPriorityWaiters);
-                if (result > _priorityOdds.HighPriorityOdds)
+                if (_accumulatedOdds >= 100)
+                {
                     (one, two) = (two, one);
-                toRelease = Release(one);
-                if (toRelease == null)
-                    Release(two);
+                    _accumulatedOdds -= 100;
+                }
+
+                toRelease = Release(one) ?? Release(two);
             }
 
             if (toRelease == null)

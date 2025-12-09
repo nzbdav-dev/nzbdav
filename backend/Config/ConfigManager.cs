@@ -143,7 +143,7 @@ public class ConfigManager
     {
         var stringValue = StringUtil.EmptyToNull(GetConfigValue("usenet.streaming-priority"));
         var numericalValue = int.Parse(stringValue ?? "80");
-        return new SemaphorePriorityOdds() { HighPriorityOdds = numericalValue / 100.0 };
+        return new SemaphorePriorityOdds() { HighPriorityOdds = numericalValue };
     }
 
     public bool IsEnforceReadonlyWebdavEnabled()
