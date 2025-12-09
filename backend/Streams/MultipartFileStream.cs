@@ -1,21 +1,18 @@
 ﻿using NzbWebDAV.Clients.Usenet;
 using NzbWebDAV.Models;
 using NzbWebDAV.Utils;
+using UsenetSharp.Streams;
 
 namespace NzbWebDAV.Streams;
 
-public class MultipartFileStream : Stream
+public class MultipartFileStream(MultipartFile multipartFile, INntpClient usenetClient) : FastReadOnlyStream
 {
+    private long _position;
     private bool _isDisposed;
-    private readonly INntpClient _usenetClient;
-    private readonly MultipartFile _multipartFile;
     private Stream? _currentStream;
-    private long _position = 0;
 
-    public override bool CanRead => true;
     public override bool CanSeek => true;
-    public override bool CanWrite => false;
-    public override long Length => _multipartFile.FileSize;
+    public override long Length => multipartFile.FileSize;
 
     public override long Position
     {
@@ -23,31 +20,21 @@ public class MultipartFileStream : Stream
         set => throw new NotSupportedException();
     }
 
-    public MultipartFileStream(MultipartFile multipartFile, INntpClient usenetClient)
-    {
-        _multipartFile = multipartFile;
-        _usenetClient = usenetClient;
-    }
-
     public override int Read(byte[] buffer, int offset, int count)
     {
         return ReadAsync(buffer, offset, count).GetAwaiter().GetResult();
     }
 
-    public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+    public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
     {
-        if (count == 0) return 0;
+        if (buffer.Length == 0) return 0;
         while (_position < Length && !cancellationToken.IsCancellationRequested)
         {
             // If we haven't read the first stream, read it.
             _currentStream ??= GetCurrentStream();
 
             // read from our current stream
-            var readCount = await _currentStream.ReadAsync
-            (
-                buffer.AsMemory(offset, count),
-                cancellationToken
-            ).ConfigureAwait(false);
+            var readCount = await _currentStream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
             _position += readCount;
             if (readCount > 0) return readCount;
 
@@ -60,17 +47,17 @@ public class MultipartFileStream : Stream
         return 0;
     }
 
-    private Stream GetCurrentStream()
+    private NzbFileStream GetCurrentStream()
     {
         var searchResult = InterpolationSearch.Find(
             _position,
-            new LongRange(0, _multipartFile.FileParts.Count),
+            new LongRange(0, multipartFile.FileParts.Count),
             new LongRange(0, Length),
-            guess => _multipartFile.FileParts[guess].ByteRange
+            guess => multipartFile.FileParts[guess].ByteRange
         );
 
-        var filePart = _multipartFile.FileParts[searchResult.FoundIndex];
-        var stream = _usenetClient.GetFileStream(filePart.NzbFile, filePart.PartSize, concurrentConnections: 1);
+        var filePart = multipartFile.FileParts[searchResult.FoundIndex];
+        var stream = usenetClient.GetFileStream(filePart.NzbFile, filePart.PartSize, concurrentConnections: 1);
         stream.Seek(_position - searchResult.FoundByteRange.StartInclusive, SeekOrigin.Begin);
         return stream;
     }
@@ -90,16 +77,6 @@ public class MultipartFileStream : Stream
     public override void Flush()
     {
         _currentStream?.Flush();
-    }
-
-    public override void SetLength(long value)
-    {
-        throw new NotSupportedException();
-    }
-
-    public override void Write(byte[] buffer, int offset, int count)
-    {
-        throw new NotSupportedException();
     }
 
     protected override void Dispose(bool disposing)

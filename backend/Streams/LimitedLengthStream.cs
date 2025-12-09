@@ -1,20 +1,20 @@
-﻿using NzbWebDAV.Utils;
+﻿using UsenetSharp.Streams;
 
 namespace NzbWebDAV.Streams;
 
-public class LimitedLengthStream(Stream stream, long length) : Stream
+public class LimitedLengthStream(Stream stream, long length) : FastReadOnlyNonSeekableStream
 {
+    private long _position;
     private bool _disposed;
-    private long _position = 0;
 
+    public override long Length => length;
     public override void Flush() => stream.Flush();
 
-    public override int Read(byte[] buffer, int offset, int count) =>
-        ReadAsync(buffer, offset, count, SigtermUtil.GetCancellationToken()).GetAwaiter().GetResult();
-
-    public override async Task<int>
-        ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken) =>
-        await ReadAsync(buffer.AsMemory(offset, count), cancellationToken).ConfigureAwait(false);
+    public override long Position
+    {
+        get => stream.Position;
+        set => throw new NotSupportedException();
+    }
 
     public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
     {
@@ -34,21 +34,6 @@ public class LimitedLengthStream(Stream stream, long length) : Stream
 
         // Return the number of bytes read
         return bytesRead;
-    }
-
-    public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
-    public override void SetLength(long value) => throw new NotSupportedException();
-    public override void Write(byte[] buffer, int offset, int count) => stream.Write(buffer, offset, count);
-
-    public override bool CanRead => stream.CanRead;
-    public override bool CanSeek => false;
-    public override bool CanWrite => false;
-    public override long Length => length;
-
-    public override long Position
-    {
-        get => stream.Position;
-        set => throw new NotSupportedException();
     }
 
     protected override void Dispose(bool disposing)

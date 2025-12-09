@@ -2,6 +2,7 @@
 using NzbWebDAV.Extensions;
 using NzbWebDAV.Models;
 using NzbWebDAV.Utils;
+using UsenetSharp.Streams;
 
 namespace NzbWebDAV.Streams;
 
@@ -10,27 +11,31 @@ public class NzbFileStream(
     long fileSize,
     INntpClient client,
     int concurrency
-) : Stream
+) : FastReadOnlyStream
 {
-    private long _position = 0;
-    private CombinedStream? _innerStream;
+    private long _position;
     private bool _disposed;
+    private CombinedStream? _innerStream;
+
+    public override bool CanSeek => true;
+    public override long Length => fileSize;
+
+    public override long Position
+    {
+        get => _position;
+        set => Seek(value, SeekOrigin.Begin);
+    }
 
     public override void Flush()
     {
         _innerStream?.Flush();
     }
 
-    public override int Read(byte[] buffer, int offset, int count)
-    {
-        return ReadAsync(buffer, offset, count).GetAwaiter().GetResult();
-    }
-
-    public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+    public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
     {
         if (_innerStream == null)
             _innerStream = await GetFileStream(_position, cancellationToken).ConfigureAwait(false);
-        var read = await _innerStream.ReadAsync(buffer, offset, count, cancellationToken).ConfigureAwait(false);
+        var read = await _innerStream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
         _position += read;
         return read;
     }
@@ -46,28 +51,6 @@ public class NzbFileStream(
         _innerStream = null;
         return _position;
     }
-
-    public override void SetLength(long value)
-    {
-        throw new InvalidOperationException();
-    }
-
-    public override void Write(byte[] buffer, int offset, int count)
-    {
-        throw new InvalidOperationException();
-    }
-
-    public override bool CanRead => true;
-    public override bool CanSeek => true;
-    public override bool CanWrite => false;
-    public override long Length => fileSize;
-
-    public override long Position
-    {
-        get => _position;
-        set => Seek(value, SeekOrigin.Begin);
-    }
-
 
     private async Task<InterpolationSearch.Result> SeekSegment(long byteOffset, CancellationToken ct)
     {
