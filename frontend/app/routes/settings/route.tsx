@@ -8,14 +8,13 @@ import { isSabnzbdSettingsUpdated, isSabnzbdSettingsValid, SabnzbdSettings } fro
 import { isWebdavSettingsUpdated, isWebdavSettingsValid, WebdavSettings } from "./webdav/webdav";
 import { isArrsSettingsUpdated, isArrsSettingsValid, ArrsSettings } from "./arrs/arrs";
 import { Maintenance } from "./maintenance/maintenance";
-import { isRepairsSettingsUpdated, isRepairsSettingsValid, RepairsSettings } from "./repairs/repairs";
+import { isRepairsSettingsUpdated, RepairsSettings } from "./repairs/repairs";
 
 const defaultConfig = {
     "general.base-url": "",
     "api.key": "",
     "api.categories": "",
     "api.manual-category": "uncategorized",
-    "api.max-queue-connections": "",
     "api.ensure-importable-video": "true",
     "api.ensure-article-existence": "false",
     "api.ignore-history-limit": "true",
@@ -24,7 +23,8 @@ const defaultConfig = {
     "api.import-strategy": "symlinks",
     "api.completed-downloads-dir": "",
     "usenet.providers": "",
-    "usenet.connections-per-stream": "5",
+    "usenet.max-download-connections": "15",
+    "usenet.streaming-priority": "80",
     "webdav.user": "admin",
     "webdav.pass": "",
     "webdav.show-hidden-files": "false",
@@ -33,7 +33,6 @@ const defaultConfig = {
     "rclone.mount-dir": "",
     "media.library-dir": "",
     "arr.instances": "{\"RadarrInstances\":[],\"SonarrInstances\":[],\"QueueRules\":[]}",
-    "repair.connections": "",
     "repair.enable": "false",
 }
 
@@ -87,7 +86,6 @@ function Body(props: BodyProps) {
         : isSabnzbdUpdated && !isSabnzbdSettingsValid(newConfig) ? "Invalid SABnzbd settings"
         : isWebdavUpdated && !isWebdavSettingsValid(newConfig) ? "Invalid WebDAV settings"
         : isArrsUpdated && !isArrsSettingsValid(newConfig) ? "Invalid Arrs settings"
-        : isRepairsUpdated && !isRepairsSettingsValid(newConfig) ? "Invalid Repairs settings"
         : "Save";
     const saveButtonVariant = saveButtonLabel === "Save" ? "primary"
         : saveButtonLabel === "Saved ✅" ? "success"

@@ -91,7 +91,7 @@ export function ConvertStrmToSymlinks({ savedConfig }: ConvertStrmToSymlinksProp
                         <br />
                         This task will scan your organized media library for all *.strm files.
                         Every *.strm file that links to nzbdav media will be deleted and be replaced by a symlink.
-                        The newly created symlniks will all point to the corresponding file within your rclone mount.
+                        The newly created symlinks will all point to the corresponding file within your rclone mount.
                     </Form.Text>
                 </Form.Group>
             </div>

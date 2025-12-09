@@ -128,21 +128,6 @@ export function SabnzbdSettings({ config, setNewConfig }: SabnzbdSettingsProps) 
             </>}
             <hr />
             <Form.Group>
-                <Form.Label htmlFor="max-queue-connections-input">Max Connections for Queue Processing</Form.Label>
-                <Form.Control
-                    {...className([styles.input, !isValidQueueConnections(config["api.max-queue-connections"]) && styles.error])}
-                    type="text"
-                    id="max-queue-connections-input"
-                    aria-describedby="max-queue-connections-help"
-                    placeholder="All"
-                    value={config["api.max-queue-connections"]}
-                    onChange={e => setNewConfig({ ...config, "api.max-queue-connections": e.target.value })} />
-                <Form.Text id="max-queue-connections-help" muted>
-                    Queue processing tasks will not use any more than this number of connections. Will default to your overall Max Connections if left empty.
-                </Form.Text>
-            </Form.Group>
-            <hr />
-            <Form.Group>
                 <Form.Label htmlFor="ignored-file-extensions-input">Ignored File Extensions</Form.Label>
                 <Form.Control
                     className={styles.input}
@@ -158,16 +143,17 @@ export function SabnzbdSettings({ config, setNewConfig }: SabnzbdSettingsProps) 
             </Form.Group>
             <hr />
             <Form.Group>
-                <Form.Label htmlFor="duplicate-nzb-input">Behavior for Duplicate NZBs</Form.Label>
+                <Form.Label htmlFor="duplicate-nzb-behavior-input">Behavior for Duplicate NZBs</Form.Label>
                 <Form.Select
                     className={styles.input}
+                    aria-describedby="duplicate-nzb-behavior-help"
                     value={config["api.duplicate-nzb-behavior"]}
                     onChange={e => setNewConfig({ ...config, "api.duplicate-nzb-behavior": e.target.value })}
                 >
                     <option value="increment">Download again with suffix (2)</option>
                     <option value="mark-failed">Mark the download as failed</option>
                 </Form.Select>
-                <Form.Text id="max-queue-connections-help" muted>
+                <Form.Text id="duplicate-nzb-behavior-help" muted>
                     When an NZB is added, a new folder is created on the webdav. What should be done when the download folder for an NZB already exists?
                 </Form.Text>
             </Form.Group>
@@ -223,7 +209,6 @@ export function isSabnzbdSettingsUpdated(config: Record<string, string>, newConf
         || config["api.categories"] !== newConfig["api.categories"]
         || config["api.manual-category"] !== newConfig["api.manual-category"]
         || config["rclone.mount-dir"] !== newConfig["rclone.mount-dir"]
-        || config["api.max-queue-connections"] !== newConfig["api.max-queue-connections"]
         || config["api.ensure-importable-video"] !== newConfig["api.ensure-importable-video"]
         || config["api.ensure-article-existence"] !== newConfig["api.ensure-article-existence"]
         || config["api.ignore-history-limit"] !== newConfig["api.ignore-history-limit"]
@@ -235,8 +220,7 @@ export function isSabnzbdSettingsUpdated(config: Record<string, string>, newConf
 }
 
 export function isSabnzbdSettingsValid(newConfig: Record<string, string>) {
-    return isValidCategories(newConfig["api.categories"])
-        && isValidQueueConnections(newConfig["api.max-queue-connections"]);
+    return isValidCategories(newConfig["api.categories"]);
 }
 
 export function generateNewApiKey(): string {
@@ -252,8 +236,4 @@ function isValidCategories(categories: string): boolean {
 function isAlphaNumericWithDashes(input: string): boolean {
     const regex = /^[A-Za-z0-9-]+$/;
     return regex.test(input);
-}
-
-function isValidQueueConnections(maxQueueConnections: string): boolean {
-    return maxQueueConnections === "" || isPositiveInteger(maxQueueConnections);
 }

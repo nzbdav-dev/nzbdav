@@ -50,40 +50,11 @@ export function RepairsSettings({ config, setNewConfig }: RepairsSettingsProps) 
                     Make sure this path is visible to your NzbDAV container.
                 </Form.Text>
             </Form.Group>
-            <hr />
-            <Form.Group>
-                <Form.Label htmlFor="repairs-connections-input">Max Connections for Health Checks</Form.Label>
-                <Form.Control
-                    {...className([styles.input, !isValidRepairsConnections(config["repair.connections"]) && styles.error])}
-                    type="text"
-                    id="repairs-connections-input"
-                    aria-describedby="repairs-connections-help"
-                    placeholder={"All"}
-                    value={config["repair.connections"] || ""}
-                    onChange={e => setNewConfig({ ...config, "repair.connections": e.target.value })} />
-                <Form.Text id="repairs-connections-help" muted>
-                    The background health-check job will not use any more than this number of connections. Will default to your overall Max Connections if left empty.
-                </Form.Text>
-            </Form.Group>
         </div>
     );
 }
 
 export function isRepairsSettingsUpdated(config: Record<string, string>, newConfig: Record<string, string>) {
     return config["repair.enable"] !== newConfig["repair.enable"]
-        || config["repair.connections"] !== newConfig["repair.connections"]
         || config["media.library-dir"] !== newConfig["media.library-dir"];
-}
-
-export function isRepairsSettingsValid(newConfig: Record<string, string>) {
-    return isValidRepairsConnections(newConfig["repair.connections"]);
-}
-
-function isValidRepairsConnections(repairsConnections: string): boolean {
-    return repairsConnections === "" || isNonNegativeInteger(repairsConnections);
-}
-
-function isNonNegativeInteger(value: string) {
-    const num = Number(value);
-    return Number.isInteger(num) && num >= 0 && value.trim() === num.toString();
 }

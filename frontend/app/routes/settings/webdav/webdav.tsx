@@ -1,4 +1,4 @@
-import { Form } from "react-bootstrap";
+import { Form, InputGroup } from "react-bootstrap";
 import styles from "./webdav.module.css"
 import { type Dispatch, type SetStateAction } from "react";
 import { className } from "~/utils/styling";
@@ -42,17 +42,36 @@ export function WebdavSettings({ config, setNewConfig }: SabnzbdSettingsProps) {
             </Form.Group>
             <hr />
             <Form.Group>
-                <Form.Label htmlFor="connections-per-stream-input">Connections Per Stream</Form.Label>
+                <Form.Label htmlFor="max-download-connections-input">Max Download Connections</Form.Label>
                 <Form.Control
-                    {...className([styles.input, !isValidConnectionsPerStream(config["usenet.connections-per-stream"]) && styles.error])}
+                    {...className([styles.input, !isValidMaxDownloadConnections(config["usenet.max-download-connections"]) && styles.error])}
                     type="text"
-                    id="connections-per-stream-input"
-                    aria-describedby="connections-per-stream-help"
-                    placeholder="5"
-                    value={config["usenet.connections-per-stream"]}
-                    onChange={e => setNewConfig({ ...config, "usenet.connections-per-stream": e.target.value })} />
-                <Form.Text id="connections-per-stream-help" muted>
-                    When a file is requested from the webdav, how many usenet connections should be used to stream that file?
+                    id="max-download-connections-input"
+                    aria-describedby="max-download-connections-help"
+                    placeholder="15"
+                    value={config["usenet.max-download-connections"]}
+                    onChange={e => setNewConfig({ ...config, "usenet.max-download-connections": e.target.value })} />
+                <Form.Text id="max-download-connections-help" muted>
+                    The maximum number of connections that will be used for downloading articles from your usenet provider(s).
+                    Configure this to the minimum number of connections that will fully saturate your server's bandwidth.
+                </Form.Text>
+            </Form.Group>
+            <hr />
+            <Form.Group>
+                <Form.Label htmlFor="streaming-priority-input">Streaming Priority</Form.Label>
+                <InputGroup className={styles.input}>
+                    <Form.Control
+                        className={!isValidStreamingPriority(config["usenet.streaming-priority"]) ? styles.error : undefined}
+                        type="text"
+                        id="streaming-priority-input"
+                        aria-describedby="streaming-priority-help"
+                        placeholder="80"
+                        value={config["usenet.streaming-priority"]}
+                        onChange={e => setNewConfig({ ...config, "usenet.streaming-priority": e.target.value })} />
+                    <InputGroup.Text>%</InputGroup.Text>
+                </InputGroup>
+                <Form.Text id="streaming-priority-help" muted>
+                    When streaming from the webdav while the queue is also active, how much bandwidth should be dedicated to streaming?
                 </Form.Text>
             </Form.Group>
             <hr />
@@ -104,7 +123,8 @@ export function WebdavSettings({ config, setNewConfig }: SabnzbdSettingsProps) {
 export function isWebdavSettingsUpdated(config: Record<string, string>, newConfig: Record<string, string>) {
     return config["webdav.user"] !== newConfig["webdav.user"]
         || config["webdav.pass"] !== newConfig["webdav.pass"]
-        || config["usenet.connections-per-stream"] !== newConfig["usenet.connections-per-stream"]
+        || config["usenet.max-download-connections"] !== newConfig["usenet.max-download-connections"]
+        || config["usenet.streaming-priority"] !== newConfig["usenet.streaming-priority"]
         || config["webdav.show-hidden-files"] !== newConfig["webdav.show-hidden-files"]
         || config["webdav.enforce-readonly"] !== newConfig["webdav.enforce-readonly"]
         || config["webdav.preview-par2-files"] !== newConfig["webdav.preview-par2-files"]
@@ -112,7 +132,8 @@ export function isWebdavSettingsUpdated(config: Record<string, string>, newConfi
 
 export function isWebdavSettingsValid(newConfig: Record<string, string>) {
     return isValidUser(newConfig["webdav.user"])
-        && isValidConnectionsPerStream(newConfig["usenet.connections-per-stream"]);
+        && isValidMaxDownloadConnections(newConfig["usenet.max-download-connections"])
+        && isValidStreamingPriority(newConfig["usenet.streaming-priority"]);
 }
 
 function isValidUser(user: string): boolean {
@@ -120,6 +141,12 @@ function isValidUser(user: string): boolean {
     return regex.test(user);
 }
 
-function isValidConnectionsPerStream(value: string): boolean {
+function isValidMaxDownloadConnections(value: string): boolean {
     return isPositiveInteger(value);
+}
+
+function isValidStreamingPriority(value: string): boolean {
+    if (value.trim() === "") return false;
+    const num = Number(value);
+    return Number.isInteger(num) && num >= 0 && num <= 100;
 }
