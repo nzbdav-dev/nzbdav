@@ -88,15 +88,6 @@ public class ConfigManager
                ?? "uncategorized";
     }
 
-    public int GetConnectionsPerStream()
-    {
-        return int.Parse(
-            StringUtil.EmptyToNull(GetConfigValue("usenet.connections-per-stream"))
-            ?? StringUtil.EmptyToNull(Environment.GetEnvironmentVariable("CONNECTIONS_PER_STREAM"))
-            ?? "5"
-        );
-    }
-
     public string? GetWebdavUser()
     {
         return StringUtil.EmptyToNull(GetConfigValue("webdav.user"))
