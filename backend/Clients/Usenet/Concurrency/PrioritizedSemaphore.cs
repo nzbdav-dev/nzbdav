@@ -2,21 +2,37 @@
 
 namespace NzbWebDAV.Clients.Usenet.Concurrency;
 
+/// <summary>
+/// This semaphore maintains two separate queues for waiters:
+///   1. A high-priority queue
+///   2. A low-priority queue
+///
+/// When there are both high- and low- priority waiters in their respective queues,
+/// dice are rolled to determine which to release, using the given odds from the
+/// constructor.
+///
+/// These configurable odds prevent the high-priority queue from fully starving the
+/// low-priority queue.
+/// </summary>
 public class PrioritizedSemaphore : IDisposable
 {
     private readonly LinkedList<TaskCompletionSource<bool>> _highPriorityWaiters = [];
     private readonly LinkedList<TaskCompletionSource<bool>> _lowPriorityWaiters = [];
     private readonly SemaphorePriorityOdds _priorityOdds;
-    private int _currentCount;
+    private int _maxAllowed;
+    private int _enteredCount;
     private bool _disposed = false;
     private readonly Lock _lock = new();
     private readonly Random _random = new();
 
-    public PrioritizedSemaphore(int initialCount, SemaphorePriorityOdds? priorityOdds = null)
+    public PrioritizedSemaphore(int initialAllowed, int maxAllowed, SemaphorePriorityOdds? priorityOdds = null)
     {
-        ArgumentOutOfRangeException.ThrowIfNegative(initialCount);
+        ArgumentOutOfRangeException.ThrowIfNegative(initialAllowed);
+        ArgumentOutOfRangeException.ThrowIfNegative(maxAllowed);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(initialAllowed, maxAllowed);
         _priorityOdds = priorityOdds ?? new SemaphorePriorityOdds { HighPriorityOdds = 1 };
-        _currentCount = initialCount;
+        _enteredCount = maxAllowed - initialAllowed;
+        _maxAllowed = maxAllowed;
     }
 
     public Task WaitAsync(SemaphorePriority priority, CancellationToken cancellationToken = default)
@@ -26,9 +42,9 @@ public class PrioritizedSemaphore : IDisposable
             if (_disposed)
                 throw new ObjectDisposedException(nameof(AsyncSemaphore));
 
-            if (_currentCount > 0)
+            if (_enteredCount < _maxAllowed)
             {
-                _currentCount--;
+                _enteredCount++;
                 return Task.CompletedTask;
             }
 
@@ -67,13 +83,22 @@ public class PrioritizedSemaphore : IDisposable
 
     public void Release()
     {
-        TaskCompletionSource<bool>? toRelease = null;
+        TaskCompletionSource<bool>? toRelease;
         lock (_lock)
         {
             if (_disposed)
                 throw new ObjectDisposedException(nameof(AsyncSemaphore));
 
-            if (_highPriorityWaiters.Count == 0)
+            if (_enteredCount > _maxAllowed)
+            {
+                // if more threads have entered than are allowed,
+                // then don't release any waiter.
+                //
+                // This can happen when the _maxAllowed gets
+                // lowered through the UpdateMaxAllowed method.
+                toRelease = null;
+            }
+            else if (_highPriorityWaiters.Count == 0)
             {
                 // if there are no high-priority waiters,
                 // then release a low-priority waiter.
@@ -101,8 +126,13 @@ public class PrioritizedSemaphore : IDisposable
             if (toRelease == null)
             {
                 // if no waiters were ultimately released,
-                // then increase the current count.
-                _currentCount++;
+                // then decrease the entered count.
+                _enteredCount--;
+                if (_enteredCount < 0)
+                {
+                    throw new InvalidOperationException("The semaphore cannot be further released.");
+                }
+
                 return;
             }
         }
@@ -125,6 +155,14 @@ public class PrioritizedSemaphore : IDisposable
         }
 
         return null;
+    }
+
+    public void UpdateMaxAllowed(int newMaxAllowed)
+    {
+        lock (_lock)
+        {
+            _maxAllowed = newMaxAllowed;
+        }
     }
 
     public void Dispose()

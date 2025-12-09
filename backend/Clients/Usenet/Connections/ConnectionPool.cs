@@ -57,7 +57,7 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
         IdleTimeout = idleTimeout ?? TimeSpan.FromSeconds(30);
 
         _maxConnections = maxConnections;
-        _gate = new PrioritizedSemaphore(maxConnections);
+        _gate = new PrioritizedSemaphore(maxConnections, maxConnections);
         _sweeperTask = Task.Run(SweepLoop); // background idle-reaper
     }
 
