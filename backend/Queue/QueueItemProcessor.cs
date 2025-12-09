@@ -138,7 +138,7 @@ public class QueueItemProcessor(
             .ToPercentage(fileProcessors.Count);
         var fileProcessingResultsAll = await fileProcessors
             .Select(x => x!.ProcessAsync())
-            .WithConcurrencyAsync(configManager.GetMaxDownloadConnections())
+            .WithConcurrencyAsync(configManager.GetMaxDownloadConnections() + 5)
             .GetAllAsync(ct, part2Progress).ConfigureAwait(false);
         var fileProcessingResults = fileProcessingResultsAll
             .Where(x => x is not null)

@@ -23,7 +23,7 @@ public static class FetchFirstSegmentsStep
         return await nzbFiles
             .Where(x => x.Segments.Count > 0)
             .Select(x => FetchFirstSegment(x, usenetClient, cancellationToken))
-            .WithConcurrencyAsync(configManager.GetMaxDownloadConnections())
+            .WithConcurrencyAsync(configManager.GetMaxDownloadConnections() + 5)
             .GetAllAsync(cancellationToken, progress).ConfigureAwait(false);
     }
 
