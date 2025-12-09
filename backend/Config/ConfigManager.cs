@@ -139,6 +139,14 @@ public class ConfigManager
         );
     }
 
+    public int GetMaxDownloadConnections()
+    {
+        return int.Parse(
+            StringUtil.EmptyToNull(GetConfigValue("usenet.max-download-connections"))
+            ?? Math.Min(GetUsenetProviderConfig().TotalPooledConnections, 15).ToString()
+        );
+    }
+
     public bool IsEnforceReadonlyWebdavEnabled()
     {
         var defaultValue = true;
