@@ -7,7 +7,7 @@ namespace NzbWebDAV.Streams;
 public class MultipartFileStream : Stream
 {
     private bool _isDisposed;
-    private readonly UsenetStreamingClient _client;
+    private readonly INntpClient _client;
     private readonly MultipartFile _multipartFile;
     private Stream? _currentStream;
     private long _position = 0;
@@ -23,7 +23,7 @@ public class MultipartFileStream : Stream
         set => throw new NotSupportedException();
     }
 
-    public MultipartFileStream(MultipartFile multipartFile, UsenetStreamingClient client)
+    public MultipartFileStream(MultipartFile multipartFile, INntpClient client)
     {
         _multipartFile = multipartFile;
         _client = client;

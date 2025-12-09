@@ -1,6 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using NzbWebDAV.Clients.Usenet;
-using NzbWebDAV.Clients.Usenet.Connections;
 using NzbWebDAV.Config;
 using NzbWebDAV.Database;
 using NzbWebDAV.Database.Models;
@@ -18,7 +17,7 @@ namespace NzbWebDAV.Services;
 public class HealthCheckService
 {
     private readonly ConfigManager _configManager;
-    private readonly UsenetStreamingClient _usenetClient;
+    private readonly INntpClient _usenetClient;
     private readonly WebsocketManager _websocketManager;
     private readonly CancellationToken _cancellationToken = SigtermUtil.GetCancellationToken();
 
@@ -60,12 +59,7 @@ public class HealthCheckService
 
                 // get concurrency
                 var concurrency = _configManager.GetMaxRepairConnections();
-
-                // set reserved-connections context
                 using var cts = CancellationTokenSource.CreateLinkedTokenSource(_cancellationToken);
-                var providerConfig = _configManager.GetUsenetProviderConfig();
-                var reservedConnections = providerConfig.TotalPooledConnections - concurrency;
-                using var _ = cts.Token.SetScopedContext(new ReservedPooledConnectionsContext(reservedConnections));
 
                 // get the davItem to health-check
                 await using var dbContext = new DavDatabaseContext();
@@ -174,7 +168,8 @@ public class HealthCheckService
     {
         var firstSegmentId = StringUtil.EmptyToNull(segments.FirstOrDefault());
         if (firstSegmentId == null) return;
-        var articleHeaders = await _usenetClient.GetArticleHeadersAsync(firstSegmentId, ct).ConfigureAwait(false);
+        var articleHeadersResponse = await _usenetClient.HeadAsync(firstSegmentId, ct).ConfigureAwait(false);
+        var articleHeaders = articleHeadersResponse.ArticleHeaders!;
         davItem.ReleaseDate = articleHeaders.Date;
     }
 

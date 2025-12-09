@@ -1,87 +1,138 @@
 ﻿using System.Runtime.ExceptionServices;
-using NzbWebDAV.Clients.Usenet.Connections;
 using NzbWebDAV.Clients.Usenet.Models;
-using NzbWebDAV.Exceptions;
-using NzbWebDAV.Extensions;
 using NzbWebDAV.Models;
-using NzbWebDAV.Streams;
 using Serilog;
-using Usenet.Nntp.Responses;
-using Usenet.Nzb;
-using Usenet.Yenc;
+using UsenetSharp.Models;
 
 namespace NzbWebDAV.Clients.Usenet;
 
 public class MultiProviderNntpClient(List<MultiConnectionNntpClient> providers) : INntpClient
 {
-    public Task<bool> ConnectAsync(string host, int port, bool useSsl, CancellationToken cancellationToken)
+    public Task ConnectAsync(string host, int port, bool useSsl, CancellationToken cancellationToken)
     {
         throw new NotSupportedException("Please connect within the connectionFactory");
     }
 
-    public Task<bool> AuthenticateAsync(string user, string pass, CancellationToken cancellationToken)
+    public Task<UsenetResponse> AuthenticateAsync(string user, string pass, CancellationToken cancellationToken)
     {
         throw new NotSupportedException("Please authenticate within the connectionFactory");
     }
 
-    public Task<NntpStatResponse> StatAsync(string segmentId, CancellationToken cancellationToken)
+    public Task<UsenetStatResponse> StatAsync(SegmentId segmentId, CancellationToken cancellationToken)
     {
-        return RunFromPoolWithBackup(connection => connection.StatAsync(segmentId, cancellationToken),
-            cancellationToken);
+        return RunFromPoolWithBackup(x => x.StatAsync(segmentId, cancellationToken), cancellationToken);
     }
 
-    public Task<NntpDateResponse> DateAsync(CancellationToken cancellationToken)
+    public Task<UsenetHeadResponse> HeadAsync(SegmentId segmentId, CancellationToken cancellationToken)
     {
-        return RunFromPoolWithBackup(connection => connection.DateAsync(cancellationToken), cancellationToken);
+        return RunFromPoolWithBackup(x => x.HeadAsync(segmentId, cancellationToken), cancellationToken);
     }
 
-    public Task<UsenetArticleHeaders> GetArticleHeadersAsync(string segmentId, CancellationToken cancellationToken)
+    public Task<UsenetDecodedBodyResponse> DecodedBodyAsync(SegmentId segmentId, CancellationToken cancellationToken)
     {
-        return RunFromPoolWithBackup(connection => connection.GetArticleHeadersAsync(segmentId, cancellationToken),
-            cancellationToken);
+        return RunFromPoolWithBackup(x => x.DecodedBodyAsync(segmentId, cancellationToken), cancellationToken);
     }
 
-    public Task<YencHeaderStream> GetSegmentStreamAsync(string segmentId, bool includeHeaders,
-        CancellationToken cancellationToken)
+    public Task<UsenetDecodedArticleResponse> DecodedArticleAsync
+    (
+        SegmentId segmentId,
+        CancellationToken cancellationToken
+    )
     {
-        return RunFromPoolWithBackup(
-            connection => connection.GetSegmentStreamAsync(segmentId, includeHeaders, cancellationToken),
-            cancellationToken);
+        return RunFromPoolWithBackup(x => x.DecodedArticleAsync(segmentId, cancellationToken), cancellationToken);
     }
 
-    public Task<YencHeader> GetSegmentYencHeaderAsync(string segmentId, CancellationToken cancellationToken)
+    public Task<UsenetDateResponse> DateAsync(CancellationToken cancellationToken)
     {
-        return RunFromPoolWithBackup(connection => connection.GetSegmentYencHeaderAsync(segmentId, cancellationToken),
-            cancellationToken);
+        return RunFromPoolWithBackup(x => x.DateAsync(cancellationToken), cancellationToken);
     }
 
-    public Task<long> GetFileSizeAsync(NzbFile file, CancellationToken cancellationToken)
+    public async Task<UsenetDecodedBodyResponse> DecodedBodyAsync
+    (
+        SegmentId segmentId,
+        Action<ArticleBodyResult>? onConnectionReadyAgain,
+        CancellationToken cancellationToken
+    )
     {
-        return RunFromPoolWithBackup(connection => connection.GetFileSizeAsync(file, cancellationToken),
-            cancellationToken);
+        UsenetDecodedBodyResponse? result;
+        try
+        {
+            result = await RunFromPoolWithBackup(
+                x => x.DecodedBodyAsync(segmentId, OnConnectionReadyAgain, cancellationToken),
+                cancellationToken
+            ).ConfigureAwait(false);
+        }
+        catch
+        {
+            onConnectionReadyAgain?.Invoke(ArticleBodyResult.NotRetrieved);
+            throw;
+        }
+
+        if (result.ResponseType != UsenetResponseType.ArticleRetrievedBodyFollows)
+            onConnectionReadyAgain?.Invoke(ArticleBodyResult.NotRetrieved);
+
+        return result;
+
+        void OnConnectionReadyAgain(ArticleBodyResult articleBodyResult)
+        {
+            if (articleBodyResult == ArticleBodyResult.Retrieved)
+                onConnectionReadyAgain?.Invoke(ArticleBodyResult.Retrieved);
+        }
     }
 
-    public Task WaitForReady(CancellationToken cancellationToken)
+    public async Task<UsenetDecodedArticleResponse> DecodedArticleAsync
+    (
+        SegmentId segmentId,
+        Action<ArticleBodyResult>? onConnectionReadyAgain,
+        CancellationToken cancellationToken
+    )
     {
-        return Task.CompletedTask;
+        UsenetDecodedArticleResponse? result;
+        try
+        {
+            result = await RunFromPoolWithBackup(
+                x => x.DecodedArticleAsync(segmentId, OnConnectionReadyAgain, cancellationToken),
+                cancellationToken
+            ).ConfigureAwait(false);
+        }
+        catch
+        {
+            onConnectionReadyAgain?.Invoke(ArticleBodyResult.NotRetrieved);
+            throw;
+        }
+
+        if (result.ResponseType != UsenetResponseType.ArticleRetrievedHeadAndBodyFollow)
+            onConnectionReadyAgain?.Invoke(ArticleBodyResult.NotRetrieved);
+
+        return result;
+
+        void OnConnectionReadyAgain(ArticleBodyResult articleBodyResult)
+        {
+            if (articleBodyResult == ArticleBodyResult.Retrieved)
+                onConnectionReadyAgain?.Invoke(ArticleBodyResult.Retrieved);
+        }
+    }
+
+    public Task WaitForReadyAsync(CancellationToken cancellationToken)
+    {
+        throw new NotSupportedException();
     }
 
     private async Task<T> RunFromPoolWithBackup<T>
     (
         Func<INntpClient, Task<T>> task,
         CancellationToken cancellationToken
-    )
+    ) where T : UsenetResponse
     {
         ExceptionDispatchInfo? lastException = null;
-        var lastSuccessfulProviderContext = cancellationToken.GetContext<LastSuccessfulProviderContext>();
-        var lastSuccessfulProvider = lastSuccessfulProviderContext?.Provider;
-        var orderedProviders = GetOrderedProviders(lastSuccessfulProvider);
-        T? result = default;
-        foreach (var provider in orderedProviders)
+        var orderedProviders = GetOrderedProviders();
+        for (var i = 0; i < orderedProviders.Count; i++)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            var provider = orderedProviders[i];
+            var isLastProvider = i == orderedProviders.Count - 1;
 
-            if (lastException is not null && lastException.SourceException is not UsenetArticleNotFoundException)
+            if (lastException is not null)
             {
                 var msg = lastException.SourceException.Message;
                 Log.Debug($"Encountered error during NNTP Operation: `{msg}`. Trying another provider.");
@@ -89,12 +140,12 @@ public class MultiProviderNntpClient(List<MultiConnectionNntpClient> providers) 
 
             try
             {
-                result = await task.Invoke(provider).ConfigureAwait(false);
-                if (result is NntpStatResponse r && r.ResponseType != NntpStatResponseType.ArticleExists)
-                    throw new UsenetArticleNotFoundException(r.MessageId.Value);
+                var result = await task.Invoke(provider).ConfigureAwait(false);
 
-                if (lastSuccessfulProviderContext is not null && lastSuccessfulProvider != provider)
-                    lastSuccessfulProviderContext.Provider = provider;
+                // if no article with that message-id is found, try again with the next provider.
+                if (!isLastProvider && result.ResponseType == UsenetResponseType.NoArticleWithThatMessageId)
+                    continue;
+
                 return result;
             }
             catch (Exception e) when (e is not OperationCanceledException and not TaskCanceledException)
@@ -103,24 +154,17 @@ public class MultiProviderNntpClient(List<MultiConnectionNntpClient> providers) 
             }
         }
 
-        if (result is NntpStatResponse)
-            return result;
-
         lastException?.Throw();
         throw new Exception("There are no usenet providers configured.");
     }
 
-    private IEnumerable<MultiConnectionNntpClient> GetOrderedProviders(MultiConnectionNntpClient? preferredProvider)
+    private List<MultiConnectionNntpClient> GetOrderedProviders()
     {
         return providers
             .Where(x => x.ProviderType != ProviderType.Disabled)
             .OrderBy(x => x.ProviderType)
-            .ThenByDescending(x => x.IdleConnections)
-            .ThenByDescending(x => x.RemainingSemaphoreSlots)
-            .Prepend(preferredProvider)
-            .Where(x => x is not null)
-            .Select(x => x!)
-            .Distinct();
+            .ThenByDescending(x => x.AvailableConnections)
+            .ToList();
     }
 
     public void Dispose()

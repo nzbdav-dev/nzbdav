@@ -9,7 +9,7 @@ namespace NzbWebDAV.Queue.FileProcessors;
 
 public class FileProcessor(
     GetFileInfosStep.FileInfo fileInfo,
-    UsenetStreamingClient usenet,
+    INntpClient usenet,
     CancellationToken ct
 ) : BaseProcessor
 {

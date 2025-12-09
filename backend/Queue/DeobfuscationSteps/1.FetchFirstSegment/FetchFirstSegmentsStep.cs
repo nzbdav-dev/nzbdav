@@ -5,7 +5,7 @@ using NzbWebDAV.Config;
 using NzbWebDAV.Exceptions;
 using NzbWebDAV.Extensions;
 using Usenet.Nzb;
-using Usenet.Yenc;
+using UsenetSharp.Models;
 
 namespace NzbWebDAV.Queue.DeobfuscationSteps._1.FetchFirstSegment;
 
@@ -14,9 +14,9 @@ public static class FetchFirstSegmentsStep
     public static async Task<List<NzbFileWithFirstSegment>> FetchFirstSegments
     (
         List<NzbFile> nzbFiles,
-        UsenetStreamingClient client,
+        INntpClient client,
         ConfigManager configManager,
-        CancellationToken cancellationToken = default,
+        CancellationToken cancellationToken,
         IProgress<int>? progress = null
     )
     {
@@ -30,22 +30,23 @@ public static class FetchFirstSegmentsStep
     private static async Task<NzbFileWithFirstSegment> FetchFirstSegment
     (
         NzbFile nzbFile,
-        UsenetStreamingClient client,
-        CancellationToken cancellationToken = default
+        INntpClient client,
+        CancellationToken cancellationToken
     )
     {
         try
         {
             // get the first article stream
             var firstSegment = nzbFile.Segments[0].MessageId.Value;
-            await using var stream = await client.GetSegmentStreamAsync(firstSegment, true, cancellationToken).ConfigureAwait(false);
+            var article = await client.DecodedArticleAsync(firstSegment, cancellationToken).ConfigureAwait(false);
+            await using var bodyStream = article.Stream!;
 
             // read up to the first 16KB from the stream
             var totalRead = 0;
             var buffer = new byte[16 * 1024];
             while (totalRead < buffer.Length)
             {
-                var read = await stream.ReadAsync(buffer.AsMemory(totalRead, buffer.Length - totalRead),
+                var read = await bodyStream.ReadAsync(buffer.AsMemory(totalRead, buffer.Length - totalRead),
                     cancellationToken).ConfigureAwait(false);
                 if (read == 0) break;
                 totalRead += read;
@@ -56,14 +57,19 @@ public static class FetchFirstSegmentsStep
                 ? buffer.AsSpan(0, totalRead).ToArray()
                 : buffer;
 
+            // get the yencHeaders
+            var yencHeaders = await bodyStream
+                .GetYencHeadersAsync(cancellationToken)
+                .ConfigureAwait(false);
+
             // return
             return new NzbFileWithFirstSegment
             {
                 NzbFile = nzbFile,
                 First16KB = first16KB,
-                Header = stream.Header,
+                Header = yencHeaders,
                 MissingFirstSegment = false,
-                ReleaseDate = stream.ArticleHeaders!.Date
+                ReleaseDate = article.ArticleHeaders!.Date
             };
         }
         catch (UsenetArticleNotFoundException)
@@ -85,7 +91,7 @@ public static class FetchFirstSegmentsStep
         private static readonly byte[] Rar5Magic = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00];
 
         public required NzbFile NzbFile { get; init; }
-        public required YencHeader? Header { get; init; }
+        public required UsenetYencHeader? Header { get; init; }
         public required byte[]? First16KB { get; init; }
         public required bool MissingFirstSegment { get; init; }
         public required DateTimeOffset ReleaseDate { get; init; }

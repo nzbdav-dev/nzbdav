@@ -28,7 +28,8 @@ public class NzbFileStream(
 
     public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
     {
-        if (_innerStream == null) _innerStream = await GetFileStream(_position, cancellationToken).ConfigureAwait(false);
+        if (_innerStream == null)
+            _innerStream = await GetFileStream(_position, cancellationToken).ConfigureAwait(false);
         var read = await _innerStream.ReadAsync(buffer, offset, count, cancellationToken).ConfigureAwait(false);
         _position += read;
         return read;
@@ -76,7 +77,7 @@ public class NzbFileStream(
             new LongRange(0, fileSize),
             async (guess) =>
             {
-                var header = await client.GetSegmentYencHeaderAsync(fileSegmentIds[guess], ct).ConfigureAwait(false);
+                var header = await client.GetYencHeadersAsync(fileSegmentIds[guess], ct).ConfigureAwait(false);
                 return new LongRange(header.PartOffset, header.PartOffset + header.PartSize);
             },
             ct
@@ -96,7 +97,7 @@ public class NzbFileStream(
     {
         return new CombinedStream(
             fileSegmentIds[firstSegmentIndex..]
-                .Select(async x => (Stream)await client.GetSegmentStreamAsync(x, false, ct).ConfigureAwait(false))
+                .Select(async x => (Stream)(await client.DecodedBodyAsync(x, ct).ConfigureAwait(false)).Stream)
                 .WithConcurrency(concurrentConnections)
         );
     }

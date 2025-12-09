@@ -11,7 +11,7 @@ public static class GetPar2FileDescriptorsStep
     public static async Task<List<FileDesc>> GetPar2FileDescriptors
     (
         List<FetchFirstSegmentsStep.NzbFileWithFirstSegment> files,
-        UsenetStreamingClient client,
+        INntpClient client,
         CancellationToken cancellationToken = default
     )
     {

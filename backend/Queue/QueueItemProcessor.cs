@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore;
 using NzbWebDAV.Api.SabControllers.GetHistory;
 using NzbWebDAV.Clients.RadarrSonarr;
 using NzbWebDAV.Clients.Usenet;
-using NzbWebDAV.Clients.Usenet.Connections;
 using NzbWebDAV.Config;
 using NzbWebDAV.Database;
 using NzbWebDAV.Database.Models;
@@ -26,7 +25,7 @@ public class QueueItemProcessor(
     QueueItem queueItem,
     QueueNzbContents queueNzbContents,
     DavDatabaseClient dbClient,
-    UsenetStreamingClient usenetClient,
+    INntpClient usenetClient,
     ConfigManager configManager,
     WebsocketManager websocketManager,
     HealthCheckService healthCheckService,
@@ -108,10 +107,7 @@ public class QueueItemProcessor(
         }
 
         // ensure we don't use more than max-queue-connections
-        var providerConfig = configManager.GetUsenetProviderConfig();
         var concurrency = configManager.GetMaxQueueConnections();
-        var reservedConnections = providerConfig.TotalPooledConnections - concurrency;
-        using var _ = ct.SetScopedContext(new ReservedPooledConnectionsContext(reservedConnections));
 
         // read the nzb document
         var documentBytes = Encoding.UTF8.GetBytes(queueNzbContents.NzbContents);

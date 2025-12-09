@@ -14,14 +14,14 @@ namespace NzbWebDAV.Queue.FileProcessors;
 public class SevenZipProcessor : BaseProcessor
 {
     private readonly List<GetFileInfosStep.FileInfo> _fileInfos;
-    private readonly UsenetStreamingClient _client;
+    private readonly INntpClient _client;
     private readonly string? _archivePassword;
     private readonly CancellationToken _ct;
 
     public SevenZipProcessor
     (
         List<GetFileInfosStep.FileInfo> fileInfos,
-        UsenetStreamingClient client,
+        INntpClient client,
         string? archivePassword,
         CancellationToken ct
     )

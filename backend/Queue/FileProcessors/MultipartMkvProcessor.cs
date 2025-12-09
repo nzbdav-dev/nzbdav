@@ -10,13 +10,13 @@ namespace NzbWebDAV.Queue.FileProcessors;
 public class MultipartMkvProcessor : BaseProcessor
 {
     private readonly List<GetFileInfosStep.FileInfo> _fileInfos;
-    private readonly UsenetStreamingClient _client;
+    private readonly INntpClient _client;
     private readonly CancellationToken _ct;
 
     public MultipartMkvProcessor
     (
         List<GetFileInfosStep.FileInfo> fileInfos,
-        UsenetStreamingClient client,
+        INntpClient client,
         CancellationToken ct
     )
     {

@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
-using NzbWebDAV.Extensions;
+using UsenetSharp.Concurrency;
 
 namespace NzbWebDAV.Clients.Usenet.Connections;
 
@@ -26,7 +26,6 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
     public int IdleConnections => _idleConnections.Count;
     public int ActiveConnections => _live - _idleConnections.Count;
     public int AvailableConnections => _maxConnections - ActiveConnections;
-    public int RemainingSemaphoreSlots => _gate.RemainingSemaphoreSlots;
 
     public event EventHandler<ConnectionPoolStats.ConnectionPoolChangedEventArgs>? OnConnectionPoolChanged;
 
@@ -36,7 +35,7 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
     /* --------------------------------- state --------------------------------------- */
 
     private readonly ConcurrentStack<Pooled> _idleConnections = new();
-    private readonly CombinedSemaphoreSlim _gate;
+    private readonly AsyncSemaphore _gate;
     private readonly CancellationTokenSource _sweepCts = new();
     private readonly Task _sweeperTask; // keeps timer alive
 
@@ -47,7 +46,6 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
 
     public ConnectionPool(
         int maxConnections,
-        ExtendedSemaphoreSlim pooledSemaphore,
         Func<CancellationToken, ValueTask<T>> connectionFactory,
         TimeSpan? idleTimeout = null)
     {
@@ -59,7 +57,7 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
         IdleTimeout = idleTimeout ?? TimeSpan.FromSeconds(30);
 
         _maxConnections = maxConnections;
-        _gate = new CombinedSemaphoreSlim(maxConnections, pooledSemaphore);
+        _gate = new AsyncSemaphore(maxConnections);
         _sweeperTask = Task.Run(SweepLoop); // background idle-reaper
     }
 
@@ -73,13 +71,11 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
     public async Task<ConnectionLock<T>> GetConnectionLockAsync(
         CancellationToken cancellationToken = default)
     {
-        var reservedCount = cancellationToken.GetContext<ReservedPooledConnectionsContext>().Count;
-
         // Make caller cancellation also cancel the wait on the gate.
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(
             cancellationToken, _sweepCts.Token);
 
-        await _gate.WaitAsync(reservedCount, linked.Token).ConfigureAwait(false);
+        await _gate.WaitAsync(linked.Token).ConfigureAwait(false);
 
         // Pool might have been disposed after wait returned:
         if (Volatile.Read(ref _disposed) == 1)
@@ -98,7 +94,7 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
             }
 
             // Stale – destroy and continue looking.
-            await DisposeConnectionAsync(item.Connection).ConfigureAwait(false);
+            DisposeConnection(item.Connection);
             Interlocked.Decrement(ref _live);
             TriggerConnectionPoolChangedEvent();
         }
@@ -142,7 +138,7 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
     {
         if (Volatile.Read(ref _disposed) == 1)
         {
-            _ = DisposeConnectionAsync(connection); // fire & forget
+            DisposeConnection(connection);
             Interlocked.Decrement(ref _live);
             TriggerConnectionPoolChangedEvent();
             return;
@@ -156,7 +152,7 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
     private void Destroy(T connection)
     {
         // When a lock requests replacement, we dispose the connection instead of reusing.
-        _ = DisposeConnectionAsync(connection); // fire & forget
+        DisposeConnection(connection);
         Interlocked.Decrement(ref _live);
         if (Volatile.Read(ref _disposed) == 0)
         {
@@ -183,7 +179,7 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
         {
             using var timer = new PeriodicTimer(IdleTimeout / 2);
             while (await timer.WaitForNextTickAsync(_sweepCts.Token).ConfigureAwait(false))
-                await SweepOnce().ConfigureAwait(false);
+                SweepOnce();
         }
         catch (OperationCanceledException)
         {
@@ -191,7 +187,7 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
         }
     }
 
-    private async Task SweepOnce()
+    private void SweepOnce()
     {
         var now = Environment.TickCount64;
         var survivors = new List<Pooled>();
@@ -201,7 +197,7 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
         {
             if (item.IsExpired(IdleTimeout, now))
             {
-                await DisposeConnectionAsync(item.Connection).ConfigureAwait(false);
+                DisposeConnection(item.Connection);
                 Interlocked.Decrement(ref _live);
                 isAnyConnectionFreed = true;
             }
@@ -212,7 +208,7 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
         }
 
         // Preserve original LIFO order.
-        for (int i = survivors.Count - 1; i >= 0; i--)
+        for (var i = survivors.Count - 1; i >= 0; i--)
             _idleConnections.Push(survivors[i]);
 
         if (isAnyConnectionFreed)
@@ -221,17 +217,10 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
 
     /* ------------------------- dispose helpers ------------------------------------ */
 
-    private static async ValueTask DisposeConnectionAsync(T conn)
+    private static void DisposeConnection(T conn)
     {
-        switch (conn)
-        {
-            case IAsyncDisposable ad:
-                await ad.DisposeAsync().ConfigureAwait(false);
-                break;
-            case IDisposable d:
-                d.Dispose();
-                break;
-        }
+        if (conn is IDisposable d)
+            d.Dispose();
     }
 
     /* -------------------------- IAsyncDisposable ---------------------------------- */
@@ -240,7 +229,7 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
     {
         if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
 
-        _sweepCts.Cancel();
+        await _sweepCts.CancelAsync();
 
         try
         {
@@ -253,7 +242,7 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
 
         // Drain and dispose cached items.
         while (_idleConnections.TryPop(out var item))
-            await DisposeConnectionAsync(item.Connection).ConfigureAwait(false);
+            DisposeConnection(item.Connection);
 
         _sweepCts.Dispose();
         _gate.Dispose();

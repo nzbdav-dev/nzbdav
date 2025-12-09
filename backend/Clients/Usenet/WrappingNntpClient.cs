@@ -1,75 +1,76 @@
 ﻿using NzbWebDAV.Clients.Usenet.Models;
-using NzbWebDAV.Streams;
-using Usenet.Nntp.Responses;
-using Usenet.Nzb;
-using Usenet.Yenc;
+using UsenetSharp.Models;
 
 namespace NzbWebDAV.Clients.Usenet;
 
-public abstract class WrappingNntpClient(INntpClient client) : INntpClient
+public class WrappingNntpClient(INntpClient client) : INntpClient
 {
-    protected INntpClient Client = client;
+    private INntpClient _client = client;
 
-    public virtual Task<bool> ConnectAsync(string host, int port, bool useSsl, CancellationToken cancellationToken)
+    public Task ConnectAsync(string host, int port, bool useSsl, CancellationToken cancellationToken)
     {
-        return Client.ConnectAsync(host, port, useSsl, cancellationToken);
+        return _client.ConnectAsync(host, port, useSsl, cancellationToken);
     }
 
-    public virtual Task<bool> AuthenticateAsync(string user, string pass, CancellationToken cancellationToken)
+    public Task<UsenetResponse> AuthenticateAsync(string user, string pass, CancellationToken cancellationToken)
     {
-        return Client.AuthenticateAsync(user, pass, cancellationToken);
+        return _client.AuthenticateAsync(user, pass, cancellationToken);
     }
 
-    public virtual Task<NntpStatResponse> StatAsync(string segmentId, CancellationToken cancellationToken)
+    public Task<UsenetStatResponse> StatAsync(SegmentId segmentId, CancellationToken cancellationToken)
     {
-        return Client.StatAsync(segmentId, cancellationToken);
+        return _client.StatAsync(segmentId, cancellationToken);
     }
 
-    public virtual Task<NntpDateResponse> DateAsync(CancellationToken cancellationToken)
+    public Task<UsenetHeadResponse> HeadAsync(SegmentId segmentId, CancellationToken cancellationToken)
     {
-        return Client.DateAsync(cancellationToken);
+        return _client.HeadAsync(segmentId, cancellationToken);
     }
 
-    public Task<UsenetArticleHeaders> GetArticleHeadersAsync(string segmentId, CancellationToken cancellationToken)
+    public Task<UsenetDecodedBodyResponse> DecodedBodyAsync(SegmentId segmentId, CancellationToken cancellationToken)
     {
-        return Client.GetArticleHeadersAsync(segmentId, cancellationToken);
+        return _client.DecodedBodyAsync(segmentId, cancellationToken);
     }
 
-    public virtual Task<YencHeaderStream> GetSegmentStreamAsync
-    (
-        string segmentId,
-        bool includeHeaders,
-        CancellationToken cancellationToken
-    )
+    public Task<UsenetDecodedArticleResponse> DecodedArticleAsync(SegmentId segmentId,
+        CancellationToken cancellationToken)
     {
-        return Client.GetSegmentStreamAsync(segmentId, includeHeaders, cancellationToken);
+        return _client.DecodedArticleAsync(segmentId, cancellationToken);
     }
 
-    public virtual Task<YencHeader> GetSegmentYencHeaderAsync(string segmentId, CancellationToken cancellationToken)
+    public Task<UsenetDateResponse> DateAsync(CancellationToken cancellationToken)
     {
-        return Client.GetSegmentYencHeaderAsync(segmentId, cancellationToken);
+        return _client.DateAsync(cancellationToken);
     }
 
-    public virtual Task<long> GetFileSizeAsync(NzbFile file, CancellationToken cancellationToken)
+    public Task WaitForReadyAsync(CancellationToken cancellationToken)
     {
-        return Client.GetFileSizeAsync(file, cancellationToken);
+        return _client.WaitForReadyAsync(cancellationToken);
     }
 
-    public virtual Task WaitForReady(CancellationToken cancellationToken)
+    public Task<UsenetDecodedBodyResponse> DecodedBodyAsync(SegmentId segmentId,
+        Action<ArticleBodyResult>? onConnectionReadyAgain, CancellationToken cancellationToken)
     {
-        return Client.WaitForReady(cancellationToken);
+        return _client.DecodedBodyAsync(segmentId, onConnectionReadyAgain, cancellationToken);
     }
 
-    public void UpdateUnderlyingClient(INntpClient client)
+    public Task<UsenetDecodedArticleResponse> DecodedArticleAsync(SegmentId segmentId,
+        Action<ArticleBodyResult>? onConnectionReadyAgain, CancellationToken cancellationToken)
     {
-        var oldClient = Client;
-        Client = client;
-        oldClient.Dispose();
+        return _client.DecodedArticleAsync(segmentId, onConnectionReadyAgain, cancellationToken);
+    }
+
+    protected void ReplaceUnderlyingClient(INntpClient client)
+    {
+        var old = _client;
+        _client = client;
+        if (old is IDisposable disposable)
+            disposable.Dispose();
     }
 
     public void Dispose()
     {
-        Client.Dispose();
+        _client.Dispose();
         GC.SuppressFinalize(this);
     }
 }

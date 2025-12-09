@@ -12,7 +12,7 @@ namespace NzbWebDAV.Queue.FileProcessors;
 
 public class RarProcessor(
     GetFileInfosStep.FileInfo fileInfo,
-    UsenetStreamingClient usenet,
+    INntpClient usenet,
     string? password,
     CancellationToken ct
 ) : BaseProcessor

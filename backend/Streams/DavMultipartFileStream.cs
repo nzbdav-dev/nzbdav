@@ -7,7 +7,7 @@ namespace NzbWebDAV.Streams;
 
 public class DavMultipartFileStream(
     DavMultipartFile.FilePart[] fileParts,
-    UsenetStreamingClient usenet,
+    INntpClient usenet,
     int concurrentConnections
 ) : Stream
 {
