@@ -24,6 +24,7 @@
 
     <ItemGroup>
       <EmbeddedResource Include="Api\SabControllers\GetConfig\config_template.json" />
+      <EmbeddedResource Include="WebDav\StaticFiles\root\README.md" />
     </ItemGroup>
 
 </Project>

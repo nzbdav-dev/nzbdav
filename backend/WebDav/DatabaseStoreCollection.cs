@@ -26,19 +26,32 @@ public class DatabaseStoreCollection(
     public override string Name => davDirectory.Name;
     public override string UniqueKey => davDirectory.Id.ToString();
     public override DateTime CreatedAt => davDirectory.CreatedAt;
+    private static readonly StaticEmbeddedFile Readme = new("StaticFiles.root.README.md", "README");
 
     protected override async Task<IStoreItem?> GetItemAsync(GetItemRequest request)
     {
-        var child = await dbClient.GetDirectoryChildAsync(davDirectory.Id, request.Name, request.CancellationToken).ConfigureAwait(false);
+        if (davDirectory.Id == DavItem.Root.Id && request.Name == Readme.Name) return Readme;
+        var child = await dbClient.GetDirectoryChildAsync(davDirectory.Id, request.Name, request.CancellationToken)
+            .ConfigureAwait(false);
         if (child is null) return null;
         return GetItem(child);
     }
 
     protected override async Task<IStoreItem[]> GetAllItemsAsync(CancellationToken cancellationToken)
     {
-        return (await dbClient.GetDirectoryChildrenAsync(davDirectory.Id, cancellationToken).ConfigureAwait(false))
-            .Select(GetItem)
-            .ToArray();
+        // read DavItems from the database
+        var children = await dbClient
+            .GetDirectoryChildrenAsync(davDirectory.Id, cancellationToken)
+            .ConfigureAwait(false);
+
+        // map DavItems to IStoreItems
+        var result = children.Select(GetItem);
+
+        // include the readme file
+        if (davDirectory.Id == DavItem.Root.Id)
+            result = result.Append(Readme);
+
+        return result.ToArray();
     }
 
     protected override bool SupportsFastMove(SupportsFastMoveRequest request)
@@ -57,7 +70,8 @@ public class DatabaseStoreCollection(
             return DavStatusCode.Forbidden;
 
         // Get the item being deleted
-        var davItem = await dbClient.GetDirectoryChildAsync(davDirectory.Id, request.Name, request.CancellationToken).ConfigureAwait(false);
+        var davItem = await dbClient.GetDirectoryChildAsync(davDirectory.Id, request.Name, request.CancellationToken)
+            .ConfigureAwait(false);
         if (davItem is null) return DavStatusCode.NotFound;
 
         // If the item is a file, simply delete it and we're done.
