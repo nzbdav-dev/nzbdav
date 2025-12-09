@@ -132,14 +132,6 @@ public class ConfigManager
         return StringUtil.EmptyToNull(GetConfigValue("media.library-dir"));
     }
 
-    public int GetMaxQueueConnections()
-    {
-        return int.Parse(
-            StringUtil.EmptyToNull(GetConfigValue("api.max-queue-connections"))
-            ?? GetUsenetProviderConfig().TotalPooledConnections.ToString()
-        );
-    }
-
     public int GetMaxDownloadConnections()
     {
         return int.Parse(
@@ -183,21 +175,12 @@ public class ConfigManager
         return (configValue != null ? bool.Parse(configValue) : defaultValue);
     }
 
-    public int GetMaxRepairConnections()
-    {
-        return int.Parse(
-            StringUtil.EmptyToNull(GetConfigValue("repair.connections"))
-            ?? GetUsenetProviderConfig().TotalPooledConnections.ToString()
-        );
-    }
-
     public bool IsRepairJobEnabled()
     {
         var defaultValue = false;
         var configValue = StringUtil.EmptyToNull(GetConfigValue("repair.enable"));
         var isRepairJobEnabled = (configValue != null ? bool.Parse(configValue) : defaultValue);
         return isRepairJobEnabled
-               && GetMaxRepairConnections() > 0
                && GetLibraryDir() != null
                && GetArrConfig().GetInstanceCount() > 0;
     }

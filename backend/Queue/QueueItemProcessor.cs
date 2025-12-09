@@ -106,9 +106,6 @@ public class QueueItemProcessor(
             return;
         }
 
-        // ensure we don't use more than max-queue-connections
-        var concurrency = configManager.GetMaxQueueConnections();
-
         // read the nzb document
         var documentBytes = Encoding.UTF8.GetBytes(queueNzbContents.NzbContents);
         using var stream = new MemoryStream(documentBytes);
@@ -140,7 +137,7 @@ public class QueueItemProcessor(
             .ToPercentage(fileProcessors.Count);
         var fileProcessingResultsAll = await fileProcessors
             .Select(x => x!.ProcessAsync())
-            .WithConcurrencyAsync(concurrency)
+            .WithConcurrencyAsync(configManager.GetMaxDownloadConnections())
             .GetAllAsync(ct, part2Progress).ConfigureAwait(false);
         var fileProcessingResults = fileProcessingResultsAll
             .Where(x => x is not null)
@@ -158,7 +155,12 @@ public class QueueItemProcessor(
             var part3Progress = progress
                 .Offset(100)
                 .ToPercentage(articlesToCheck.Count);
-            await usenetClient.CheckAllSegmentsAsync(articlesToCheck, concurrency, part3Progress, ct).ConfigureAwait(false);
+            var healthCheckConcurrency = configManager
+                .GetUsenetProviderConfig()
+                .TotalPooledConnections;
+            await usenetClient
+                .CheckAllSegmentsAsync(articlesToCheck, healthCheckConcurrency, part3Progress, ct)
+                .ConfigureAwait(false);
             checkedFullHealth = true;
         }
 
