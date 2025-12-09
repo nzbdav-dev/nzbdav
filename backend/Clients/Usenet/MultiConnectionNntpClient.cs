@@ -16,8 +16,7 @@ namespace NzbWebDAV.Clients.Usenet;
 /// </summary>
 /// <param name="connectionPool"></param>
 /// <param name="type"></param>
-public class MultiConnectionNntpClient(ConnectionPool<INntpClient> connectionPool, ProviderType type)
-    : INntpClient
+public class MultiConnectionNntpClient(ConnectionPool<INntpClient> connectionPool, ProviderType type) : NntpClient
 {
     public ProviderType ProviderType { get; } = type;
     public int LiveConnections => connectionPool.LiveConnections;
@@ -25,31 +24,31 @@ public class MultiConnectionNntpClient(ConnectionPool<INntpClient> connectionPoo
     public int ActiveConnections => connectionPool.ActiveConnections;
     public int AvailableConnections => connectionPool.AvailableConnections;
 
-    public Task ConnectAsync(string host, int port, bool useSsl, CancellationToken cancellationToken)
+    public override Task ConnectAsync(string host, int port, bool useSsl, CancellationToken cancellationToken)
     {
         throw new NotSupportedException("Please connect within the connectionFactory");
     }
 
-    public Task<UsenetResponse> AuthenticateAsync(string user, string pass, CancellationToken cancellationToken)
+    public override Task<UsenetResponse> AuthenticateAsync(string user, string pass, CancellationToken cancellationToken)
     {
         throw new NotSupportedException("Please authenticate within the connectionFactory");
     }
 
-    public async Task<UsenetStatResponse> StatAsync(SegmentId segmentId, CancellationToken ct)
+    public override async Task<UsenetStatResponse> StatAsync(SegmentId segmentId, CancellationToken ct)
     {
         const SemaphorePriority priority = SemaphorePriority.Low;
         using var connectionLock = await connectionPool.GetConnectionLockAsync(priority, ct).ConfigureAwait(false);
         return await connectionLock.Connection.StatAsync(segmentId, ct).ConfigureAwait(false);
     }
 
-    public async Task<UsenetHeadResponse> HeadAsync(SegmentId segmentId, CancellationToken ct)
+    public override async Task<UsenetHeadResponse> HeadAsync(SegmentId segmentId, CancellationToken ct)
     {
         const SemaphorePriority priority = SemaphorePriority.Low;
         using var connectionLock = await connectionPool.GetConnectionLockAsync(priority, ct).ConfigureAwait(false);
         return await connectionLock.Connection.HeadAsync(segmentId, ct).ConfigureAwait(false);
     }
 
-    public async Task<UsenetDecodedBodyResponse> DecodedBodyAsync(SegmentId segmentId, CancellationToken ct)
+    public override async Task<UsenetDecodedBodyResponse> DecodedBodyAsync(SegmentId segmentId, CancellationToken ct)
     {
         const SemaphorePriority priority = SemaphorePriority.High;
         var connectionLock = await connectionPool.GetConnectionLockAsync(priority, ct).ConfigureAwait(false);
@@ -61,7 +60,11 @@ public class MultiConnectionNntpClient(ConnectionPool<INntpClient> connectionPoo
         }
     }
 
-    public async Task<UsenetDecodedArticleResponse> DecodedArticleAsync(SegmentId segmentId, CancellationToken ct)
+    public override async Task<UsenetDecodedArticleResponse> DecodedArticleAsync
+    (
+        SegmentId segmentId, 
+        CancellationToken ct
+    )
     {
         const SemaphorePriority priority = SemaphorePriority.High;
         var connectionLock = await connectionPool.GetConnectionLockAsync(priority, ct).ConfigureAwait(false);
@@ -73,14 +76,14 @@ public class MultiConnectionNntpClient(ConnectionPool<INntpClient> connectionPoo
         }
     }
 
-    public async Task<UsenetDateResponse> DateAsync(CancellationToken ct)
+    public override async Task<UsenetDateResponse> DateAsync(CancellationToken ct)
     {
         const SemaphorePriority priority = SemaphorePriority.Low;
         using var connectionLock = await connectionPool.GetConnectionLockAsync(priority, ct).ConfigureAwait(false);
         return await connectionLock.Connection.DateAsync(ct).ConfigureAwait(false);
     }
 
-    public async Task<UsenetDecodedBodyResponse> DecodedBodyAsync
+    public override async Task<UsenetDecodedBodyResponse> DecodedBodyAsync
     (
         SegmentId segmentId,
         Action<ArticleBodyResult>? onConnectionReadyAgain,
@@ -98,7 +101,7 @@ public class MultiConnectionNntpClient(ConnectionPool<INntpClient> connectionPoo
         }
     }
 
-    public async Task<UsenetDecodedArticleResponse> DecodedArticleAsync
+    public override async Task<UsenetDecodedArticleResponse> DecodedArticleAsync
     (
         SegmentId segmentId,
         Action<ArticleBodyResult>? onConnectionReadyAgain,
@@ -116,15 +119,7 @@ public class MultiConnectionNntpClient(ConnectionPool<INntpClient> connectionPoo
         }
     }
 
-    public async Task<UsenetYencHeader> GetYencHeadersAsync(string segmentId, CancellationToken ct)
-    {
-        var decodedBodyResponse = await DecodedBodyAsync(segmentId, ct).ConfigureAwait(false);
-        await using var stream = decodedBodyResponse.Stream;
-        var headers = await stream.GetYencHeadersAsync(ct).ConfigureAwait(false);
-        return headers!;
-    }
-
-    public void Dispose()
+    public override void Dispose()
     {
         connectionPool.Dispose();
         GC.SuppressFinalize(this);

@@ -13,11 +13,11 @@ namespace NzbWebDAV.Clients.Usenet;
 ///   3. Provide yenc-decoded data for articles retrieved through article/body commands.
 ///   4. throw `UsenetArticleNotFound` when articles do not exist, within article/body/head commands.
 /// </summary>
-public class BaseNntpClient : INntpClient
+public class BaseNntpClient : NntpClient
 {
     private readonly UsenetClient _client = new();
 
-    public async Task ConnectAsync(string host, int port, bool useSsl, CancellationToken cancellationToken)
+    public override async Task ConnectAsync(string host, int port, bool useSsl, CancellationToken cancellationToken)
     {
         try
         {
@@ -30,7 +30,12 @@ public class BaseNntpClient : INntpClient
         }
     }
 
-    public async Task<UsenetResponse> AuthenticateAsync(string user, string pass, CancellationToken cancellationToken)
+    public override async Task<UsenetResponse> AuthenticateAsync
+    (
+        string user,
+        string pass,
+        CancellationToken cancellationToken
+    )
     {
         try
         {
@@ -49,12 +54,12 @@ public class BaseNntpClient : INntpClient
         }
     }
 
-    public Task<UsenetStatResponse> StatAsync(SegmentId segmentId, CancellationToken cancellationToken)
+    public override Task<UsenetStatResponse> StatAsync(SegmentId segmentId, CancellationToken cancellationToken)
     {
         return _client.StatAsync(segmentId, cancellationToken);
     }
 
-    public async Task<UsenetHeadResponse> HeadAsync(SegmentId segmentId, CancellationToken cancellationToken)
+    public override async Task<UsenetHeadResponse> HeadAsync(SegmentId segmentId, CancellationToken cancellationToken)
     {
         var headResponse = await _client.HeadAsync(segmentId, cancellationToken);
 
@@ -70,7 +75,7 @@ public class BaseNntpClient : INntpClient
         };
     }
 
-    public Task<UsenetDecodedBodyResponse> DecodedBodyAsync
+    public override Task<UsenetDecodedBodyResponse> DecodedBodyAsync
     (
         SegmentId segmentId,
         CancellationToken cancellationToken
@@ -79,7 +84,7 @@ public class BaseNntpClient : INntpClient
         return DecodedBodyAsync(segmentId, onConnectionReadyAgain: null, cancellationToken);
     }
 
-    public async Task<UsenetDecodedBodyResponse> DecodedBodyAsync
+    public override async Task<UsenetDecodedBodyResponse> DecodedBodyAsync
     (
         SegmentId segmentId,
         Action<ArticleBodyResult>? onConnectionReadyAgain,
@@ -100,7 +105,7 @@ public class BaseNntpClient : INntpClient
         };
     }
 
-    public Task<UsenetDecodedArticleResponse> DecodedArticleAsync
+    public override Task<UsenetDecodedArticleResponse> DecodedArticleAsync
     (
         SegmentId segmentId,
         CancellationToken cancellationToken
@@ -109,7 +114,7 @@ public class BaseNntpClient : INntpClient
         return DecodedArticleAsync(segmentId, onConnectionReadyAgain: null, cancellationToken);
     }
 
-    public async Task<UsenetDecodedArticleResponse> DecodedArticleAsync
+    public override async Task<UsenetDecodedArticleResponse> DecodedArticleAsync
     (
         SegmentId segmentId,
         Action<ArticleBodyResult>? onConnectionReadyAgain,
@@ -131,17 +136,12 @@ public class BaseNntpClient : INntpClient
         };
     }
 
-    public Task<UsenetDateResponse> DateAsync(CancellationToken cancellationToken)
+    public override Task<UsenetDateResponse> DateAsync(CancellationToken cancellationToken)
     {
         return _client.DateAsync(cancellationToken);
     }
 
-    public Task WaitForReadyAsync(CancellationToken cancellationToken)
-    {
-        return _client.WaitForReadyAsync(cancellationToken);
-    }
-
-    public void Dispose()
+    public override void Dispose()
     {
         _client.Dispose();
         GC.SuppressFinalize(this);

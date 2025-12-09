@@ -6,34 +6,38 @@ using UsenetSharp.Models;
 
 namespace NzbWebDAV.Clients.Usenet;
 
-public class MultiProviderNntpClient(List<MultiConnectionNntpClient> providers) : INntpClient
+public class MultiProviderNntpClient(List<MultiConnectionNntpClient> providers) : NntpClient
 {
-    public Task ConnectAsync(string host, int port, bool useSsl, CancellationToken cancellationToken)
+    public override Task ConnectAsync(string host, int port, bool useSsl, CancellationToken ct)
     {
         throw new NotSupportedException("Please connect within the connectionFactory");
     }
 
-    public Task<UsenetResponse> AuthenticateAsync(string user, string pass, CancellationToken cancellationToken)
+    public override Task<UsenetResponse> AuthenticateAsync(string user, string pass, CancellationToken ct)
     {
         throw new NotSupportedException("Please authenticate within the connectionFactory");
     }
 
-    public Task<UsenetStatResponse> StatAsync(SegmentId segmentId, CancellationToken cancellationToken)
+    public override Task<UsenetStatResponse> StatAsync(SegmentId segmentId, CancellationToken cancellationToken)
     {
         return RunFromPoolWithBackup(x => x.StatAsync(segmentId, cancellationToken), cancellationToken);
     }
 
-    public Task<UsenetHeadResponse> HeadAsync(SegmentId segmentId, CancellationToken cancellationToken)
+    public override Task<UsenetHeadResponse> HeadAsync(SegmentId segmentId, CancellationToken cancellationToken)
     {
         return RunFromPoolWithBackup(x => x.HeadAsync(segmentId, cancellationToken), cancellationToken);
     }
 
-    public Task<UsenetDecodedBodyResponse> DecodedBodyAsync(SegmentId segmentId, CancellationToken cancellationToken)
+    public override Task<UsenetDecodedBodyResponse> DecodedBodyAsync
+    (
+        SegmentId segmentId, 
+        CancellationToken cancellationToken
+    )
     {
         return RunFromPoolWithBackup(x => x.DecodedBodyAsync(segmentId, cancellationToken), cancellationToken);
     }
 
-    public Task<UsenetDecodedArticleResponse> DecodedArticleAsync
+    public override Task<UsenetDecodedArticleResponse> DecodedArticleAsync
     (
         SegmentId segmentId,
         CancellationToken cancellationToken
@@ -42,12 +46,12 @@ public class MultiProviderNntpClient(List<MultiConnectionNntpClient> providers) 
         return RunFromPoolWithBackup(x => x.DecodedArticleAsync(segmentId, cancellationToken), cancellationToken);
     }
 
-    public Task<UsenetDateResponse> DateAsync(CancellationToken cancellationToken)
+    public override Task<UsenetDateResponse> DateAsync(CancellationToken cancellationToken)
     {
         return RunFromPoolWithBackup(x => x.DateAsync(cancellationToken), cancellationToken);
     }
 
-    public async Task<UsenetDecodedBodyResponse> DecodedBodyAsync
+    public override async Task<UsenetDecodedBodyResponse> DecodedBodyAsync
     (
         SegmentId segmentId,
         Action<ArticleBodyResult>? onConnectionReadyAgain,
@@ -80,7 +84,7 @@ public class MultiProviderNntpClient(List<MultiConnectionNntpClient> providers) 
         }
     }
 
-    public async Task<UsenetDecodedArticleResponse> DecodedArticleAsync
+    public override async Task<UsenetDecodedArticleResponse> DecodedArticleAsync
     (
         SegmentId segmentId,
         Action<ArticleBodyResult>? onConnectionReadyAgain,
@@ -111,11 +115,6 @@ public class MultiProviderNntpClient(List<MultiConnectionNntpClient> providers) 
             if (articleBodyResult == ArticleBodyResult.Retrieved)
                 onConnectionReadyAgain?.Invoke(ArticleBodyResult.Retrieved);
         }
-    }
-
-    public Task WaitForReadyAsync(CancellationToken cancellationToken)
-    {
-        throw new NotSupportedException();
     }
 
     private async Task<T> RunFromPoolWithBackup<T>
@@ -167,7 +166,7 @@ public class MultiProviderNntpClient(List<MultiConnectionNntpClient> providers) 
             .ToList();
     }
 
-    public void Dispose()
+    public override void Dispose()
     {
         foreach (var provider in providers)
             provider.Dispose();
