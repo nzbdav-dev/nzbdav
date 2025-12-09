@@ -21,7 +21,7 @@ public class QueueManager : IDisposable
     private readonly HealthCheckService _healthCheckService;
 
     private CancellationTokenSource _sleepingQueueToken = new();
-    private readonly object _sleepingQueueLock = new();
+    private readonly Lock _sleepingQueueLock = new();
 
     public QueueManager(
         UsenetStreamingClient usenetClient,
@@ -104,13 +104,17 @@ public class QueueManager : IDisposable
                     continue;
                 }
 
+                // create an article-caching nntp-client.
+                // the cache will be scoped only to this single queue-item.
+                using var cachingUsenetClient = new ArticleCachingNntpClient(_usenetClient);
+
                 // process the queue-item
                 using var queueItemCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 await LockAsync(() =>
                 {
-                    _inProgressQueueItem = BeginProcessingQueueItem(
-                        dbClient, topItem.queueItem, topItem.queueNzbContents, queueItemCancellationTokenSource
-                    );
+                    // ReSharper disable twice AccessToDisposedClosure
+                    _inProgressQueueItem = BeginProcessingQueueItem(dbClient, cachingUsenetClient,
+                        topItem.queueItem, topItem.queueNzbContents, queueItemCancellationTokenSource);
                 }).ConfigureAwait(false);
                 await (_inProgressQueueItem?.ProcessingTask ?? Task.CompletedTask).ConfigureAwait(false);
             }
@@ -128,6 +132,7 @@ public class QueueManager : IDisposable
     private InProgressQueueItem BeginProcessingQueueItem
     (
         DavDatabaseClient dbClient,
+        INntpClient usenetClient,
         QueueItem queueItem,
         QueueNzbContents queueNzbContents,
         CancellationTokenSource cts
@@ -135,7 +140,7 @@ public class QueueManager : IDisposable
     {
         var progressHook = new Progress<int>();
         var task = new QueueItemProcessor(
-            queueItem, queueNzbContents, dbClient, _usenetClient,
+            queueItem, queueNzbContents, dbClient, usenetClient,
             _configManager, _websocketManager, _healthCheckService,
             progressHook, cts.Token
         ).ProcessAsync();
