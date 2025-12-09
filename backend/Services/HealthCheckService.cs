@@ -97,13 +97,10 @@ public class HealthCheckService
 
     public static IQueryable<DavItem> GetHealthCheckQueueItemsQuery(DavDatabaseClient dbClient)
     {
-        var actionNeeded = HealthCheckResult.RepairAction.ActionNeeded;
-        var healthCheckResults = dbClient.Ctx.HealthCheckResults;
         return dbClient.Ctx.Items
             .Where(x => x.Type == DavItem.ItemType.NzbFile
                         || x.Type == DavItem.ItemType.RarFile
-                        || x.Type == DavItem.ItemType.MultipartFile)
-            .Where(x => !healthCheckResults.Any(h => h.DavItemId == x.Id && h.RepairStatus == actionNeeded));
+                        || x.Type == DavItem.ItemType.MultipartFile);
     }
 
     private async Task PerformHealthCheck
@@ -314,10 +311,10 @@ public class HealthCheckService
         catch (Exception e)
         {
             // if an error is encountered during repairs,
-            // then mark the item as unhealthy
+            // then mark the item as unhealthy, and check again in a day.
             var utcNow = DateTimeOffset.UtcNow;
             davItem.LastHealthCheck = utcNow;
-            davItem.NextHealthCheck = null;
+            davItem.NextHealthCheck = utcNow + TimeSpan.FromDays(1);
             dbClient.Ctx.HealthCheckResults.Add(SendStatus(new HealthCheckResult()
             {
                 Id = Guid.NewGuid(),
