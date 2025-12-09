@@ -2,6 +2,6 @@
 
 public enum SemaphorePriority
 {
-    High,
     Low,
+    High,
 }

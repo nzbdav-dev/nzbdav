@@ -15,7 +15,7 @@ public class DatabaseStoreRarFile(
     DavDatabaseClient dbClient,
     UsenetStreamingClient usenetClient,
     ConfigManager configManager
-) : BaseStoreStreamFile
+) : BaseStoreStreamFile(httpContext)
 {
     public DavItem DavItem => davRarFile;
     public override string Name => davRarFile.Name;

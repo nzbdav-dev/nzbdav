@@ -15,7 +15,7 @@ public class DatabaseStoreMultipartFile(
     DavDatabaseClient dbClient,
     UsenetStreamingClient usenetClient,
     ConfigManager configManager
-) : BaseStoreStreamFile
+) : BaseStoreStreamFile(httpContext)
 {
     public DavItem DavItem => davMultipartFile;
     public override string Name => davMultipartFile.Name;

@@ -18,7 +18,7 @@ public class PrioritizedSemaphore : IDisposable
 {
     private readonly LinkedList<TaskCompletionSource<bool>> _highPriorityWaiters = [];
     private readonly LinkedList<TaskCompletionSource<bool>> _lowPriorityWaiters = [];
-    private readonly SemaphorePriorityOdds _priorityOdds;
+    private SemaphorePriorityOdds _priorityOdds;
     private int _maxAllowed;
     private int _enteredCount;
     private bool _disposed = false;
@@ -162,6 +162,14 @@ public class PrioritizedSemaphore : IDisposable
         lock (_lock)
         {
             _maxAllowed = newMaxAllowed;
+        }
+    }
+
+    public void UpdatePriorityOdds(SemaphorePriorityOdds newPriorityOdds)
+    {
+        lock (_lock)
+        {
+            _priorityOdds = newPriorityOdds;
         }
     }
 

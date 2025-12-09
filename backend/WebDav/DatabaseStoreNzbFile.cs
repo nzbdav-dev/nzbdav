@@ -13,7 +13,7 @@ public class DatabaseStoreNzbFile(
     DavDatabaseClient dbClient,
     INntpClient usenetClient,
     ConfigManager configManager
-) : BaseStoreStreamFile
+) : BaseStoreStreamFile(httpContext)
 {
     public DavItem DavItem => davNzbFile;
     public override string Name => davNzbFile.Name;

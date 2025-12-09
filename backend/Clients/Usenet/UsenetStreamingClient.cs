@@ -1,5 +1,4 @@
-﻿using System.Text.Json;
-using NzbWebDAV.Clients.Usenet.Connections;
+﻿using NzbWebDAV.Clients.Usenet.Connections;
 using NzbWebDAV.Config;
 using NzbWebDAV.Websocket;
 
@@ -8,27 +7,37 @@ namespace NzbWebDAV.Clients.Usenet;
 public class UsenetStreamingClient : WrappingNntpClient
 {
     public UsenetStreamingClient(ConfigManager configManager, WebsocketManager websocketManager)
-        : base(CreateMultiProviderClient(configManager.GetUsenetProviderConfig(), websocketManager))
+        : base(CreateDownloadingNntpClient(configManager, websocketManager))
     {
         // when config changes, create a new MultiProviderClient to use instead.
         configManager.OnConfigChanged += (_, configEventArgs) =>
         {
             // if unrelated config changed, do nothing
-            if (!configEventArgs.ChangedConfig.TryGetValue("usenet.providers", out var rawConfig)) return;
+            if (!configEventArgs.ChangedConfig.ContainsKey("usenet.providers")) return;
 
             // update the connection-pool according to the new config
-            var newProviderConfig = JsonSerializer.Deserialize<UsenetProviderConfig>(rawConfig);
-            var newMultiProviderClient = CreateMultiProviderClient(newProviderConfig!, websocketManager);
-            ReplaceUnderlyingClient(newMultiProviderClient);
+            var newUsenetClient = CreateDownloadingNntpClient(configManager, websocketManager);
+            ReplaceUnderlyingClient(newUsenetClient);
         };
+    }
+
+    private static DownloadingNntpClient CreateDownloadingNntpClient
+    (
+        ConfigManager configManager,
+        WebsocketManager websocketManager
+    )
+    {
+        var multiProviderClient = CreateMultiProviderClient(configManager, websocketManager);
+        return new DownloadingNntpClient(multiProviderClient, configManager);
     }
 
     private static MultiProviderNntpClient CreateMultiProviderClient
     (
-        UsenetProviderConfig providerConfig,
+        ConfigManager configManager,
         WebsocketManager websocketManager
     )
     {
+        var providerConfig = configManager.GetUsenetProviderConfig();
         var connectionPoolStats = new ConnectionPoolStats(providerConfig, websocketManager);
         var providerClients = providerConfig.Providers
             .Select((provider, index) => CreateProviderClient(

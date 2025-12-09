@@ -7,49 +7,49 @@ public class WrappingNntpClient(INntpClient usenetClient) : INntpClient
 {
     private INntpClient _usenetClient = usenetClient;
 
-    public Task ConnectAsync(string host, int port, bool useSsl, CancellationToken cancellationToken)
+    public virtual Task ConnectAsync(string host, int port, bool useSsl, CancellationToken cancellationToken)
     {
         return _usenetClient.ConnectAsync(host, port, useSsl, cancellationToken);
     }
 
-    public Task<UsenetResponse> AuthenticateAsync(string user, string pass, CancellationToken cancellationToken)
+    public virtual Task<UsenetResponse> AuthenticateAsync(string user, string pass, CancellationToken cancellationToken)
     {
         return _usenetClient.AuthenticateAsync(user, pass, cancellationToken);
     }
 
-    public Task<UsenetStatResponse> StatAsync(SegmentId segmentId, CancellationToken cancellationToken)
+    public virtual Task<UsenetStatResponse> StatAsync(SegmentId segmentId, CancellationToken cancellationToken)
     {
         return _usenetClient.StatAsync(segmentId, cancellationToken);
     }
 
-    public Task<UsenetHeadResponse> HeadAsync(SegmentId segmentId, CancellationToken cancellationToken)
+    public virtual Task<UsenetHeadResponse> HeadAsync(SegmentId segmentId, CancellationToken cancellationToken)
     {
         return _usenetClient.HeadAsync(segmentId, cancellationToken);
     }
 
-    public Task<UsenetDecodedBodyResponse> DecodedBodyAsync(SegmentId segmentId, CancellationToken cancellationToken)
+    public virtual Task<UsenetDecodedBodyResponse> DecodedBodyAsync(SegmentId segmentId, CancellationToken cancellationToken)
     {
         return _usenetClient.DecodedBodyAsync(segmentId, cancellationToken);
     }
 
-    public Task<UsenetDecodedArticleResponse> DecodedArticleAsync(SegmentId segmentId,
+    public virtual Task<UsenetDecodedArticleResponse> DecodedArticleAsync(SegmentId segmentId,
         CancellationToken cancellationToken)
     {
         return _usenetClient.DecodedArticleAsync(segmentId, cancellationToken);
     }
 
-    public Task<UsenetDateResponse> DateAsync(CancellationToken cancellationToken)
+    public virtual Task<UsenetDateResponse> DateAsync(CancellationToken cancellationToken)
     {
         return _usenetClient.DateAsync(cancellationToken);
     }
 
-    public Task<UsenetDecodedBodyResponse> DecodedBodyAsync(SegmentId segmentId,
+    public virtual Task<UsenetDecodedBodyResponse> DecodedBodyAsync(SegmentId segmentId,
         Action<ArticleBodyResult>? onConnectionReadyAgain, CancellationToken cancellationToken)
     {
         return _usenetClient.DecodedBodyAsync(segmentId, onConnectionReadyAgain, cancellationToken);
     }
 
-    public Task<UsenetDecodedArticleResponse> DecodedArticleAsync(SegmentId segmentId,
+    public virtual Task<UsenetDecodedArticleResponse> DecodedArticleAsync(SegmentId segmentId,
         Action<ArticleBodyResult>? onConnectionReadyAgain, CancellationToken cancellationToken)
     {
         return _usenetClient.DecodedArticleAsync(segmentId, onConnectionReadyAgain, cancellationToken);
@@ -63,7 +63,7 @@ public class WrappingNntpClient(INntpClient usenetClient) : INntpClient
             disposable.Dispose();
     }
 
-    public void Dispose()
+    public virtual void Dispose()
     {
         _usenetClient.Dispose();
         GC.SuppressFinalize(this);

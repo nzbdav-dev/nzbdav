@@ -1,5 +1,6 @@
 ﻿using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using NzbWebDAV.Clients.Usenet.Concurrency;
 using NzbWebDAV.Database;
 using NzbWebDAV.Database.Models;
 using NzbWebDAV.Utils;
@@ -145,6 +146,13 @@ public class ConfigManager
             StringUtil.EmptyToNull(GetConfigValue("usenet.max-download-connections"))
             ?? Math.Min(GetUsenetProviderConfig().TotalPooledConnections, 15).ToString()
         );
+    }
+
+    public SemaphorePriorityOdds GetStreamingPriority()
+    {
+        var stringValue = StringUtil.EmptyToNull(GetConfigValue("usenet.streaming-priority"));
+        var numericalValue = int.Parse(stringValue ?? "80");
+        return new SemaphorePriorityOdds() { HighPriorityOdds = numericalValue / 100.0 };
     }
 
     public bool IsEnforceReadonlyWebdavEnabled()
