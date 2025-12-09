@@ -7,7 +7,7 @@ namespace NzbWebDAV.Streams;
 public class MultipartFileStream : Stream
 {
     private bool _isDisposed;
-    private readonly INntpClient _client;
+    private readonly INntpClient _usenetClient;
     private readonly MultipartFile _multipartFile;
     private Stream? _currentStream;
     private long _position = 0;
@@ -23,10 +23,10 @@ public class MultipartFileStream : Stream
         set => throw new NotSupportedException();
     }
 
-    public MultipartFileStream(MultipartFile multipartFile, INntpClient client)
+    public MultipartFileStream(MultipartFile multipartFile, INntpClient usenetClient)
     {
         _multipartFile = multipartFile;
-        _client = client;
+        _usenetClient = usenetClient;
     }
 
     public override int Read(byte[] buffer, int offset, int count)
@@ -70,7 +70,7 @@ public class MultipartFileStream : Stream
         );
 
         var filePart = _multipartFile.FileParts[searchResult.FoundIndex];
-        var stream = _client.GetFileStream(filePart.NzbFile, filePart.PartSize, concurrentConnections: 1);
+        var stream = _usenetClient.GetFileStream(filePart.NzbFile, filePart.PartSize, concurrentConnections: 1);
         stream.Seek(_position - searchResult.FoundByteRange.StartInclusive, SeekOrigin.Begin);
         return stream;
     }

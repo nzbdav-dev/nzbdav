@@ -14,20 +14,20 @@ namespace NzbWebDAV.Queue.FileProcessors;
 public class SevenZipProcessor : BaseProcessor
 {
     private readonly List<GetFileInfosStep.FileInfo> _fileInfos;
-    private readonly INntpClient _client;
+    private readonly INntpClient _usenetClient;
     private readonly string? _archivePassword;
     private readonly CancellationToken _ct;
 
     public SevenZipProcessor
     (
         List<GetFileInfosStep.FileInfo> fileInfos,
-        INntpClient client,
+        INntpClient usenetClient,
         string? archivePassword,
         CancellationToken ct
     )
     {
         _fileInfos = fileInfos;
-        _client = client;
+        _usenetClient = usenetClient;
         _archivePassword = archivePassword;
         _ct = ct;
     }
@@ -35,8 +35,11 @@ public class SevenZipProcessor : BaseProcessor
     public override async Task<BaseProcessor.Result?> ProcessAsync()
     {
         var multipartFile = await GetMultipartFile().ConfigureAwait(false);
-        await using var stream = new MultipartFileStream(multipartFile, _client);
-        var sevenZipEntries = await SevenZipUtil.GetSevenZipEntriesAsync(stream, _archivePassword, _ct).ConfigureAwait(false);
+        await using var stream = new MultipartFileStream(multipartFile, _usenetClient);
+        var sevenZipEntries = await SevenZipUtil
+            .GetSevenZipEntriesAsync(stream, _archivePassword, _ct)
+            .ConfigureAwait(false);
+
         if (sevenZipEntries.Any(x => x.CompressionType != CompressionType.None))
         {
             const string message = "Only uncompressed 7z files are supported.";
@@ -69,7 +72,9 @@ public class SevenZipProcessor : BaseProcessor
         foreach (var fileInfo in sortedFileInfos)
         {
             var nzbFile = fileInfo.NzbFile;
-            var fileSize = fileInfo.FileSize ?? await _client.GetFileSizeAsync(nzbFile, _ct).ConfigureAwait(false);
+            var fileSize = fileInfo.FileSize ?? await _usenetClient
+                .GetFileSizeAsync(nzbFile, _ct)
+                .ConfigureAwait(false);
             var endExclusive = startInclusive + fileSize;
             fileParts.Add(new MultipartFile.FilePart()
             {

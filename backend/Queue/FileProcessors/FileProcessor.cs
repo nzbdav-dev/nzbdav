@@ -9,7 +9,7 @@ namespace NzbWebDAV.Queue.FileProcessors;
 
 public class FileProcessor(
     GetFileInfosStep.FileInfo fileInfo,
-    INntpClient usenet,
+    INntpClient usenetClient,
     CancellationToken ct
 ) : BaseProcessor
 {
@@ -21,7 +21,9 @@ public class FileProcessor(
             {
                 NzbFile = fileInfo.NzbFile,
                 FileName = fileInfo.FileName,
-                FileSize = fileInfo.FileSize ?? await usenet.GetFileSizeAsync(fileInfo.NzbFile, ct).ConfigureAwait(false),
+                FileSize = fileInfo.FileSize ?? await usenetClient
+                    .GetFileSizeAsync(fileInfo.NzbFile, ct)
+                    .ConfigureAwait(false),
                 ReleaseDate = fileInfo.ReleaseDate,
             };
         }

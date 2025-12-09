@@ -12,7 +12,7 @@ namespace NzbWebDAV.Queue.FileProcessors;
 
 public class RarProcessor(
     GetFileInfosStep.FileInfo fileInfo,
-    INntpClient usenet,
+    INntpClient usenetClient,
     string? password,
     CancellationToken ct
 ) : BaseProcessor
@@ -91,8 +91,9 @@ public class RarProcessor(
 
     private async Task<NzbFileStream> GetNzbFileStream()
     {
-        var filesize = fileInfo.FileSize ?? await usenet.GetFileSizeAsync(fileInfo.NzbFile, ct).ConfigureAwait(false);
-        return usenet.GetFileStream(fileInfo.NzbFile, filesize, concurrentConnections: 1);
+        var filesize = fileInfo.FileSize;
+        filesize ??= await usenetClient.GetFileSizeAsync(fileInfo.NzbFile, ct).ConfigureAwait(false);
+        return usenetClient.GetFileStream(fileInfo.NzbFile, filesize!.Value, concurrentConnections: 1);
     }
 
     public new class Result : BaseProcessor.Result

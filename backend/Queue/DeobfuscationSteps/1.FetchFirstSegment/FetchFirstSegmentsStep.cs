@@ -14,7 +14,7 @@ public static class FetchFirstSegmentsStep
     public static async Task<List<NzbFileWithFirstSegment>> FetchFirstSegments
     (
         List<NzbFile> nzbFiles,
-        INntpClient client,
+        INntpClient usenetClient,
         ConfigManager configManager,
         CancellationToken cancellationToken,
         IProgress<int>? progress = null
@@ -22,7 +22,7 @@ public static class FetchFirstSegmentsStep
     {
         return await nzbFiles
             .Where(x => x.Segments.Count > 0)
-            .Select(x => FetchFirstSegment(x, client, cancellationToken))
+            .Select(x => FetchFirstSegment(x, usenetClient, cancellationToken))
             .WithConcurrencyAsync(configManager.GetMaxQueueConnections())
             .GetAllAsync(cancellationToken, progress).ConfigureAwait(false);
     }
@@ -30,7 +30,7 @@ public static class FetchFirstSegmentsStep
     private static async Task<NzbFileWithFirstSegment> FetchFirstSegment
     (
         NzbFile nzbFile,
-        INntpClient client,
+        INntpClient usenetClient,
         CancellationToken cancellationToken
     )
     {
@@ -38,7 +38,7 @@ public static class FetchFirstSegmentsStep
         {
             // get the first article stream
             var firstSegment = nzbFile.Segments[0].MessageId.Value;
-            var article = await client.DecodedArticleAsync(firstSegment, cancellationToken).ConfigureAwait(false);
+            var article = await usenetClient.DecodedArticleAsync(firstSegment, cancellationToken).ConfigureAwait(false);
             await using var bodyStream = article.Stream!;
 
             // read up to the first 16KB from the stream

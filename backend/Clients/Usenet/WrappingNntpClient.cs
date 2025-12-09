@@ -3,74 +3,74 @@ using UsenetSharp.Models;
 
 namespace NzbWebDAV.Clients.Usenet;
 
-public class WrappingNntpClient(INntpClient client) : INntpClient
+public class WrappingNntpClient(INntpClient usenetClient) : INntpClient
 {
-    private INntpClient _client = client;
+    private INntpClient _usenetClient = usenetClient;
 
     public Task ConnectAsync(string host, int port, bool useSsl, CancellationToken cancellationToken)
     {
-        return _client.ConnectAsync(host, port, useSsl, cancellationToken);
+        return _usenetClient.ConnectAsync(host, port, useSsl, cancellationToken);
     }
 
     public Task<UsenetResponse> AuthenticateAsync(string user, string pass, CancellationToken cancellationToken)
     {
-        return _client.AuthenticateAsync(user, pass, cancellationToken);
+        return _usenetClient.AuthenticateAsync(user, pass, cancellationToken);
     }
 
     public Task<UsenetStatResponse> StatAsync(SegmentId segmentId, CancellationToken cancellationToken)
     {
-        return _client.StatAsync(segmentId, cancellationToken);
+        return _usenetClient.StatAsync(segmentId, cancellationToken);
     }
 
     public Task<UsenetHeadResponse> HeadAsync(SegmentId segmentId, CancellationToken cancellationToken)
     {
-        return _client.HeadAsync(segmentId, cancellationToken);
+        return _usenetClient.HeadAsync(segmentId, cancellationToken);
     }
 
     public Task<UsenetDecodedBodyResponse> DecodedBodyAsync(SegmentId segmentId, CancellationToken cancellationToken)
     {
-        return _client.DecodedBodyAsync(segmentId, cancellationToken);
+        return _usenetClient.DecodedBodyAsync(segmentId, cancellationToken);
     }
 
     public Task<UsenetDecodedArticleResponse> DecodedArticleAsync(SegmentId segmentId,
         CancellationToken cancellationToken)
     {
-        return _client.DecodedArticleAsync(segmentId, cancellationToken);
+        return _usenetClient.DecodedArticleAsync(segmentId, cancellationToken);
     }
 
     public Task<UsenetDateResponse> DateAsync(CancellationToken cancellationToken)
     {
-        return _client.DateAsync(cancellationToken);
+        return _usenetClient.DateAsync(cancellationToken);
     }
 
     public Task WaitForReadyAsync(CancellationToken cancellationToken)
     {
-        return _client.WaitForReadyAsync(cancellationToken);
+        return _usenetClient.WaitForReadyAsync(cancellationToken);
     }
 
     public Task<UsenetDecodedBodyResponse> DecodedBodyAsync(SegmentId segmentId,
         Action<ArticleBodyResult>? onConnectionReadyAgain, CancellationToken cancellationToken)
     {
-        return _client.DecodedBodyAsync(segmentId, onConnectionReadyAgain, cancellationToken);
+        return _usenetClient.DecodedBodyAsync(segmentId, onConnectionReadyAgain, cancellationToken);
     }
 
     public Task<UsenetDecodedArticleResponse> DecodedArticleAsync(SegmentId segmentId,
         Action<ArticleBodyResult>? onConnectionReadyAgain, CancellationToken cancellationToken)
     {
-        return _client.DecodedArticleAsync(segmentId, onConnectionReadyAgain, cancellationToken);
+        return _usenetClient.DecodedArticleAsync(segmentId, onConnectionReadyAgain, cancellationToken);
     }
 
-    protected void ReplaceUnderlyingClient(INntpClient client)
+    protected void ReplaceUnderlyingClient(INntpClient usenetClient)
     {
-        var old = _client;
-        _client = client;
+        var old = _usenetClient;
+        _usenetClient = usenetClient;
         if (old is IDisposable disposable)
             disposable.Dispose();
     }
 
     public void Dispose()
     {
-        _client.Dispose();
+        _usenetClient.Dispose();
         GC.SuppressFinalize(this);
     }
 }

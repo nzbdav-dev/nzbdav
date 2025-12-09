@@ -10,18 +10,18 @@ namespace NzbWebDAV.Queue.FileProcessors;
 public class MultipartMkvProcessor : BaseProcessor
 {
     private readonly List<GetFileInfosStep.FileInfo> _fileInfos;
-    private readonly INntpClient _client;
+    private readonly INntpClient _usenetClient;
     private readonly CancellationToken _ct;
 
     public MultipartMkvProcessor
     (
         List<GetFileInfosStep.FileInfo> fileInfos,
-        INntpClient client,
+        INntpClient usenetClient,
         CancellationToken ct
     )
     {
         _fileInfos = fileInfos;
-        _client = client;
+        _usenetClient = usenetClient;
         _ct = ct;
     }
 
@@ -31,7 +31,10 @@ public class MultipartMkvProcessor : BaseProcessor
         var fileParts = new List<DavMultipartFile.FilePart>();
         foreach (var fileInfo in sortedFileInfos)
         {
-            var partSize = fileInfo.FileSize ?? await _client.GetFileSizeAsync(fileInfo.NzbFile, _ct).ConfigureAwait(false);
+            var partSize = fileInfo.FileSize ?? await _usenetClient
+                .GetFileSizeAsync(fileInfo.NzbFile, _ct)
+                .ConfigureAwait(false);
+
             fileParts.Add(new DavMultipartFile.FilePart
             {
                 SegmentIds = fileInfo.NzbFile.GetSegmentIds(),

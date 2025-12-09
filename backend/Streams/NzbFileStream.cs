@@ -9,7 +9,7 @@ public class NzbFileStream(
     string[] fileSegmentIds,
     long fileSize,
     INntpClient client,
-    int concurrentConnections
+    int concurrency
 ) : Stream
 {
     private long _position = 0;
@@ -98,7 +98,7 @@ public class NzbFileStream(
         return new CombinedStream(
             fileSegmentIds[firstSegmentIndex..]
                 .Select(async x => (Stream)(await client.DecodedBodyAsync(x, ct).ConfigureAwait(false)).Stream)
-                .WithConcurrency(concurrentConnections)
+                .WithConcurrency(concurrency)
         );
     }
 

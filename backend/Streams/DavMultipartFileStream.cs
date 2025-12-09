@@ -7,8 +7,8 @@ namespace NzbWebDAV.Streams;
 
 public class DavMultipartFileStream(
     DavMultipartFile.FilePart[] fileParts,
-    INntpClient usenet,
-    int concurrentConnections
+    INntpClient usenetClient,
+    int concurrency
 ) : Stream
 {
     private long _position = 0;
@@ -97,7 +97,7 @@ public class DavMultipartFileStream(
             .Select((x, i) =>
             {
                 var offset = (i == 0) ? additionalOffset : 0;
-                var stream = usenet.GetFileStream(x.SegmentIds, x.SegmentIdByteRange.Count, concurrentConnections);
+                var stream = usenetClient.GetFileStream(x.SegmentIds, x.SegmentIdByteRange.Count, concurrency);
                 stream.Seek(x.FilePartByteRange.StartInclusive + offset, SeekOrigin.Begin);
                 return Task.FromResult(stream.LimitLength(x.FilePartByteRange.Count - offset));
             });
