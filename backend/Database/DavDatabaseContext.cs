@@ -1,8 +1,10 @@
-﻿using System.Text.Json;
+﻿using System.Text;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NzbWebDAV.Database.Interceptors;
 using NzbWebDAV.Database.Models;
+using NzbWebDAV.Utils;
 
 namespace NzbWebDAV.Database;
 
@@ -12,11 +14,36 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
     public static string DatabaseFilePath => Path.Join(ConfigPath, "db.sqlite");
 
     private static readonly Lazy<DbContextOptions<DavDatabaseContext>> Options = new(
-        () => new DbContextOptionsBuilder<DavDatabaseContext>()
-            .UseSqlite($"Data Source={DatabaseFilePath}")
-            .AddInterceptors(new SqliteForeignKeyEnabler())
-            .Options
+        () =>
+        {
+            DatabaseMaintenance.EnsureAutoVacuumConfigured();
+            return new DbContextOptionsBuilder<DavDatabaseContext>()
+                .UseSqlite($"Data Source={DatabaseFilePath}")
+                .AddInterceptors(new SqliteForeignKeyEnabler())
+                .Options;
+        }
     );
+
+    private static ValueConverter<T, string> CreateCompressedJsonConverter<T>(Func<T> fallbackFactory)
+    {
+        return new ValueConverter<T, string>(
+            v => Convert.ToBase64String(CompressionUtil.SerializeToCompressedJson(v ?? fallbackFactory())),
+            v => CompressionUtil.DeserializeCompressedJson(DecodeBase64(v), fallbackFactory)
+        );
+    }
+
+    private static byte[] DecodeBase64(string? value)
+    {
+        if (string.IsNullOrEmpty(value)) return Array.Empty<byte>();
+        try
+        {
+            return Convert.FromBase64String(value);
+        }
+        catch (FormatException)
+        {
+            return Encoding.UTF8.GetBytes(value);
+        }
+    }
 
     // database sets
     public DbSet<Account> Accounts => Set<Account>();
@@ -126,12 +153,8 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
                 .ValueGeneratedNever();
 
             e.Property(f => f.SegmentIds)
-                .HasConversion(new ValueConverter<string[], string>
-                (
-                    v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
-                    v => JsonSerializer.Deserialize<string[]>(v, (JsonSerializerOptions?)null) ?? Array.Empty<string>()
-                ))
-                .HasColumnType("TEXT") // store raw JSON
+                .HasConversion(CreateCompressedJsonConverter(() => Array.Empty<string>()))
+                .HasColumnType("TEXT")
                 .IsRequired();
 
             e.HasOne(f => f.DavItem)
@@ -150,13 +173,8 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
                 .ValueGeneratedNever();
 
             e.Property(f => f.RarParts)
-                .HasConversion(new ValueConverter<DavRarFile.RarPart[], string>
-                (
-                    v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
-                    v => JsonSerializer.Deserialize<DavRarFile.RarPart[]>(v, (JsonSerializerOptions?)null)
-                         ?? Array.Empty<DavRarFile.RarPart>()
-                ))
-                .HasColumnType("TEXT") // store raw JSON
+                .HasConversion(CreateCompressedJsonConverter(() => Array.Empty<DavRarFile.RarPart>()))
+                .HasColumnType("TEXT")
                 .IsRequired();
 
             e.HasOne(f => f.DavItem)
@@ -175,13 +193,8 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
                 .ValueGeneratedNever();
 
             e.Property(f => f.Metadata)
-                .HasConversion(new ValueConverter<DavMultipartFile.Meta, string>
-                (
-                    v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
-                    v => JsonSerializer.Deserialize<DavMultipartFile.Meta>(v, (JsonSerializerOptions?)null) ??
-                         new DavMultipartFile.Meta()
-                ))
-                .HasColumnType("TEXT") // store raw JSON
+                .HasConversion(CreateCompressedJsonConverter(() => new DavMultipartFile.Meta()))
+                .HasColumnType("TEXT")
                 .IsRequired();
 
             e.HasOne(f => f.DavItem)
@@ -309,6 +322,10 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
                 .ValueGeneratedNever();
 
             e.Property(i => i.NzbContents)
+                .HasConversion(
+                    v => Convert.ToBase64String(CompressionUtil.CompressString(v ?? string.Empty)),
+                    v => CompressionUtil.DecompressToString(DecodeBase64(v)))
+                .HasColumnType("TEXT")
                 .IsRequired();
 
             e.HasOne(f => f.QueueItem)

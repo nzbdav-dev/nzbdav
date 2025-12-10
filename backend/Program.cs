@@ -83,6 +83,7 @@ class Program
             .AddSingleton<QueueManager>()
             .AddSingleton<ArrMonitoringService>()
             .AddSingleton<HealthCheckService>()
+            .AddHostedService<DatabaseMaintenanceService>()
             .AddScoped<DavDatabaseContext>()
             .AddScoped<DavDatabaseClient>()
             .AddScoped<DatabaseStore>()

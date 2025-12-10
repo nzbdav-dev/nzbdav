@@ -16,6 +16,9 @@ public class ConfigItem
         "webdav.user",
         "webdav.pass",
         "rclone.mount-dir",
+        "database.history-retention-days",
+        "database.healthcheck-retention-days",
+        "database.payload-format-version",
     ]);
 
     public string ConfigName { get; set; } = null!;
