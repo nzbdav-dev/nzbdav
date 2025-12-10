@@ -1,21 +1,24 @@
-﻿using NzbWebDAV.Clients.Usenet.Connections;
+﻿using Microsoft.AspNetCore.Http;
+using NzbWebDAV.Clients.Usenet.Concurrency;
+using NzbWebDAV.Clients.Usenet.Contexts;
 using NzbWebDAV.Extensions;
-using NzbWebDAV.Streams;
 
 namespace NzbWebDAV.WebDav.Base;
 
-public abstract class BaseStoreStreamFile() : BaseStoreReadonlyItem
+public abstract class BaseStoreStreamFile(HttpContext context) : BaseStoreReadonlyItem
 {
-    public abstract Task<Stream> GetStreamAsync(CancellationToken cancellationToken);
+    protected abstract Task<Stream> GetStreamAsync(CancellationToken cancellationToken);
 
-    public override async Task<Stream> GetReadableStreamAsync(CancellationToken cancellationToken)
+    public override Task<Stream> GetReadableStreamAsync(CancellationToken cancellationToken)
     {
-        var stream = await GetStreamAsync(cancellationToken).ConfigureAwait(false);
-        var scopedContext = cancellationToken.SetScopedContext(new LastSuccessfulProviderContext());
-        return new DisposableCallbackStream
-        (
-            stream,
-            () => scopedContext.Dispose()
-        );
+        var downloadPriorityContext = new DownloadPriorityContext() { Priority = SemaphorePriority.High };
+        var scopedDownloadPriorityContext = cancellationToken.SetContext(downloadPriorityContext);
+        context.Response.OnCompleted(() =>
+        {
+            scopedDownloadPriorityContext.Dispose();
+            return Task.CompletedTask;
+        });
+
+        return GetStreamAsync(cancellationToken);
     }
 }

@@ -1,13 +1,14 @@
-﻿namespace NzbWebDAV.Streams;
+﻿using System.Buffers;
+using UsenetSharp.Streams;
 
-public class CancellableStream(Stream innerStream, CancellationToken token) : Stream
+namespace NzbWebDAV.Streams;
+
+public class CancellableStream(Stream innerStream, CancellationToken token) : FastReadOnlyStream
 {
     private readonly Stream _innerStream = innerStream ?? throw new ArgumentNullException(nameof(innerStream));
     private bool _disposed;
 
-    public override bool CanRead => _innerStream.CanRead;
     public override bool CanSeek => _innerStream.CanSeek;
-    public override bool CanWrite => _innerStream.CanWrite;
     public override long Length => _innerStream.Length;
 
     public override long Position
@@ -36,16 +37,27 @@ public class CancellableStream(Stream innerStream, CancellationToken token) : St
             .GetResult();
     }
 
+    public override int Read(Span<byte> buffer)
+    {
+        CheckDisposed();
+        var array = ArrayPool<byte>.Shared.Rent(buffer.Length);
+        try
+        {
+            var buffer1 = new Memory<byte>(array, 0, buffer.Length);
+            var result = this.ReadAsync(buffer1, token).AsTask().GetAwaiter().GetResult();
+            buffer1.Span[..result].CopyTo(buffer);
+            return result;
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(array);
+        }
+    }
+
     public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
     {
         CheckDisposed();
         return _innerStream.ReadAsync(buffer, cancellationToken);
-    }
-
-    public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
-    {
-        CheckDisposed();
-        return _innerStream.ReadAsync(buffer, offset, count, cancellationToken);
     }
 
     public override void SetLength(long value)
@@ -58,24 +70,6 @@ public class CancellableStream(Stream innerStream, CancellationToken token) : St
     {
         CheckDisposed();
         return _innerStream.Seek(offset, origin);
-    }
-
-    public override void Write(byte[] buffer, int offset, int count)
-    {
-        CheckDisposed();
-        _innerStream.Write(buffer, offset, count);
-    }
-
-    public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
-    {
-        CheckDisposed();
-        return _innerStream.WriteAsync(buffer, offset, count, cancellationToken);
-    }
-
-    public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
-    {
-        CheckDisposed();
-        return _innerStream.WriteAsync(buffer, cancellationToken);
     }
 
     private void CheckDisposed()

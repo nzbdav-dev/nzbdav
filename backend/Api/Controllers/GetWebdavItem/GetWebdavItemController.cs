@@ -76,6 +76,7 @@ public class ListWebdavDirectoryController(DatabaseStore store, ConfigManager co
 
     private static string GetContentType(string item)
     {
+        if (item == "README") return "text/plain";
         var extension = Path.GetExtension(item).ToLower();
         return extension == ".mkv" ? "video/webm"
             : extension == ".rclonelink" ? "text/plain"

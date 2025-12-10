@@ -15,7 +15,7 @@ public class DatabaseStoreMultipartFile(
     DavDatabaseClient dbClient,
     UsenetStreamingClient usenetClient,
     ConfigManager configManager
-) : BaseStoreStreamFile
+) : BaseStoreStreamFile(httpContext)
 {
     public DavItem DavItem => davMultipartFile;
     public override string Name => davMultipartFile.Name;
@@ -23,7 +23,7 @@ public class DatabaseStoreMultipartFile(
     public override long FileSize => davMultipartFile.FileSize!.Value;
     public override DateTime CreatedAt => davMultipartFile.CreatedAt;
 
-    public override async Task<Stream> GetStreamAsync(CancellationToken ct)
+    protected override async Task<Stream> GetStreamAsync(CancellationToken ct)
     {
         // store the DavItem being accessed in the http context
         httpContext.Items["DavItem"] = davMultipartFile;
@@ -35,7 +35,7 @@ public class DatabaseStoreMultipartFile(
         var packedStream = new DavMultipartFileStream(
             multipartFile.Metadata.FileParts,
             usenetClient,
-            configManager.GetConnectionsPerStream()
+            configManager.GetArticleBufferSize()
         );
         return multipartFile.Metadata.AesParams != null
             ? new AesDecoderStream(packedStream, multipartFile.Metadata.AesParams)

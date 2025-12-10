@@ -1,5 +1,6 @@
 ﻿using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using NzbWebDAV.Clients.Usenet.Concurrency;
 using NzbWebDAV.Database;
 using NzbWebDAV.Database.Models;
 using NzbWebDAV.Utils;
@@ -25,7 +26,7 @@ public class ConfigManager
         }
     }
 
-    public string? GetConfigValue(string configName)
+    private string? GetConfigValue(string configName)
     {
         lock (_config)
         {
@@ -33,7 +34,7 @@ public class ConfigManager
         }
     }
 
-    public T? GetConfigValue<T>(string configName)
+    private T? GetConfigValue<T>(string configName)
     {
         var rawValue = StringUtil.EmptyToNull(GetConfigValue(configName));
         return rawValue == null ? default : JsonSerializer.Deserialize<T>(rawValue);
@@ -47,20 +48,17 @@ public class ConfigManager
             {
                 _config[configItem.ConfigName] = configItem.ConfigValue;
             }
-
-            OnConfigChanged?.Invoke(this, new ConfigEventArgs
-            {
-                ChangedConfig = configItems.ToDictionary(x => x.ConfigName, x => x.ConfigValue),
-                NewConfig = _config
-            });
         }
+
+        var changedConfig = configItems.ToDictionary(x => x.ConfigName, x => x.ConfigValue);
+        OnConfigChanged?.Invoke(this, new ConfigEventArgs { ChangedConfig = changedConfig });
     }
 
     public string GetRcloneMountDir()
     {
         var mountDir = StringUtil.EmptyToNull(GetConfigValue("rclone.mount-dir"))
-               ?? StringUtil.EmptyToNull(Environment.GetEnvironmentVariable("MOUNT_DIR"))
-               ?? "/mnt/nzbdav";
+                       ?? StringUtil.EmptyToNull(Environment.GetEnvironmentVariable("MOUNT_DIR"))
+                       ?? "/mnt/nzbdav";
         if (mountDir.EndsWith('/')) mountDir = mountDir.TrimEnd('/');
         return mountDir;
     }
@@ -88,15 +86,6 @@ public class ConfigManager
     {
         return StringUtil.EmptyToNull(GetConfigValue("api.manual-category"))
                ?? "uncategorized";
-    }
-
-    public int GetConnectionsPerStream()
-    {
-        return int.Parse(
-            StringUtil.EmptyToNull(GetConfigValue("usenet.connections-per-stream"))
-            ?? StringUtil.EmptyToNull(Environment.GetEnvironmentVariable("CONNECTIONS_PER_STREAM"))
-            ?? "5"
-        );
     }
 
     public string? GetWebdavUser()
@@ -134,12 +123,27 @@ public class ConfigManager
         return StringUtil.EmptyToNull(GetConfigValue("media.library-dir"));
     }
 
-    public int GetMaxQueueConnections()
+    public int GetMaxDownloadConnections()
     {
         return int.Parse(
-            StringUtil.EmptyToNull(GetConfigValue("api.max-queue-connections"))
-            ?? GetUsenetProviderConfig().TotalPooledConnections.ToString()
+            StringUtil.EmptyToNull(GetConfigValue("usenet.max-download-connections"))
+            ?? Math.Min(GetUsenetProviderConfig().TotalPooledConnections, 15).ToString()
         );
+    }
+
+    public int GetArticleBufferSize()
+    {
+        return int.Parse(
+            StringUtil.EmptyToNull(GetConfigValue("usenet.article-buffer-size"))
+            ?? "40"
+        );
+    }
+
+    public SemaphorePriorityOdds GetStreamingPriority()
+    {
+        var stringValue = StringUtil.EmptyToNull(GetConfigValue("usenet.streaming-priority"));
+        var numericalValue = int.Parse(stringValue ?? "80");
+        return new SemaphorePriorityOdds() { HighPriorityOdds = numericalValue };
     }
 
     public bool IsEnforceReadonlyWebdavEnabled()
@@ -170,21 +174,12 @@ public class ConfigManager
         return (configValue != null ? bool.Parse(configValue) : defaultValue);
     }
 
-    public int GetMaxRepairConnections()
-    {
-        return int.Parse(
-            StringUtil.EmptyToNull(GetConfigValue("repair.connections"))
-            ?? GetUsenetProviderConfig().TotalPooledConnections.ToString()
-        );
-    }
-
     public bool IsRepairJobEnabled()
     {
         var defaultValue = false;
         var configValue = StringUtil.EmptyToNull(GetConfigValue("repair.enable"));
         var isRepairJobEnabled = (configValue != null ? bool.Parse(configValue) : defaultValue);
         return isRepairJobEnabled
-               && GetMaxRepairConnections() > 0
                && GetLibraryDir() != null
                && GetArrConfig().GetInstanceCount() > 0;
     }
@@ -263,7 +258,6 @@ public class ConfigManager
 
     public class ConfigEventArgs : EventArgs
     {
-        public Dictionary<string, string> ChangedConfig { get; set; } = new();
-        public Dictionary<string, string> NewConfig { get; set; } = new();
+        public required Dictionary<string, string> ChangedConfig { get; init; }
     }
 }

@@ -1,4 +1,5 @@
-﻿using NzbWebDAV.Streams;
+﻿using System.Buffers;
+using NzbWebDAV.Streams;
 
 namespace NzbWebDAV.Extensions;
 
@@ -9,10 +10,25 @@ public static class StreamExtensions
         return new LimitedLengthStream(stream, length);
     }
 
-    public static void Drain(this Stream stream)
+    public static async Task DiscardBytesAsync(this Stream stream, long count, CancellationToken ct = default)
     {
-        var buffer = new byte[1024];
-        while (stream.Read(buffer, 0, buffer.Length) > 0) ;
+        if (count == 0) return;
+        var remaining = count;
+        var throwaway = ArrayPool<byte>.Shared.Rent(1024);
+        try
+        {
+            while (remaining > 0)
+            {
+                var toRead = (int)Math.Min(remaining, throwaway.Length);
+                var read = await stream.ReadAsync(throwaway.AsMemory(0, toRead), ct).ConfigureAwait(false);
+                if (read == 0) break;
+                remaining -= read;
+            }
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(throwaway);
+        }
     }
 
     public static Stream OnDispose(this Stream stream, Action onDispose)

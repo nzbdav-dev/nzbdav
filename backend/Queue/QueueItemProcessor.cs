@@ -5,7 +5,6 @@ using Microsoft.EntityFrameworkCore;
 using NzbWebDAV.Api.SabControllers.GetHistory;
 using NzbWebDAV.Clients.RadarrSonarr;
 using NzbWebDAV.Clients.Usenet;
-using NzbWebDAV.Clients.Usenet.Connections;
 using NzbWebDAV.Config;
 using NzbWebDAV.Database;
 using NzbWebDAV.Database.Models;
@@ -28,7 +27,7 @@ public class QueueItemProcessor(
     QueueItem queueItem,
     QueueNzbContents queueNzbContents,
     DavDatabaseClient dbClient,
-    UsenetStreamingClient usenetClient,
+    INntpClient usenetClient,
     ConfigManager configManager,
     WebsocketManager websocketManager,
     HealthCheckService healthCheckService,
@@ -50,7 +49,7 @@ public class QueueItemProcessor(
 
         // When a queue-item is removed while processing,
         // then we need to clear any db changes and finish early.
-        catch (Exception e) when (e.GetBaseException() is OperationCanceledException or TaskCanceledException)
+        catch (Exception e) when (e.GetBaseException().IsCancellationException())
         {
             Log.Information($"Processing of queue item `{queueItem.JobName}` was cancelled.");
             dbClient.Ctx.ChangeTracker.Clear();
@@ -105,15 +104,10 @@ public class QueueItemProcessor(
         if (isDuplicateNzb && duplicateNzbBehavior == "mark-failed")
         {
             const string error = "Duplicate nzb: the download folder for this nzb already exists.";
-            await MarkQueueItemCompleted(startTime, error, () => Task.FromResult(existingMountFolder)).ConfigureAwait(false);
+            await MarkQueueItemCompleted(startTime, error, () => Task.FromResult(existingMountFolder))
+                .ConfigureAwait(false);
             return;
         }
-
-        // ensure we don't use more than max-queue-connections
-        var providerConfig = configManager.GetUsenetProviderConfig();
-        var concurrency = configManager.GetMaxQueueConnections();
-        var reservedConnections = providerConfig.TotalPooledConnections - concurrency;
-        using var _ = ct.SetScopedContext(new ReservedPooledConnectionsContext(reservedConnections));
 
         // read the nzb document
         var documentBytes = Encoding.UTF8.GetBytes(queueNzbContents.NzbContents);
@@ -143,11 +137,11 @@ public class QueueItemProcessor(
         var part2Progress = progress
             .Offset(50)
             .Scale(50, 100)
-            .ToPercentage(fileProcessors.Count);
+            .ToMultiProgress(fileProcessors.Count);
         var fileProcessingResultsAll = await fileProcessors
-            .Select(x => x!.ProcessAsync())
-            .WithConcurrencyAsync(concurrency)
-            .GetAllAsync(ct, part2Progress).ConfigureAwait(false);
+            .Select(x => x!.ProcessAsync(part2Progress.SubProgress))
+            .WithConcurrencyAsync(configManager.GetMaxDownloadConnections() + 5)
+            .GetAllAsync(ct).ConfigureAwait(false);
         var fileProcessingResults = fileProcessingResultsAll
             .Where(x => x is not null)
             .Select(x => x!)
@@ -164,7 +158,12 @@ public class QueueItemProcessor(
             var part3Progress = progress
                 .Offset(100)
                 .ToPercentage(articlesToCheck.Count);
-            await usenetClient.CheckAllSegmentsAsync(articlesToCheck, concurrency, part3Progress, ct).ConfigureAwait(false);
+            var healthCheckConcurrency = configManager
+                .GetUsenetProviderConfig()
+                .TotalPooledConnections;
+            await usenetClient
+                .CheckAllSegmentsAsync(articlesToCheck, healthCheckConcurrency, part3Progress, ct)
+                .ConfigureAwait(false);
             checkedFullHealth = true;
         }
 
@@ -172,7 +171,8 @@ public class QueueItemProcessor(
         await MarkQueueItemCompleted(startTime, error: null, async () =>
         {
             var categoryFolder = await GetOrCreateCategoryFolder().ConfigureAwait(false);
-            var mountFolder = await CreateMountFolder(categoryFolder, existingMountFolder, duplicateNzbBehavior).ConfigureAwait(false);
+            var mountFolder = await CreateMountFolder(categoryFolder, existingMountFolder, duplicateNzbBehavior)
+                .ConfigureAwait(false);
             new RarAggregator(dbClient, mountFolder, checkedFullHealth).UpdateDatabase(fileProcessingResults);
             new FileAggregator(dbClient, mountFolder, checkedFullHealth).UpdateDatabase(fileProcessingResults);
             new SevenZipAggregator(dbClient, mountFolder, checkedFullHealth).UpdateDatabase(fileProcessingResults);
@@ -188,7 +188,8 @@ public class QueueItemProcessor(
 
             // create strm files, if necessary
             if (configManager.GetImportStrategy() == "strm")
-                await new CreateStrmFilesPostProcessor(configManager, dbClient).CreateStrmFilesAsync().ConfigureAwait(false);
+                await new CreateStrmFilesPostProcessor(configManager, dbClient).CreateStrmFilesAsync()
+                    .ConfigureAwait(false);
 
             return mountFolder;
         }).ConfigureAwait(false);
@@ -207,7 +208,7 @@ public class QueueItemProcessor(
         foreach (var group in groups)
         {
             if (group.Key == "7z")
-                yield return new SevenZipProcessor(group.ToList(), usenetClient, archivePassword, ct);
+                yield return new SevenZipProcessor(group.ToList(), usenetClient, configManager, archivePassword, ct);
 
             else if (group.Key == "rar")
                 foreach (var fileInfo in group)
@@ -293,7 +294,8 @@ public class QueueItemProcessor(
         for (var i = 2; i < 100; i++)
         {
             var name = $"{queueItem.JobName} ({i})";
-            var existingMountFolder = await dbClient.GetDirectoryChildAsync(categoryFolder.Id, name, ct).ConfigureAwait(false);
+            var existingMountFolder =
+                await dbClient.GetDirectoryChildAsync(categoryFolder.Id, name, ct).ConfigureAwait(false);
             if (existingMountFolder is not null) continue;
 
             var mountFolder = DavItem.New(
@@ -412,7 +414,7 @@ public class QueueItemProcessor(
             var downloadClients = await arrClient.GetDownloadClientsAsync().ConfigureAwait(false);
             if (downloadClients.All(x => x.Category != queueItem.Category)) return;
             var queueCount = await arrClient.GetQueueCountAsync().ConfigureAwait(false);
-            if (queueCount < 60) await arrClient.RefreshMonitoredDownloads().ConfigureAwait(false);
+            if (queueCount < 300) await arrClient.RefreshMonitoredDownloads().ConfigureAwait(false);
         }
         catch (Exception e)
         {

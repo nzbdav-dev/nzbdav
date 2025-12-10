@@ -33,7 +33,7 @@ export async function loader({ request }: Route.LoaderArgs) {
             return {
                 ...x,
                 mimeType: getMimeType(x.name),
-                downloadKey: getDownloadKey(`${path}/${x.name}`)
+                downloadKey: getDownloadKey(getRelativePath(path, x.name))
             };
         })
     }
@@ -61,7 +61,8 @@ function Body(props: ExplorePageData) {
 
     const getFilePath = useCallback((file: ExploreFile) => {
         var pathname = getWebdavPath(location.pathname);
-        return `/view/${pathname}/${encodeURIComponent(file.name)}?downloadKey=${file.downloadKey}`;
+        var relativePath = getRelativePath(pathname, encodeURIComponent(file.name));
+        return `/view/${relativePath}?downloadKey=${file.downloadKey}`;
     }, [location.pathname]);
 
     return (
@@ -107,6 +108,11 @@ function getWebdavPath(pathname: string): string {
 
 function getWebdavPathDecoded(pathname: string): string {
     return decodeURIComponent(getWebdavPath(pathname));
+}
+
+function getRelativePath(path: string, filename: string) {
+    if (path === "") return filename;
+    return `${path}/${filename}`;
 }
 
 function getParentDirectories(webdavPath: string): string[] {
