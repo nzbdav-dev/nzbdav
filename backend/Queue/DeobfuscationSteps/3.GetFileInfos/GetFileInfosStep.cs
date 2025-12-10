@@ -95,7 +95,7 @@ public static class GetFileInfosStep
         return range.Contains(fileSize);
     }
 
-    public class FileInfo
+    public record FileInfo
     {
         public required NzbFile NzbFile { get; init; }
         public required string FileName { get; init; }

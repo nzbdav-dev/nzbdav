@@ -19,6 +19,12 @@ public static class EmbeddedResourceUtil
         return reader.ReadToEnd();
     }
 
+    public static long GetLength(string resourcePath)
+    {
+        using var stream = GetStream(resourcePath);
+        return stream.Length;
+    }
+
     public static async Task<string> ReadAllTextAsync(string resourcePath)
     {
         await using var stream = GetStream(resourcePath);

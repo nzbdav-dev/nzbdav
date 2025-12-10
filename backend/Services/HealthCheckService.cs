@@ -1,6 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using NzbWebDAV.Clients.Usenet;
-using NzbWebDAV.Clients.Usenet.Connections;
 using NzbWebDAV.Config;
 using NzbWebDAV.Database;
 using NzbWebDAV.Database.Models;
@@ -18,7 +17,7 @@ namespace NzbWebDAV.Services;
 public class HealthCheckService
 {
     private readonly ConfigManager _configManager;
-    private readonly UsenetStreamingClient _usenetClient;
+    private readonly INntpClient _usenetClient;
     private readonly WebsocketManager _websocketManager;
     private readonly CancellationToken _cancellationToken = SigtermUtil.GetCancellationToken();
 
@@ -59,13 +58,8 @@ public class HealthCheckService
                 }
 
                 // get concurrency
-                var concurrency = _configManager.GetMaxRepairConnections();
-
-                // set reserved-connections context
+                var concurrency = _configManager.GetUsenetProviderConfig().TotalPooledConnections;
                 using var cts = CancellationTokenSource.CreateLinkedTokenSource(_cancellationToken);
-                var providerConfig = _configManager.GetUsenetProviderConfig();
-                var reservedConnections = providerConfig.TotalPooledConnections - concurrency;
-                using var _ = cts.Token.SetScopedContext(new ReservedPooledConnectionsContext(reservedConnections));
 
                 // get the davItem to health-check
                 await using var dbContext = new DavDatabaseContext();
@@ -103,13 +97,10 @@ public class HealthCheckService
 
     public static IQueryable<DavItem> GetHealthCheckQueueItemsQuery(DavDatabaseClient dbClient)
     {
-        var actionNeeded = HealthCheckResult.RepairAction.ActionNeeded;
-        var healthCheckResults = dbClient.Ctx.HealthCheckResults;
         return dbClient.Ctx.Items
             .Where(x => x.Type == DavItem.ItemType.NzbFile
                         || x.Type == DavItem.ItemType.RarFile
-                        || x.Type == DavItem.ItemType.MultipartFile)
-            .Where(x => !healthCheckResults.Any(h => h.DavItemId == x.Id && h.RepairStatus == actionNeeded));
+                        || x.Type == DavItem.ItemType.MultipartFile);
     }
 
     private async Task PerformHealthCheck
@@ -174,7 +165,8 @@ public class HealthCheckService
     {
         var firstSegmentId = StringUtil.EmptyToNull(segments.FirstOrDefault());
         if (firstSegmentId == null) return;
-        var articleHeaders = await _usenetClient.GetArticleHeadersAsync(firstSegmentId, ct).ConfigureAwait(false);
+        var articleHeadersResponse = await _usenetClient.HeadAsync(firstSegmentId, ct).ConfigureAwait(false);
+        var articleHeaders = articleHeadersResponse.ArticleHeaders!;
         davItem.ReleaseDate = articleHeaders.Date;
     }
 
@@ -319,10 +311,10 @@ public class HealthCheckService
         catch (Exception e)
         {
             // if an error is encountered during repairs,
-            // then mark the item as unhealthy
+            // then mark the item as unhealthy, and check again in a day.
             var utcNow = DateTimeOffset.UtcNow;
             davItem.LastHealthCheck = utcNow;
-            davItem.NextHealthCheck = null;
+            davItem.NextHealthCheck = utcNow + TimeSpan.FromDays(1);
             dbClient.Ctx.HealthCheckResults.Add(SendStatus(new HealthCheckResult()
             {
                 Id = Guid.NewGuid(),

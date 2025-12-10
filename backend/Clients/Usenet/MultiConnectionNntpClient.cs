@@ -1,126 +1,127 @@
-﻿using NzbWebDAV.Clients.Usenet.Connections;
+﻿using NzbWebDAV.Clients.Usenet.Concurrency;
+using NzbWebDAV.Clients.Usenet.Connections;
 using NzbWebDAV.Clients.Usenet.Models;
 using NzbWebDAV.Models;
-using NzbWebDAV.Streams;
-using NzbWebDAV.Utils;
-using Usenet.Exceptions;
-using Usenet.Nntp.Responses;
-using Usenet.Nzb;
-using Usenet.Yenc;
+using UsenetSharp.Models;
 
 namespace NzbWebDAV.Clients.Usenet;
 
-public class MultiConnectionNntpClient(ConnectionPool<INntpClient> connectionPool, ProviderType type) : INntpClient
+/// <summary>
+/// This client is responsible for delegating NNTP commands to a connection pool.
+///   * The connection pool enforces a maximum number of allowed connections
+///   * When a connection is available, the NNTP command executes immediately
+///   * When a connection is not available, the NNTP command waits until a connection becomes available.
+///   * When multiple commands are awaiting a connection,
+///     then BODY/ARTICLE commands have higher priority than STAT/HEAD/DATE commands.
+/// </summary>
+/// <param name="connectionPool"></param>
+/// <param name="type"></param>
+public class MultiConnectionNntpClient(ConnectionPool<INntpClient> connectionPool, ProviderType type) : NntpClient
 {
     public ProviderType ProviderType { get; } = type;
-    public int LiveConnections => _connectionPool.LiveConnections;
-    public int IdleConnections => _connectionPool.IdleConnections;
-    public int ActiveConnections => _connectionPool.ActiveConnections;
-    public int AvailableConnections => _connectionPool.AvailableConnections;
-    public int RemainingSemaphoreSlots => _connectionPool.RemainingSemaphoreSlots;
+    public int LiveConnections => connectionPool.LiveConnections;
+    public int IdleConnections => connectionPool.IdleConnections;
+    public int ActiveConnections => connectionPool.ActiveConnections;
+    public int AvailableConnections => connectionPool.AvailableConnections;
 
-    private ConnectionPool<INntpClient> _connectionPool = connectionPool;
-
-    public Task<bool> ConnectAsync(string host, int port, bool useSsl, CancellationToken cancellationToken)
+    public override Task ConnectAsync(string host, int port, bool useSsl, CancellationToken cancellationToken)
     {
         throw new NotSupportedException("Please connect within the connectionFactory");
     }
 
-    public Task<bool> AuthenticateAsync(string user, string pass, CancellationToken cancellationToken)
+    public override Task<UsenetResponse> AuthenticateAsync(string user, string pass, CancellationToken cancellationToken)
     {
         throw new NotSupportedException("Please authenticate within the connectionFactory");
     }
 
-    public Task<NntpStatResponse> StatAsync(string segmentId, CancellationToken cancellationToken)
+    public override async Task<UsenetStatResponse> StatAsync(SegmentId segmentId, CancellationToken ct)
     {
-        return RunWithConnection(connection => connection.StatAsync(segmentId, cancellationToken), cancellationToken);
+        const SemaphorePriority priority = SemaphorePriority.Low;
+        using var connectionLock = await connectionPool.GetConnectionLockAsync(priority, ct).ConfigureAwait(false);
+        return await connectionLock.Connection.StatAsync(segmentId, ct).ConfigureAwait(false);
     }
 
-    public Task<NntpDateResponse> DateAsync(CancellationToken cancellationToken)
+    public override async Task<UsenetHeadResponse> HeadAsync(SegmentId segmentId, CancellationToken ct)
     {
-        return RunWithConnection(connection => connection.DateAsync(cancellationToken), cancellationToken);
+        const SemaphorePriority priority = SemaphorePriority.Low;
+        using var connectionLock = await connectionPool.GetConnectionLockAsync(priority, ct).ConfigureAwait(false);
+        return await connectionLock.Connection.HeadAsync(segmentId, ct).ConfigureAwait(false);
     }
 
-    public Task<UsenetArticleHeaders> GetArticleHeadersAsync(string segmentId, CancellationToken cancellationToken)
+    public override async Task<UsenetDecodedBodyResponse> DecodedBodyAsync(SegmentId segmentId, CancellationToken ct)
     {
-        return RunWithConnection(connection => connection.GetArticleHeadersAsync(segmentId, cancellationToken),
-            cancellationToken);
+        const SemaphorePriority priority = SemaphorePriority.High;
+        var connectionLock = await connectionPool.GetConnectionLockAsync(priority, ct).ConfigureAwait(false);
+        return await connectionLock.Connection.DecodedBodyAsync(segmentId, OnDone, ct).ConfigureAwait(false);
+
+        void OnDone(ArticleBodyResult articleBodyResult)
+        {
+            connectionLock.Dispose();
+        }
     }
 
-    public Task<YencHeaderStream> GetSegmentStreamAsync(string segmentId, bool includeHeaders,
-        CancellationToken cancellationToken)
-    {
-        return RunWithConnection(
-            connection => connection.GetSegmentStreamAsync(segmentId, includeHeaders, cancellationToken),
-            cancellationToken);
-    }
-
-    public Task<YencHeader> GetSegmentYencHeaderAsync(string segmentId, CancellationToken cancellationToken)
-    {
-        return RunWithConnection(connection => connection.GetSegmentYencHeaderAsync(segmentId, cancellationToken),
-            cancellationToken);
-    }
-
-    public Task<long> GetFileSizeAsync(NzbFile file, CancellationToken cancellationToken)
-    {
-        return RunWithConnection(connection => connection.GetFileSizeAsync(file, cancellationToken), cancellationToken);
-    }
-
-    public async Task WaitForReady(CancellationToken cancellationToken)
-    {
-        using var connectionLock =
-            await _connectionPool.GetConnectionLockAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    private async Task<T> RunWithConnection<T>
+    public override async Task<UsenetDecodedArticleResponse> DecodedArticleAsync
     (
-        Func<INntpClient, Task<T>> task,
-        CancellationToken cancellationToken,
-        int retries = 1
+        SegmentId segmentId, 
+        CancellationToken ct
     )
     {
-        var connectionLock = await _connectionPool.GetConnectionLockAsync(cancellationToken).ConfigureAwait(false);
-        var isDisposed = false;
-        try
+        const SemaphorePriority priority = SemaphorePriority.High;
+        var connectionLock = await connectionPool.GetConnectionLockAsync(priority, ct).ConfigureAwait(false);
+        return await connectionLock.Connection.DecodedArticleAsync(segmentId, OnDone, ct).ConfigureAwait(false);
+
+        void OnDone(ArticleBodyResult articleBodyResult)
         {
-            return await task(connectionLock.Connection).ConfigureAwait(false);
-        }
-        catch (NntpException)
-        {
-            // we want to replace the underlying connection in cases of NntpExceptions.
-            connectionLock.Replace();
             connectionLock.Dispose();
-            isDisposed = true;
-
-            // and try again with a new connection (max 1 retry)
-            if (retries > 0)
-                return await RunWithConnection<T>(task, cancellationToken, retries - 1).ConfigureAwait(false);
-
-            throw;
         }
-        finally
+    }
+
+    public override async Task<UsenetDateResponse> DateAsync(CancellationToken ct)
+    {
+        const SemaphorePriority priority = SemaphorePriority.Low;
+        using var connectionLock = await connectionPool.GetConnectionLockAsync(priority, ct).ConfigureAwait(false);
+        return await connectionLock.Connection.DateAsync(ct).ConfigureAwait(false);
+    }
+
+    public override async Task<UsenetDecodedBodyResponse> DecodedBodyAsync
+    (
+        SegmentId segmentId,
+        Action<ArticleBodyResult>? onConnectionReadyAgain,
+        CancellationToken ct
+    )
+    {
+        const SemaphorePriority priority = SemaphorePriority.High;
+        var connectionLock = await connectionPool.GetConnectionLockAsync(priority, ct).ConfigureAwait(false);
+        return await connectionLock.Connection.DecodedBodyAsync(segmentId, OnDone, ct).ConfigureAwait(false);
+
+        void OnDone(ArticleBodyResult articleBodyResult)
         {
-            // we only want to release the connection-lock once the underlying connection is ready again.
-            //
-            // ReSharper disable once MethodSupportsCancellation
-            // we intentionally do not pass the cancellation token to ContinueWith,
-            // since we want the continuation to always run.
-            if (!isDisposed)
-                _ = connectionLock.Connection.WaitForReady(SigtermUtil.GetCancellationToken())
-                    .ContinueWith(_ => connectionLock.Dispose());
+            connectionLock.Dispose();
+            onConnectionReadyAgain?.Invoke(articleBodyResult);
         }
     }
 
-    public void UpdateConnectionPool(ConnectionPool<INntpClient> connectionPool)
+    public override async Task<UsenetDecodedArticleResponse> DecodedArticleAsync
+    (
+        SegmentId segmentId,
+        Action<ArticleBodyResult>? onConnectionReadyAgain,
+        CancellationToken ct
+    )
     {
-        var oldConnectionPool = _connectionPool;
-        _connectionPool = connectionPool;
-        oldConnectionPool.Dispose();
+        const SemaphorePriority priority = SemaphorePriority.High;
+        var connectionLock = await connectionPool.GetConnectionLockAsync(priority, ct).ConfigureAwait(false);
+        return await connectionLock.Connection.DecodedArticleAsync(segmentId, OnDone, ct).ConfigureAwait(false);
+
+        void OnDone(ArticleBodyResult articleBodyResult)
+        {
+            connectionLock.Dispose();
+            onConnectionReadyAgain?.Invoke(articleBodyResult);
+        }
     }
 
-    public void Dispose()
+    public override void Dispose()
     {
-        _connectionPool.Dispose();
+        connectionPool.Dispose();
         GC.SuppressFinalize(this);
     }
 }

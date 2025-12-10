@@ -1,16 +1,13 @@
-﻿namespace NzbWebDAV.Streams;
+﻿using UsenetSharp.Streams;
 
-public class CombinedStream(IEnumerable<Task<Stream>> streams) : Stream
+namespace NzbWebDAV.Streams;
+
+public class CombinedStream(IEnumerable<Task<Stream>> streams) : FastReadOnlyNonSeekableStream
 {
     private readonly IEnumerator<Task<Stream>> _streams = streams.GetEnumerator();
     private Stream? _currentStream;
     private long _position;
     private bool _isDisposed;
-
-    public override bool CanRead => true;
-    public override bool CanSeek => false;
-    public override bool CanWrite => false;
-    public override long Length => throw new NotSupportedException();
 
     public override long Position
     {
@@ -18,14 +15,9 @@ public class CombinedStream(IEnumerable<Task<Stream>> streams) : Stream
         set => throw new NotSupportedException();
     }
 
-    public override int Read(byte[] buffer, int offset, int count)
+    public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
     {
-        return ReadAsync(buffer, offset, count).GetAwaiter().GetResult();
-    }
-
-    public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
-    {
-        if (count == 0) return 0;
+        if (buffer.Length == 0) return 0;
         while (!cancellationToken.IsCancellationRequested)
         {
             // If we haven't read the first stream, read it.
@@ -36,11 +28,7 @@ public class CombinedStream(IEnumerable<Task<Stream>> streams) : Stream
             }
 
             // read from our current stream
-            var readCount = await _currentStream.ReadAsync
-            (
-                buffer.AsMemory(offset, count),
-                cancellationToken
-            ).ConfigureAwait(false);
+            var readCount = await _currentStream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
             _position += readCount;
             if (readCount > 0) return readCount;
 
@@ -54,40 +42,14 @@ public class CombinedStream(IEnumerable<Task<Stream>> streams) : Stream
         return 0;
     }
 
-    public async Task DiscardBytesAsync(long count)
-    {
-        if (count == 0) return;
-        var remaining = count;
-        var throwaway = new byte[1024];
-        while (remaining > 0)
-        {
-            var toRead = (int)Math.Min(remaining, throwaway.Length);
-            var read = await ReadAsync(throwaway, 0, toRead).ConfigureAwait(false);
-            remaining -= read;
-            if (read == 0) break;
-        }
-
-        _position += count;
-    }
-
     public override void Flush()
     {
-        throw new NotSupportedException();
+        _currentStream?.Flush();
     }
 
-    public override long Seek(long offset, SeekOrigin origin)
+    public override Task FlushAsync(CancellationToken cancellationToken)
     {
-        throw new NotSupportedException();
-    }
-
-    public override void SetLength(long value)
-    {
-        throw new NotSupportedException();
-    }
-
-    public override void Write(byte[] buffer, int offset, int count)
-    {
-        throw new NotSupportedException();
+        return _currentStream?.FlushAsync(cancellationToken) ?? Task.CompletedTask;
     }
 
     protected override void Dispose(bool disposing)
