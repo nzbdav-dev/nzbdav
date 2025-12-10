@@ -233,6 +233,34 @@ public class ConfigManager
         return GetConfigValue("general.base-url") ?? "http://localhost:3000";
     }
 
+    public int GetHistoryRetentionDays()
+    {
+        return GetRetentionSetting(
+            "database.history-retention-days",
+            "DATABASE_HISTORY_RETENTION_DAYS",
+            defaultValue: 90);
+    }
+
+    public int GetHealthResultRetentionDays()
+    {
+        return GetRetentionSetting(
+            "database.healthcheck-retention-days",
+            "DATABASE_HEALTHCHECK_RETENTION_DAYS",
+            defaultValue: 30);
+    }
+
+    private int GetRetentionSetting(string configKey, string environmentVariable, int defaultValue)
+    {
+        var rawValue = StringUtil.EmptyToNull(GetConfigValue(configKey))
+                       ?? StringUtil.EmptyToNull(Environment.GetEnvironmentVariable(environmentVariable));
+        return ParseNonNegativeInt(rawValue, defaultValue);
+    }
+
+    private static int ParseNonNegativeInt(string? rawValue, int defaultValue)
+    {
+        return int.TryParse(rawValue, out var parsed) && parsed >= 0 ? parsed : defaultValue;
+    }
+
     public class ConfigEventArgs : EventArgs
     {
         public Dictionary<string, string> ChangedConfig { get; set; } = new();
