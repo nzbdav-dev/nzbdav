@@ -3,6 +3,7 @@ import type { HealthCheckStats } from "~/clients/backend-client.server";
 
 export type HealthStatsProps = {
     stats: HealthCheckStats[];
+    onStatClick?: (filter: "repaired" | "deleted") => void;
 }
 
 enum HealthResult {
@@ -17,7 +18,7 @@ enum RepairAction {
     ActionNeeded = 3,
 }
 
-export function HealthStats({ stats }: HealthStatsProps) {
+export function HealthStats({ stats, onStatClick }: HealthStatsProps) {
     // Calculate totals from HealthCheckStats array
     const totalChecked = stats
         .reduce((sum, stat) => sum + stat.count, 0);
@@ -55,12 +56,18 @@ export function HealthStats({ stats }: HealthStatsProps) {
                     <div className={styles.statLabel}>Healthy ({getPercentage(healthy)}%)</div>
                 </div>
 
-                <div className={styles.statCard}>
+                <div
+                    className={`${styles.statCard} ${styles.clickable}`}
+                    onClick={() => onStatClick?.("repaired")}
+                    role="button">
                     <div className={styles.statNumber} style={{ color: '#17a2b8' }}>{repaired}</div>
                     <div className={styles.statLabel}>Repaired ({getPercentage(repaired)}%)</div>
                 </div>
 
-                <div className={styles.statCard}>
+                <div
+                    className={`${styles.statCard} ${styles.clickable}`}
+                    onClick={() => onStatClick?.("deleted")}
+                    role="button">
                     <div className={styles.statNumber} style={{ color: '#dc3545' }}>{deleted}</div>
                     <div className={styles.statLabel}>Deleted ({getPercentage(deleted)}%)</div>
                 </div>
