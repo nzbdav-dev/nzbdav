@@ -206,12 +206,14 @@ class BackendClient {
         return data;
     }
 
-    public async getHealthCheckHistory(pageSize?: number): Promise<HealthCheckHistoryResponse> {
+    public async getHealthCheckHistory(pageSize?: number, page?: number, repairStatus?: number): Promise<HealthCheckHistoryResponse> {
         let url = process.env.BACKEND_URL + "/api/get-health-check-history";
-
-        if (pageSize !== undefined) {
-            url += `?pageSize=${pageSize}`;
-        }
+        const params = new URLSearchParams();
+        if (pageSize !== undefined) params.append("pageSize", String(pageSize));
+        if (page !== undefined) params.append("page", String(page));
+        if (repairStatus !== undefined) params.append("repairStatus", String(repairStatus));
+        const qs = params.toString();
+        if (qs) url += `?${qs}`;
 
         const apiKey = process.env.FRONTEND_BACKEND_API_KEY || "";
         const response = await fetch(url, {
@@ -299,7 +301,9 @@ export type HealthCheckQueueItem = {
 
 export type HealthCheckHistoryResponse = {
     stats: HealthCheckStats[],
-    items: HealthCheckResult[]
+    items: HealthCheckResult[],
+    page?: number,
+    hasMore?: boolean,
 }
 
 export type HealthCheckStats = {
