@@ -11,9 +11,10 @@ export type QueueTableProps = {
     onIsSelectedChanged: (nzo_ids: Set<string>, isSelected: boolean) => void,
     onIsRemovingChanged: (nzo_ids: Set<string>, isRemoving: boolean) => void,
     onRemoved: (nzo_ids: Set<string>) => void,
+    pagination?: React.ReactNode,
 }
 
-export function QueueTable({ queueSlots, onIsSelectedChanged, onIsRemovingChanged, onRemoved }: QueueTableProps) {
+export function QueueTable({ queueSlots, onIsSelectedChanged, onIsRemovingChanged, onRemoved, pagination }: QueueTableProps) {
     const [isConfirmingRemoval, setIsConfirmingRemoval] = useState(false);
     var selectedCount = queueSlots.filter(x => !!x.isSelected).length;
     var headerCheckboxState: TriCheckboxState = selectedCount === 0 ? 'none' : selectedCount === queueSlots.length ? 'all' : 'some';
@@ -62,6 +63,11 @@ export function QueueTable({ queueSlots, onIsSelectedChanged, onIsRemovingChange
                     <ActionButton type="delete" onClick={onRemove} />
                 }
             </div>
+            {pagination &&
+                <div className={pageStyles.paginationRow}>
+                    {pagination}
+                </div>
+            }
             <div style={{ minHeight: "300px" }}>
                 <PageTable headerCheckboxState={headerCheckboxState} onHeaderCheckboxChange={onSelectAll} striped>
                     {queueSlots.map(slot =>

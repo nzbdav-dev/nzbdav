@@ -10,22 +10,6 @@
     margin-bottom: 50px;
 }
 
-.sectionHeader {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
-    gap: 12px;
-    flex-wrap: wrap;
-}
-
-.sectionTitle {
-    color: hsl(180, 30%, 70%);
-    font-size: 1.25em;
-    font-weight: 600;
-    margin: 0;
-}
-
 .section-title {
     margin-bottom: 30px;
     display: flex;
@@ -43,4 +27,10 @@
     .listItem {
         margin-top: 5px
     }
+}
+
+.paginationRow {
+    display: flex;
+    justify-content: center;
+    margin: 0 0 15px;
 }

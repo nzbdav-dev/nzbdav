@@ -192,69 +192,75 @@ export default function Queue(props: Route.ComponentProps) {
 
             {/* queue */}
             <div className={styles.section}>
-                <div className={styles.sectionHeader}>
-                    <div className={styles.sectionTitle}>Queue</div>
-                    <Pagination
-                        page={queuePage}
-                        pageSize={queueSize}
-                        total={totalQueueCount}
-                        onPageChange={(p) => {
-                            setQueuePage(p);
-                            const params = new URLSearchParams(location.search);
-                            params.set("queuePage", String(p));
-                            params.set("queueSize", String(queueSize));
-                            navigate({ pathname: location.pathname, search: params.toString() }, { replace: true });
-                        }}
-                        onPageSizeChange={(size) => {
-                            setQueueSize(size);
-                            setQueuePage(1);
-                            const params = new URLSearchParams(location.search);
-                            params.set("queuePage", "1");
-                            params.set("queueSize", String(size));
-                            navigate({ pathname: location.pathname, search: params.toString() }, { replace: true });
-                        }}
-                    />
-                </div>
-                {queueSlots.length > 0 ?
-                    <QueueTable queueSlots={queueSlots}
+                {queueSlots.length > 0 ? (
+                    <QueueTable
+                        queueSlots={queueSlots}
                         onIsSelectedChanged={onSelectQueueSlots}
                         onIsRemovingChanged={onRemovingQueueSlots}
                         onRemoved={onRemoveQueueSlots}
-                    /> :
-                    <EmptyQueue />}
+                        pagination={
+                            <Pagination
+                                page={queuePage}
+                                pageSize={queueSize}
+                                total={totalQueueCount}
+                                onPageChange={(p) => {
+                                    setQueuePage(p);
+                                    const params = new URLSearchParams(location.search);
+                                    params.set("queuePage", String(p));
+                                    params.set("queueSize", String(queueSize));
+                                    navigate({ pathname: location.pathname, search: params.toString() }, { replace: true });
+                                }}
+                                onPageSizeChange={(size) => {
+                                    setQueueSize(size);
+                                    setQueuePage(1);
+                                    const params = new URLSearchParams(location.search);
+                                    params.set("queuePage", "1");
+                                    params.set("queueSize", String(size));
+                                    navigate({ pathname: location.pathname, search: params.toString() }, { replace: true });
+                                }}
+                            />
+                        }
+                    />
+                ) : (
+                    <>
+                        <div className={styles["section-title"]}>
+                            <h3>Queue</h3>
+                        </div>
+                        <EmptyQueue />
+                    </>
+                )}
             </div>
 
             {/* history */}
             {historySlots.length > 0 &&
                 <div className={styles.section}>
-                    <div className={styles.sectionHeader}>
-                        <div className={styles.sectionTitle}>History</div>
-                        <Pagination
-                            page={historyPage}
-                            pageSize={historySize}
-                            total={totalHistoryCount}
-                            onPageChange={(p) => {
-                                setHistoryPage(p);
-                                const params = new URLSearchParams(location.search);
-                                params.set("historyPage", String(p));
-                                params.set("historySize", String(historySize));
-                                navigate({ pathname: location.pathname, search: params.toString() }, { replace: true });
-                            }}
-                            onPageSizeChange={(size) => {
-                                setHistorySize(size);
-                                setHistoryPage(1);
-                                const params = new URLSearchParams(location.search);
-                                params.set("historyPage", "1");
-                                params.set("historySize", String(size));
-                                navigate({ pathname: location.pathname, search: params.toString() }, { replace: true });
-                            }}
-                        />
-                    </div>
                     <HistoryTable
                         historySlots={historySlots}
                         onIsSelectedChanged={onSelectHistorySlots}
                         onIsRemovingChanged={onRemovingHistorySlots}
                         onRemoved={onRemoveHistorySlots}
+                        pagination={
+                            <Pagination
+                                page={historyPage}
+                                pageSize={historySize}
+                                total={totalHistoryCount}
+                                onPageChange={(p) => {
+                                    setHistoryPage(p);
+                                    const params = new URLSearchParams(location.search);
+                                    params.set("historyPage", String(p));
+                                    params.set("historySize", String(historySize));
+                                    navigate({ pathname: location.pathname, search: params.toString() }, { replace: true });
+                                }}
+                                onPageSizeChange={(size) => {
+                                    setHistorySize(size);
+                                    setHistoryPage(1);
+                                    const params = new URLSearchParams(location.search);
+                                    params.set("historyPage", "1");
+                                    params.set("historySize", String(size));
+                                    navigate({ pathname: location.pathname, search: params.toString() }, { replace: true });
+                                }}
+                            />
+                        }
                     />
                 </div>
             }
