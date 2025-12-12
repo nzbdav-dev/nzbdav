@@ -25,3 +25,156 @@
 .section:last-child {
     margin-bottom: 0;
 }
+
+.historyHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.historyTitle {
+    margin: 0;
+    color: #e6e6e6;
+}
+
+.historyActions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.historyCount {
+    color: #6c757d;
+}
+
+.historyButtons {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.historyButton {
+    padding: 4px 10px;
+}
+
+.historyButtonLink {
+    color: #fff;
+    background: #0d6efd;
+    border-radius: 4px;
+    padding: 6px 10px;
+    text-decoration: none;
+    font-size: 12px;
+}
+
+.historyButtonLink:hover {
+    text-decoration: none;
+    background: #0b5ed7;
+}
+
+.historyTableContainer {
+    border: 1px solid #2b2b2b;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.historyTable :global(thead) {
+    background: #1c1f26;
+    color: #ddd;
+}
+
+.historyTable :global(tbody tr:nth-child(odd)) {
+    background: #11141a;
+}
+
+.historyTable :global(tbody tr:nth-child(even)) {
+    background: #161a21;
+}
+
+.historyCell {
+    color: #b4b4b4;
+    vertical-align: middle;
+}
+
+.nameContainer {
+    display: flex;
+    flex-direction: column;
+}
+
+.name {
+    font-weight: 600;
+    color: #e6e6e6;
+}
+
+.path {
+    color: #6c757d;
+    font-size: 12px;
+}
+
+.historyBadge {
+    font-weight: 600;
+}
+
+.historyEmpty {
+    color: #6c757d;
+}
+
+.modalFooter {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+}
+
+.modalActions {
+    display: flex;
+    gap: 10px;
+}
+
+.modalBody {
+    background: hsl(192, 90%, 6%);
+    padding: 0;
+}
+
+.modalTableContainer {
+    margin: 0;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.modalTable {
+    margin: 0;
+    color: hsl(180, 7%, 70%);
+}
+
+.modalTable :global(thead th) {
+    background-color: hsl(192, 100%, 11%) !important;
+    color: hsl(180, 7%, 85%) !important;
+    border: none;
+    padding: 16px 12px;
+    font-weight: 600;
+    font-size: 0.9em;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    text-align: left;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.modalTable :global(tbody td) {
+    border: none;
+    background-color: hsl(196.8, 25%, 14.51%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 14px 12px;
+    vertical-align: middle;
+    max-width: 420px;
+}
+
+.modalTable :global(tbody tr:nth-child(even) td) {
+    background-color: hsl(196.8, 25%, 12%);
+}
+
+.modalWide {
+    max-width: 95vw !important;
+    width: 95vw !important;
+}

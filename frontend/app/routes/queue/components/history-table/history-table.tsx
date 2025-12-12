@@ -13,9 +13,10 @@ export type HistoryTableProps = {
     onIsSelectedChanged: (nzo_ids: Set<string>, isSelected: boolean) => void,
     onIsRemovingChanged: (nzo_ids: Set<string>, isRemoving: boolean) => void,
     onRemoved: (nzo_ids: Set<string>) => void,
+    pagination?: React.ReactNode,
 }
 
-export function HistoryTable({ historySlots, onIsSelectedChanged, onIsRemovingChanged, onRemoved }: HistoryTableProps) {
+export function HistoryTable({ historySlots, onIsSelectedChanged, onIsRemovingChanged, onRemoved, pagination }: HistoryTableProps) {
     const [isConfirmingRemoval, setIsConfirmingRemoval] = useState(false);
     var selectedCount = historySlots.filter(x => !!x.isSelected).length;
     var headerCheckboxState: TriCheckboxState = selectedCount === 0 ? 'none' : selectedCount === historySlots.length ? 'all' : 'some';
@@ -64,6 +65,11 @@ export function HistoryTable({ historySlots, onIsSelectedChanged, onIsRemovingCh
                     <ActionButton type="delete" onClick={onRemove} />
                 }
             </div>
+            {pagination &&
+                <div className={pageStyles.paginationRow}>
+                    {pagination}
+                </div>
+            }
             <PageTable headerCheckboxState={headerCheckboxState} onHeaderCheckboxChange={onSelectAll}>
                 {historySlots.map(slot =>
                     <HistoryRow

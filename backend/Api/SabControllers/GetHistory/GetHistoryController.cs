@@ -63,6 +63,8 @@ public class GetHistoryController(
             {
                 Slots = slots,
                 TotalCount = totalCount,
+                Page = request.PageSize == int.MaxValue ? null : request.Page,
+                PageSize = request.PageSize == int.MaxValue ? null : request.PageSize
             }
         };
     }

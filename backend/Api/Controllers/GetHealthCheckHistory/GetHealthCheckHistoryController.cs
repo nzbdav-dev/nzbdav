@@ -1,6 +1,7 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NzbWebDAV.Database;
+using NzbWebDAV.Database.Models;
 
 namespace NzbWebDAV.Api.Controllers.GetHealthCheckHistory;
 
@@ -14,15 +15,31 @@ public class GetHealthCheckHistoryController(DavDatabaseClient dbClient) : BaseA
         var tomorrow = now.AddDays(1);
         var thirtyDaysAgo = now.AddDays(-30);
         var statsPromise = dbClient.GetHealthCheckStatsAsync(thirtyDaysAgo, tomorrow);
-        var itemsPromise = dbClient.Ctx.HealthCheckResults
+
+        var query = dbClient.Ctx.HealthCheckResults
             .OrderByDescending(x => x.CreatedAt)
-            .Take(request.PageSize)
+            .AsQueryable();
+
+        if (request.RepairStatus.HasValue)
+        {
+            var status = (HealthCheckResult.RepairAction)request.RepairStatus.Value;
+            query = query.Where(x => x.RepairStatus == status);
+        }
+
+        var skip = (request.Page - 1) * request.PageSize;
+        var items = await query
+            .Skip(skip)
+            .Take(request.PageSize + 1) // fetch one extra to detect hasMore
             .ToListAsync();
+        var hasMore = items.Count > request.PageSize;
+        if (hasMore) items = items.Take(request.PageSize).ToList();
 
         return new GetHealthCheckHistoryResponse()
         {
             Stats = await statsPromise.ConfigureAwait(false),
-            Items = await itemsPromise.ConfigureAwait(false)
+            Items = items,
+            Page = request.Page,
+            HasMore = hasMore
         };
     }
 
