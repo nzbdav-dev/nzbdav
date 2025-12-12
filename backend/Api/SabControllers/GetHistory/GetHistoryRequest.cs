@@ -8,6 +8,8 @@ public class GetHistoryRequest
 {
     public int Start { get; init; } = 0;
     public int Limit { get; init; } = int.MaxValue;
+    public int Page { get; init; } = 1;
+    public int PageSize { get; init; } = int.MaxValue;
     public string? Category { get; init; }
     public List<Guid> NzoIds { get; init; } = [];
     public CancellationToken CancellationToken { get; set; }
@@ -18,6 +20,7 @@ public class GetHistoryRequest
         var startParam = context.GetQueryParam("start");
         var limitParam = context.GetQueryParam("limit");
         var pageSizeParam = context.GetQueryParam("pageSize");
+        var pageParam = context.GetQueryParam("page");
         var nzoIdsParam = context.GetQueryParam("nzo_ids");
         Category = context.GetQueryParam("category");
         CancellationToken = context.RequestAborted;
@@ -53,6 +56,14 @@ public class GetHistoryRequest
             var isValidPageSize = int.TryParse(pageSizeParam, out var pageSize);
             if (!isValidPageSize) throw new BadHttpRequestException("Invalid pageSize parameter");
             Limit = pageSize;
+            PageSize = pageSize;
+        }
+
+        if (pageParam is not null)
+        {
+            var isValidPage = int.TryParse(pageParam, out var page);
+            if (!isValidPage || page < 1) throw new BadHttpRequestException("Invalid page parameter");
+            Page = page;
         }
 
         if (nzoIdsParam is not null)
@@ -62,6 +73,15 @@ public class GetHistoryRequest
                 .Select(nzoId => nzoId.Trim())
                 .Select(Guid.Parse)
                 .ToList();
+        }
+
+        // If page/pageSize are provided, override start/limit accordingly
+        if (pageParam is not null || pageSizeParam is not null)
+        {
+            var effectivePageSize = PageSize == int.MaxValue ? Limit : PageSize;
+            var effectivePage = Page;
+            Start = (effectivePage - 1) * effectivePageSize;
+            Limit = effectivePageSize;
         }
     }
 }

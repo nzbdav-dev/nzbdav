@@ -1,0 +1,62 @@
+.container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+}
+
+.left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.pagination {
+    margin: 0;
+}
+
+.pageGroup {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.pageInputWrapper {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.pageInput {
+    width: 70px;
+    text-align: center;
+    padding: 2px 6px;
+    -moz-appearance: textfield;
+}
+
+.pageInput::-webkit-outer-spin-button,
+.pageInput::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.ofText {
+    color: hsl(180, 7%, 65%);
+    font-size: 0.9em;
+    white-space: nowrap;
+}
+
+.goButton {
+    padding: 4px 10px;
+}
+
+.pageSize {
+    width: 130px;
+}
+
+.count {
+    color: hsl(180, 7%, 65%);
+    font-size: 0.9em;
+}

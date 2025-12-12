@@ -19,6 +19,15 @@ public class GetQueueResponse : SabBaseResponse
 
         [JsonPropertyName("noofslots")]
         public int TotalCount { get; set; }
+
+        // optional pagination metadata for frontend usage (kept sab-compatible)
+        [JsonPropertyName("page")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public int? Page { get; set; }
+
+        [JsonPropertyName("page_size")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public int? PageSize { get; set; }
     }
 
     public class QueueSlot

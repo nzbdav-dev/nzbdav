@@ -67,8 +67,12 @@ class BackendClient {
         return data.authenticated;
     }
 
-    public async getQueue(limit: number): Promise<QueueResponse> {
-        const url = process.env.BACKEND_URL + `/api?mode=queue&limit=${limit}`;
+    public async getQueue(limit: number, page?: number): Promise<QueueResponse> {
+        const params = new URLSearchParams();
+        params.append("mode", "queue");
+        params.append("limit", String(limit));
+        if (page !== undefined) params.append("page", String(page));
+        const url = `${process.env.BACKEND_URL}/api?${params.toString()}`;
 
         const apiKey = process.env.FRONTEND_BACKEND_API_KEY || "";
         const response = await fetch(url, { headers: { "x-api-key": apiKey } });
@@ -80,8 +84,12 @@ class BackendClient {
         return data.queue;
     }
 
-    public async getHistory(limit: number): Promise<HistoryResponse> {
-        const url = process.env.BACKEND_URL + `/api?mode=history&pageSize=${limit}`;
+    public async getHistory(limit: number, page?: number): Promise<HistoryResponse> {
+        const params = new URLSearchParams();
+        params.append("mode", "history");
+        params.append("pageSize", String(limit));
+        if (page !== undefined) params.append("page", String(page));
+        const url = `${process.env.BACKEND_URL}/api?${params.toString()}`;
 
         const apiKey = process.env.FRONTEND_BACKEND_API_KEY || "";
         const response = await fetch(url, { headers: { "x-api-key": apiKey } });
@@ -234,6 +242,8 @@ export const backendClient = new BackendClient();
 export type QueueResponse = {
     slots: QueueSlot[],
     noofslots: number,
+    page?: number,
+    page_size?: number,
 }
 
 export type QueueSlot = {
@@ -251,6 +261,8 @@ export type QueueSlot = {
 export type HistoryResponse = {
     slots: HistorySlot[],
     noofslots: number,
+    page?: number,
+    page_size?: number,
 }
 
 export type HistorySlot = {
