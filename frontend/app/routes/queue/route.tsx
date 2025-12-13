@@ -274,11 +274,13 @@ export async function action({ request }: Route.ActionArgs) {
 
     try {
         const formData = await request.formData();
-        const nzbFile = formData.get("nzbFile");
-        if (nzbFile instanceof File) {
-            await backendClient.addNzb(nzbFile);
-        } else {
+        const nzbFiles = formData.getAll("nzbFile").filter((f): f is File => f instanceof File);
+        if (nzbFiles.length === 0) {
             return { error: "Error uploading nzb." }
+        }
+
+        for (const nzbFile of nzbFiles) {
+            await backendClient.addNzb(nzbFile);
         }
     } catch (error) {
         if (error instanceof Error) {
