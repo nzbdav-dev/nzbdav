@@ -28,3 +28,9 @@
         margin-top: 5px
     }
 }
+
+.paginationRow {
+    display: flex;
+    justify-content: center;
+    margin: 0 0 15px;
+}

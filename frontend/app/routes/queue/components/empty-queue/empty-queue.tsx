@@ -31,9 +31,6 @@ export function EmptyQueue() {
 
     return (
         <fetcher.Form ref={formRef} method="POST" encType="multipart/form-data">
-            <div className={pageStyles["section-title"]}>
-                <h3>Queue</h3>
-            </div>
             <div {...className([styles.container, isDragActive && styles["drag-active"]])}  {...getRootProps()}>
                 <input {...getInputProps()} />
                 <input ref={inputRef} name="nzbFile" type="file" style={{ display: 'none' }} />
