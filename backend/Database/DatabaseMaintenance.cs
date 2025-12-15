@@ -12,6 +12,7 @@ public static class DatabaseMaintenance
     private const string CompressionVersionKey = "database.payload-format-version";
     private const int CompressionVersion = 2;
     private const int BatchSize = 250;
+    private const int ProgressLogInterval = 1000;
 
     private static readonly object AutoVacuumLock = new();
     private static bool _autoVacuumConfigured;
@@ -186,7 +187,17 @@ public static class DatabaseMaintenance
 
     private static async Task<int> RewriteNzbFilesAsync(DavDatabaseContext ctx, CancellationToken ct)
     {
+        var total = await ctx.NzbFiles.CountAsync(ct).ConfigureAwait(false);
+        if (total == 0)
+        {
+            Log.Information("DavNzbFiles payloads already normalized; no rows to rewrite.");
+            return 0;
+        }
+
+        Log.Information("Rewriting DavNzbFiles payloads ({Total} rows).", total);
+
         var rewritten = 0;
+        var lastLoggedProgress = 0;
         Guid? lastId = null;
         while (true)
         {
@@ -222,6 +233,17 @@ public static class DatabaseMaintenance
             rewritten += batch.Count;
             await ctx.SaveChangesAsync(ct).ConfigureAwait(false);
             ctx.ChangeTracker.Clear();
+
+            if (ShouldLogProgress(rewritten, total, lastLoggedProgress))
+            {
+                LogRewriteProgress("DavNzbFiles", rewritten, total);
+                lastLoggedProgress = rewritten;
+            }
+        }
+
+        if (rewritten != lastLoggedProgress)
+        {
+            LogRewriteProgress("DavNzbFiles", rewritten, total);
         }
 
         return rewritten;
@@ -229,7 +251,17 @@ public static class DatabaseMaintenance
 
     private static async Task<int> RewriteRarFilesAsync(DavDatabaseContext ctx, CancellationToken ct)
     {
+        var total = await ctx.RarFiles.CountAsync(ct).ConfigureAwait(false);
+        if (total == 0)
+        {
+            Log.Information("DavRarFiles payloads already normalized; no rows to rewrite.");
+            return 0;
+        }
+
+        Log.Information("Rewriting DavRarFiles payloads ({Total} rows).", total);
+
         var rewritten = 0;
+        var lastLoggedProgress = 0;
         Guid? lastId = null;
         while (true)
         {
@@ -265,6 +297,17 @@ public static class DatabaseMaintenance
             rewritten += batch.Count;
             await ctx.SaveChangesAsync(ct).ConfigureAwait(false);
             ctx.ChangeTracker.Clear();
+
+            if (ShouldLogProgress(rewritten, total, lastLoggedProgress))
+            {
+                LogRewriteProgress("DavRarFiles", rewritten, total);
+                lastLoggedProgress = rewritten;
+            }
+        }
+
+        if (rewritten != lastLoggedProgress)
+        {
+            LogRewriteProgress("DavRarFiles", rewritten, total);
         }
 
         return rewritten;
@@ -272,7 +315,17 @@ public static class DatabaseMaintenance
 
     private static async Task<int> RewriteMultipartFilesAsync(DavDatabaseContext ctx, CancellationToken ct)
     {
+        var total = await ctx.MultipartFiles.CountAsync(ct).ConfigureAwait(false);
+        if (total == 0)
+        {
+            Log.Information("DavMultipartFiles payloads already normalized; no rows to rewrite.");
+            return 0;
+        }
+
+        Log.Information("Rewriting DavMultipartFiles payloads ({Total} rows).", total);
+
         var rewritten = 0;
+        var lastLoggedProgress = 0;
         Guid? lastId = null;
         while (true)
         {
@@ -292,6 +345,19 @@ public static class DatabaseMaintenance
                 })
                 .ToListAsync(ct)
                 .ConfigureAwait(false);
+
+                    private static bool ShouldLogProgress(int processed, int total, int lastLogged)
+                    {
+                        if (processed == 0) return false;
+                        if (processed == total) return true;
+                        return processed - lastLogged >= ProgressLogInterval;
+                    }
+
+                    private static void LogRewriteProgress(string entityName, int processed, int total)
+                    {
+                        var percent = total == 0 ? 100 : (int)((double)processed / total * 100);
+                        Log.Information("{Entity} rewrite progress: {Processed}/{Total} rows ({Percent}% complete).", entityName, processed, total, percent);
+                    }
             if (batch.Count == 0) break;
             lastId = batch.Last().Id;
             foreach (var item in batch)
@@ -308,6 +374,17 @@ public static class DatabaseMaintenance
             rewritten += batch.Count;
             await ctx.SaveChangesAsync(ct).ConfigureAwait(false);
             ctx.ChangeTracker.Clear();
+
+            if (ShouldLogProgress(rewritten, total, lastLoggedProgress))
+            {
+                LogRewriteProgress("DavMultipartFiles", rewritten, total);
+                lastLoggedProgress = rewritten;
+            }
+        }
+
+        if (rewritten != lastLoggedProgress)
+        {
+            LogRewriteProgress("DavMultipartFiles", rewritten, total);
         }
 
         return rewritten;

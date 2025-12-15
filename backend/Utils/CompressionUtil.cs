@@ -2,6 +2,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 using Serilog;
 
 namespace NzbWebDAV.Utils;
@@ -9,6 +10,8 @@ namespace NzbWebDAV.Utils;
 public static class CompressionUtil
 {
     private static readonly JsonSerializerOptions SerializerOptions = new();
+    private const int MaxLoggedFallbacks = 25;
+    private static int _loggedFallbackCount;
 
     public static byte[] CompressString(string value)
     {
@@ -29,7 +32,15 @@ public static class CompressionUtil
         }
         catch (Exception ex) when (ex is InvalidDataException or InvalidOperationException or IOException)
         {
-            Log.Warning(ex, "Failed to decompress payload; falling back to UTF8 decode.");
+            var count = Interlocked.Increment(ref _loggedFallbackCount);
+            if (count == MaxLoggedFallbacks)
+            {
+                Log.Warning(ex, "Failed to decompress payload; falling back to UTF8 decode. Further warnings will be suppressed.");
+            }
+            else if (count < MaxLoggedFallbacks)
+            {
+                Log.Warning(ex, "Failed to decompress payload; falling back to UTF8 decode.");
+            }
             return Encoding.UTF8.GetString(data);
         }
     }
@@ -44,7 +55,15 @@ public static class CompressionUtil
     {
         if (data == null || data.Length == 0) return defaultFactory();
         var json = DecompressToString(data);
-        return JsonSerializer.Deserialize<T>(json, SerializerOptions) ?? defaultFactory();
+        try
+        {
+            return JsonSerializer.Deserialize<T>(json, SerializerOptions) ?? defaultFactory();
+        }
+        catch (JsonException ex)
+        {
+            Log.Warning(ex, "Failed to deserialize payload as JSON; returning default value.");
+            return defaultFactory();
+        }
     }
 
     private static byte[] CompressBytes(byte[] payload)
