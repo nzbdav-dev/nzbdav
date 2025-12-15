@@ -49,13 +49,15 @@ class Program
             .WriteTo.Console(theme: AnsiConsoleTheme.Code)
             .CreateLogger();
 
+        var argsList = args.ToList();
+
         // initialize database
         await using var databaseContext = new DavDatabaseContext();
 
         // run database migration, if necessary.
-        if (args.Contains("--db-migration"))
+        if (argsList.Contains("--db-migration"))
         {
-            var argIndex = args.ToList().IndexOf("--db-migration");
+            var argIndex = argsList.IndexOf("--db-migration");
             var targetMigration = args.Length > argIndex + 1 ? args[argIndex + 1] : null;
             await databaseContext.Database.MigrateAsync(targetMigration, SigtermUtil.GetCancellationToken()).ConfigureAwait(false);
             return;
@@ -64,6 +66,17 @@ class Program
         // initialize the config-manager
         var configManager = new ConfigManager();
         await configManager.LoadConfig().ConfigureAwait(false);
+
+        // run one-off maintenance/compaction if requested
+        if (argsList.Contains("--compact-db"))
+        {
+            var vacuumIntoPath = GetOption(argsList, "--vacuum-into");
+            if (!string.IsNullOrWhiteSpace(vacuumIntoPath))
+                vacuumIntoPath = Path.GetFullPath(vacuumIntoPath);
+
+            await RunCompactDatabaseAsync(databaseContext, configManager, vacuumIntoPath).ConfigureAwait(false);
+            return;
+        }
 
         // initialize websocket-manager
         var websocketManager = new WebsocketManager();
@@ -114,5 +127,29 @@ class Program
         app.UseNWebDav();
         app.Lifetime.ApplicationStopping.Register(SigtermUtil.Cancel);
         await app.RunAsync().ConfigureAwait(false);
+    }
+
+    private static async Task RunCompactDatabaseAsync(DavDatabaseContext dbContext, ConfigManager configManager, string? vacuumIntoPath)
+    {
+        var ct = SigtermUtil.GetCancellationToken();
+        DatabaseMaintenance.EnsureAutoVacuumConfigured();
+        await DatabaseMaintenance.EnsureCompressedPayloadsAsync(dbContext, ct).ConfigureAwait(false);
+        await DatabaseMaintenance.RunRetentionAsync(dbContext, configManager, ct).ConfigureAwait(false);
+        await DatabaseMaintenance.VacuumAsync(vacuumIntoPath, ct).ConfigureAwait(false);
+    }
+
+    private static string? GetOption(IReadOnlyList<string> args, string optionName)
+    {
+        for (var i = 0; i < args.Count; i++)
+        {
+            var arg = args[i];
+            if (arg == optionName && i + 1 < args.Count)
+                return args[i + 1];
+
+            if (arg.StartsWith(optionName + "=", StringComparison.Ordinal))
+                return arg[(optionName.Length + 1)..];
+        }
+
+        return null;
     }
 }

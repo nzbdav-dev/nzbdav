@@ -135,6 +135,21 @@ You can override the retention/maintenance cadence via environment variables:
 
 These can also be persisted via the `ConfigItems` table (`database.history-retention-days`, `database.healthcheck-retention-days`).
 
+### Manual compaction / external volume
+
+For large databases you can trigger the compression/retention/vacuum pipeline without starting the full server:
+
+```bash
+CONFIG_PATH=/path/to/config \
+dotnet run --project backend/NzbWebDAV.csproj -- \
+  --compact-db \
+  --vacuum-into /mnt/bigdisk/compact.sqlite
+```
+
+- `--compact-db` runs the one-time payload rewrite, retention, and VACUUM sequence.
+- `--vacuum-into` is optional; when provided it writes the compacted database to that path using `VACUUM INTO`, so the temporary space lives on a volume you control. You can then stop the process, replace the original `db.sqlite` with the generated file, and restart the service.
+- Omit `--vacuum-into` to perform an in-place `VACUUM` (requires free space roughly equal to the current DB size).
+
 
 # Example Docker Compose Setup
 Fully containerized setup for docker compose. 

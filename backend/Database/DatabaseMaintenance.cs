@@ -10,16 +10,29 @@ namespace NzbWebDAV.Database;
 public static class DatabaseMaintenance
 {
     private const string CompressionVersionKey = "database.payload-format-version";
-    private const int CompressionVersion = 1;
+    private const int CompressionVersion = 2;
     private const int BatchSize = 250;
 
     private static readonly object AutoVacuumLock = new();
     private static bool _autoVacuumConfigured;
 
-    public static void EnsureDataDirectory()
+    public static bool EnsureDataDirectory()
     {
         var directory = Path.GetDirectoryName(DavDatabaseContext.DatabaseFilePath);
-        if (!string.IsNullOrWhiteSpace(directory)) Directory.CreateDirectory(directory);
+        if (string.IsNullOrWhiteSpace(directory)) return true;
+
+        if (Directory.Exists(directory)) return true;
+
+        try
+        {
+            Directory.CreateDirectory(directory);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Could not create database directory '{Directory}'. Database path may be on a read-only filesystem.", directory);
+            return false;
+        }
     }
 
     public static void EnsureAutoVacuumConfigured()
@@ -28,19 +41,32 @@ public static class DatabaseMaintenance
         lock (AutoVacuumLock)
         {
             if (_autoVacuumConfigured) return;
-            EnsureDataDirectory();
-            using var connection = new SqliteConnection($"Data Source={DavDatabaseContext.DatabaseFilePath}");
-            connection.Open();
-            using var command = connection.CreateCommand();
-            command.CommandText = "PRAGMA auto_vacuum;";
-            var current = Convert.ToInt32(command.ExecuteScalar());
-            if (current != 2)
+            if (!EnsureDataDirectory())
             {
-                command.CommandText = "PRAGMA auto_vacuum = FULL;";
-                command.ExecuteNonQuery();
-                command.CommandText = "VACUUM;";
-                command.ExecuteNonQuery();
-                Log.Information("Enabled SQLite auto_vacuum=FULL and ran VACUUM to rebuild the database file.");
+                Log.Warning("Database directory is not writable; skipping auto_vacuum configuration.");
+                _autoVacuumConfigured = true;
+                return;
+            }
+
+            try
+            {
+                using var connection = new SqliteConnection($"Data Source={DavDatabaseContext.DatabaseFilePath}");
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = "PRAGMA auto_vacuum;";
+                var current = Convert.ToInt32(command.ExecuteScalar());
+                if (current != 2)
+                {
+                    command.CommandText = "PRAGMA auto_vacuum = FULL;";
+                    command.ExecuteNonQuery();
+                    command.CommandText = "VACUUM;";
+                    command.ExecuteNonQuery();
+                    Log.Information("Enabled SQLite auto_vacuum=FULL and ran VACUUM to rebuild the database file.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Could not configure SQLite auto_vacuum; database file may be inaccessible or read-only.");
             }
             _autoVacuumConfigured = true;
         }
@@ -73,7 +99,7 @@ public static class DatabaseMaintenance
         if (deletedRows > 0)
         {
             Log.Information("Database retention removed {DeletedRows} rows; running VACUUM to reclaim space.", deletedRows);
-            await VacuumAsync(ct).ConfigureAwait(false);
+            await VacuumAsync(null, ct).ConfigureAwait(false);
         }
     }
 
@@ -96,7 +122,7 @@ public static class DatabaseMaintenance
         if (totalRewritten > 0)
         {
             await ctx.SaveChangesAsync(ct).ConfigureAwait(false);
-            await VacuumAsync(ct).ConfigureAwait(false);
+            await VacuumAsync(null, ct).ConfigureAwait(false);
             Log.Information("Rewrote {TotalRewritten} payload rows using compressed storage.", totalRewritten);
         }
 
@@ -119,14 +145,43 @@ public static class DatabaseMaintenance
         await ctx.SaveChangesAsync(ct).ConfigureAwait(false);
     }
 
-    public static async Task VacuumAsync(CancellationToken ct)
+    public static async Task VacuumAsync(string? vacuumIntoPath, CancellationToken ct)
     {
-        EnsureDataDirectory();
-        await using var connection = new SqliteConnection($"Data Source={DavDatabaseContext.DatabaseFilePath}");
-        await connection.OpenAsync(ct).ConfigureAwait(false);
-        await using var command = connection.CreateCommand();
-        command.CommandText = "VACUUM;";
-        await command.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+        if (!EnsureDataDirectory())
+        {
+            Log.Warning("Skipping VACUUM because the database directory is not writable.");
+            return;
+        }
+
+        try
+        {
+            await using var connection = new SqliteConnection($"Data Source={DavDatabaseContext.DatabaseFilePath}");
+            await connection.OpenAsync(ct).ConfigureAwait(false);
+            await using var command = connection.CreateCommand();
+            if (!string.IsNullOrWhiteSpace(vacuumIntoPath))
+            {
+                var vacuumDir = Path.GetDirectoryName(vacuumIntoPath);
+                if (!string.IsNullOrWhiteSpace(vacuumDir)) Directory.CreateDirectory(vacuumDir);
+                command.CommandText = "VACUUM INTO $vacuumPath;";
+                var param = command.CreateParameter();
+                param.ParameterName = "$vacuumPath";
+                param.Value = vacuumIntoPath!;
+                command.Parameters.Add(param);
+            }
+            else
+            {
+                command.CommandText = "VACUUM;";
+            }
+            await command.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+            if (!string.IsNullOrWhiteSpace(vacuumIntoPath))
+            {
+                Log.Information("VACUUM completed into {VacuumPath}. You may replace the original database with this file manually.", vacuumIntoPath);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "VACUUM skipped because the database file could not be opened.");
+        }
     }
 
     private static async Task<int> RewriteNzbFilesAsync(DavDatabaseContext ctx, CancellationToken ct)
