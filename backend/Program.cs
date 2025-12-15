@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Builder;
+﻿using System.Reflection;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -50,6 +51,18 @@ class Program
             .CreateLogger();
 
         var argsList = args.ToList();
+
+        if (argsList.Contains("--version"))
+        {
+            var informationalVersion = typeof(Program)
+                .Assembly
+                .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
+                .InformationalVersion;
+            var assemblyVersion = typeof(Program).Assembly.GetName().Version?.ToString();
+            var versionText = informationalVersion ?? assemblyVersion ?? "unknown";
+            Console.WriteLine(versionText);
+            return;
+        }
 
         // initialize database
         await using var databaseContext = new DavDatabaseContext();
