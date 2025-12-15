@@ -187,23 +187,27 @@ public static class DatabaseMaintenance
     private static async Task<int> RewriteNzbFilesAsync(DavDatabaseContext ctx, CancellationToken ct)
     {
         var rewritten = 0;
-        var lastRowId = 0L;
+        Guid? lastId = null;
         while (true)
         {
-            var batch = await ctx.NzbFiles.AsNoTracking()
-                .Where(x => EF.Property<long>(x, "rowid") > lastRowId)
-                .OrderBy(x => EF.Property<long>(x, "rowid"))
+            var query = ctx.NzbFiles.AsNoTracking();
+            if (lastId.HasValue)
+            {
+                query = query.Where(x => x.Id.CompareTo(lastId.Value) > 0);
+            }
+
+            var batch = await query
+                .OrderBy(x => x.Id)
                 .Take(BatchSize)
                 .Select(x => new
                 {
-                    RowId = EF.Property<long>(x, "rowid"),
                     x.Id,
                     x.SegmentIds
                 })
                 .ToListAsync(ct)
                 .ConfigureAwait(false);
             if (batch.Count == 0) break;
-            lastRowId = batch.Last().RowId;
+            lastId = batch.Last().Id;
             foreach (var item in batch)
             {
                 var entity = new DavNzbFile
@@ -226,23 +230,27 @@ public static class DatabaseMaintenance
     private static async Task<int> RewriteRarFilesAsync(DavDatabaseContext ctx, CancellationToken ct)
     {
         var rewritten = 0;
-        var lastRowId = 0L;
+        Guid? lastId = null;
         while (true)
         {
-            var batch = await ctx.RarFiles.AsNoTracking()
-                .Where(x => EF.Property<long>(x, "rowid") > lastRowId)
-                .OrderBy(x => EF.Property<long>(x, "rowid"))
+            var query = ctx.RarFiles.AsNoTracking();
+            if (lastId.HasValue)
+            {
+                query = query.Where(x => x.Id.CompareTo(lastId.Value) > 0);
+            }
+
+            var batch = await query
+                .OrderBy(x => x.Id)
                 .Take(BatchSize)
                 .Select(x => new
                 {
-                    RowId = EF.Property<long>(x, "rowid"),
                     x.Id,
                     x.RarParts
                 })
                 .ToListAsync(ct)
                 .ConfigureAwait(false);
             if (batch.Count == 0) break;
-            lastRowId = batch.Last().RowId;
+            lastId = batch.Last().Id;
             foreach (var item in batch)
             {
                 var entity = new DavRarFile
@@ -265,23 +273,27 @@ public static class DatabaseMaintenance
     private static async Task<int> RewriteMultipartFilesAsync(DavDatabaseContext ctx, CancellationToken ct)
     {
         var rewritten = 0;
-        var lastRowId = 0L;
+        Guid? lastId = null;
         while (true)
         {
-            var batch = await ctx.MultipartFiles.AsNoTracking()
-                .Where(x => EF.Property<long>(x, "rowid") > lastRowId)
-                .OrderBy(x => EF.Property<long>(x, "rowid"))
+            var query = ctx.MultipartFiles.AsNoTracking();
+            if (lastId.HasValue)
+            {
+                query = query.Where(x => x.Id.CompareTo(lastId.Value) > 0);
+            }
+
+            var batch = await query
+                .OrderBy(x => x.Id)
                 .Take(BatchSize)
                 .Select(x => new
                 {
-                    RowId = EF.Property<long>(x, "rowid"),
                     x.Id,
                     x.Metadata
                 })
                 .ToListAsync(ct)
                 .ConfigureAwait(false);
             if (batch.Count == 0) break;
-            lastRowId = batch.Last().RowId;
+            lastId = batch.Last().Id;
             foreach (var item in batch)
             {
                 var entity = new DavMultipartFile
