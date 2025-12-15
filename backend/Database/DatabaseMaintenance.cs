@@ -248,7 +248,6 @@ public static class DatabaseMaintenance
 
         return rewritten;
     }
-
     private static async Task<int> RewriteRarFilesAsync(DavDatabaseContext ctx, CancellationToken ct)
     {
         var total = await ctx.RarFiles.CountAsync(ct).ConfigureAwait(false);
@@ -345,19 +344,6 @@ public static class DatabaseMaintenance
                 })
                 .ToListAsync(ct)
                 .ConfigureAwait(false);
-
-                    private static bool ShouldLogProgress(int processed, int total, int lastLogged)
-                    {
-                        if (processed == 0) return false;
-                        if (processed == total) return true;
-                        return processed - lastLogged >= ProgressLogInterval;
-                    }
-
-                    private static void LogRewriteProgress(string entityName, int processed, int total)
-                    {
-                        var percent = total == 0 ? 100 : (int)((double)processed / total * 100);
-                        Log.Information("{Entity} rewrite progress: {Processed}/{Total} rows ({Percent}% complete).", entityName, processed, total, percent);
-                    }
             if (batch.Count == 0) break;
             lastId = batch.Last().Id;
             foreach (var item in batch)
@@ -388,5 +374,18 @@ public static class DatabaseMaintenance
         }
 
         return rewritten;
+    }
+
+    private static bool ShouldLogProgress(int processed, int total, int lastLogged)
+    {
+        if (processed == 0) return false;
+        if (processed == total) return true;
+        return processed - lastLogged >= ProgressLogInterval;
+    }
+
+    private static void LogRewriteProgress(string entityName, int processed, int total)
+    {
+        var percent = total == 0 ? 100 : (int)((double)processed / total * 100);
+        Log.Information("{Entity} rewrite progress: {Processed}/{Total} rows ({Percent}% complete).", entityName, processed, total, percent);
     }
 }
