@@ -2,6 +2,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
+using Serilog;
 
 namespace NzbWebDAV.Utils;
 
@@ -26,9 +27,9 @@ public static class CompressionUtil
             using var reader = new StreamReader(brotli, Encoding.UTF8);
             return reader.ReadToEnd();
         }
-        catch (InvalidDataException)
+        catch (Exception ex) when (ex is InvalidDataException or InvalidOperationException or IOException)
         {
-            // Legacy payloads were stored as uncompressed UTF8.
+            Log.Warning(ex, "Failed to decompress payload; falling back to UTF8 decode.");
             return Encoding.UTF8.GetString(data);
         }
     }
