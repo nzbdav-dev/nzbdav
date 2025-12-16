@@ -27,8 +27,8 @@ All changes are additive and backwards compatible with upstream releases. Existi
      - `DATABASE_HISTORY_RETENTION_DAYS` / `database.history-retention-days` (default 90)
      - `DATABASE_HEALTHCHECK_RETENTION_DAYS` / `database.healthcheck-retention-days` (default 30)
      - `DATABASE_MAINTENANCE_INTERVAL_HOURS`
-6. **Manual compaction CLI** (`backend/Program.cs`, `backend/Database/DatabaseMaintenance.cs`)
-   - Adds `--compact-db` (with optional `--vacuum-into /path`) to run payload rewrite, retention, and VACUUM on demand, optionally writing to another volume via `VACUUM INTO`.
+6. **Dump / restore tooling** (`backend/Database/DatabaseDumpService.cs`, `backend/Program.cs`)
+   - Adds `--export-db <dir>` and `--import-db <dir>` CLI commands. Export streams each table to newline-delimited JSON while value converters transparently expand legacy payloads. Import wipes the target file, reapplies migrations, and replays the dump so payloads are compressed once on the way in.
 7. **Documentation** (`README.md`)
    - Explains the automated maintenance loop, compression behavior, and the new environment variables.
 
@@ -39,6 +39,7 @@ All changes are additive and backwards compatible with upstream releases. Existi
   - rewrite payload columns in batches, followed by another VACUUM; and
   - prune history/health rows older than the configured retention window (set the values to `0` to keep everything).
 - All SQLite work happens under the configured `/config` directory. Operators with limited space can temporarily relocate `CONFIG_PATH` to a larger volume, run the fork once, and then move the shrunken `db.sqlite` back.
+- When bandwidth or storage makes in-place rewrites impractical, use `CONFIG_PATH=/staging ./NzbWebDAV --export-db /tmp/nzbdav-dump` to capture JSONL snapshots of every table, then point `CONFIG_PATH` at a new directory and run `./NzbWebDAV --import-db /tmp/nzbdav-dump`. The importer recreates schema+data in one pass; swapping the resulting `db.sqlite` back into `/config` completes the compaction.
 - `.devconfig/` is only a local testing folder to satisfy `CONFIG_PATH`; it should not be committed.
 
 ## Testing

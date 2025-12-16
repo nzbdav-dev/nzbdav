@@ -51,6 +51,7 @@ class Program
             .CreateLogger();
 
         var argsList = args.ToList();
+        var ct = SigtermUtil.GetCancellationToken();
 
         if (argsList.Contains("--version"))
         {
@@ -76,21 +77,41 @@ class Program
             return;
         }
 
+        if (argsList.Contains("--export-db"))
+        {
+            var exportDir = GetOption(argsList, "--export-db");
+            if (string.IsNullOrWhiteSpace(exportDir))
+            {
+                Log.Error("--export-db requires a target directory argument.");
+                return;
+            }
+
+            exportDir = Path.GetFullPath(exportDir);
+            var dumpService = new DatabaseDumpService();
+            await dumpService.ExportAsync(databaseContext, exportDir, ct).ConfigureAwait(false);
+            return;
+        }
+
+        if (argsList.Contains("--import-db"))
+        {
+            var importDir = GetOption(argsList, "--import-db");
+            if (string.IsNullOrWhiteSpace(importDir))
+            {
+                Log.Error("--import-db requires a source directory argument.");
+                return;
+            }
+
+            importDir = Path.GetFullPath(importDir);
+            var dumpService = new DatabaseDumpService();
+            await dumpService.ImportAsync(databaseContext, importDir, ct).ConfigureAwait(false);
+            return;
+        }
+
         // initialize the config-manager
         var configManager = new ConfigManager();
         await configManager.LoadConfig().ConfigureAwait(false);
 
         // run one-off maintenance/compaction if requested
-        if (argsList.Contains("--compact-db"))
-        {
-            var vacuumIntoPath = GetOption(argsList, "--vacuum-into");
-            if (!string.IsNullOrWhiteSpace(vacuumIntoPath))
-                vacuumIntoPath = Path.GetFullPath(vacuumIntoPath);
-
-            await RunCompactDatabaseAsync(databaseContext, configManager, vacuumIntoPath).ConfigureAwait(false);
-            return;
-        }
-
         // initialize websocket-manager
         var websocketManager = new WebsocketManager();
 
@@ -140,15 +161,6 @@ class Program
         app.UseNWebDav();
         app.Lifetime.ApplicationStopping.Register(SigtermUtil.Cancel);
         await app.RunAsync().ConfigureAwait(false);
-    }
-
-    private static async Task RunCompactDatabaseAsync(DavDatabaseContext dbContext, ConfigManager configManager, string? vacuumIntoPath)
-    {
-        var ct = SigtermUtil.GetCancellationToken();
-        DatabaseMaintenance.EnsureAutoVacuumConfigured();
-        await DatabaseMaintenance.EnsureCompressedPayloadsAsync(dbContext, ct).ConfigureAwait(false);
-        await DatabaseMaintenance.RunRetentionAsync(dbContext, configManager, ct).ConfigureAwait(false);
-        await DatabaseMaintenance.VacuumAsync(vacuumIntoPath, ct).ConfigureAwait(false);
     }
 
     private static string? GetOption(IReadOnlyList<string> args, string optionName)
