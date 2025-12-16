@@ -150,6 +150,7 @@ CONFIG_PATH=/vacuum/target \
 ```
 
 * Always run the commands from inside the container/pod so they see the same filesystem layout.
+* `--export-db` and `--import-db` run in CLI-only mode, so no background services touch the database while the dump/import is running.
 * After `--import-db` finishes, run `sqlite3 /vacuum/target/db.sqlite "PRAGMA integrity_check;"` to verify the result, then replace `/config/db.sqlite` with the new file while the service is stopped.
 * The dump directory contains simple `.jsonl` files per table, which makes it easy to back up or inspect data before re-importing.
 

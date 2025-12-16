@@ -53,61 +53,16 @@ class Program
         var argsList = args.ToList();
         var ct = SigtermUtil.GetCancellationToken();
 
-        if (argsList.Contains("--version"))
+        if (await TryHandleCliCommandsAsync(argsList, ct).ConfigureAwait(false))
         {
-            var informationalVersion = typeof(Program)
-                .Assembly
-                .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
-                .InformationalVersion;
-            var assemblyVersion = typeof(Program).Assembly.GetName().Version?.ToString();
-            var versionText = informationalVersion ?? assemblyVersion ?? "unknown";
-            Console.WriteLine(versionText);
             return;
         }
 
-        // initialize database
-        await using var databaseContext = new DavDatabaseContext();
+        await RunWebAppAsync(args).ConfigureAwait(false);
+    }
 
-        // run database migration, if necessary.
-        if (argsList.Contains("--db-migration"))
-        {
-            var argIndex = argsList.IndexOf("--db-migration");
-            var targetMigration = args.Length > argIndex + 1 ? args[argIndex + 1] : null;
-            await databaseContext.Database.MigrateAsync(targetMigration, SigtermUtil.GetCancellationToken()).ConfigureAwait(false);
-            return;
-        }
-
-        if (argsList.Contains("--export-db"))
-        {
-            var exportDir = GetOption(argsList, "--export-db");
-            if (string.IsNullOrWhiteSpace(exportDir))
-            {
-                Log.Error("--export-db requires a target directory argument.");
-                return;
-            }
-
-            exportDir = Path.GetFullPath(exportDir);
-            var dumpService = new DatabaseDumpService();
-            await dumpService.ExportAsync(databaseContext, exportDir, ct).ConfigureAwait(false);
-            return;
-        }
-
-        if (argsList.Contains("--import-db"))
-        {
-            var importDir = GetOption(argsList, "--import-db");
-            if (string.IsNullOrWhiteSpace(importDir))
-            {
-                Log.Error("--import-db requires a source directory argument.");
-                return;
-            }
-
-            importDir = Path.GetFullPath(importDir);
-            var dumpService = new DatabaseDumpService();
-            await dumpService.ImportAsync(databaseContext, importDir, ct).ConfigureAwait(false);
-            return;
-        }
-
-        // initialize the config-manager
+    private static async Task RunWebAppAsync(string[] args)
+    {
         var configManager = new ConfigManager();
         await configManager.LoadConfig().ConfigureAwait(false);
 
@@ -163,6 +118,63 @@ class Program
         await app.RunAsync().ConfigureAwait(false);
     }
 
+    private static async Task<bool> TryHandleCliCommandsAsync(IReadOnlyList<string> argsList, CancellationToken ct)
+    {
+        if (HasOption(argsList, "--version"))
+        {
+            var informationalVersion = typeof(Program)
+                .Assembly
+                .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
+                .InformationalVersion;
+            var assemblyVersion = typeof(Program).Assembly.GetName().Version?.ToString();
+            var versionText = informationalVersion ?? assemblyVersion ?? "unknown";
+            Console.WriteLine(versionText);
+            return true;
+        }
+
+        if (HasOption(argsList, "--db-migration"))
+        {
+            var targetMigration = GetOption(argsList, "--db-migration");
+            await using var migrationContext = new DavDatabaseContext();
+            await migrationContext.Database.MigrateAsync(targetMigration, ct).ConfigureAwait(false);
+            return true;
+        }
+
+        if (HasOption(argsList, "--export-db"))
+        {
+            var exportDir = GetOption(argsList, "--export-db");
+            if (string.IsNullOrWhiteSpace(exportDir))
+            {
+                Log.Error("--export-db requires a target directory argument.");
+                return true;
+            }
+
+            exportDir = Path.GetFullPath(exportDir);
+            await using var exportContext = new DavDatabaseContext();
+            var dumpService = new DatabaseDumpService();
+            await dumpService.ExportAsync(exportContext, exportDir, ct).ConfigureAwait(false);
+            return true;
+        }
+
+        if (HasOption(argsList, "--import-db"))
+        {
+            var importDir = GetOption(argsList, "--import-db");
+            if (string.IsNullOrWhiteSpace(importDir))
+            {
+                Log.Error("--import-db requires a source directory argument.");
+                return true;
+            }
+
+            importDir = Path.GetFullPath(importDir);
+            await using var importContext = new DavDatabaseContext();
+            var dumpService = new DatabaseDumpService();
+            await dumpService.ImportAsync(importContext, importDir, ct).ConfigureAwait(false);
+            return true;
+        }
+
+        return false;
+    }
+
     private static string? GetOption(IReadOnlyList<string> args, string optionName)
     {
         for (var i = 0; i < args.Count; i++)
@@ -176,5 +188,16 @@ class Program
         }
 
         return null;
+    }
+
+    private static bool HasOption(IReadOnlyList<string> args, string optionName)
+    {
+        foreach (var arg in args)
+        {
+            if (arg == optionName) return true;
+            if (arg.StartsWith(optionName + "=", StringComparison.Ordinal)) return true;
+        }
+
+        return false;
     }
 }
