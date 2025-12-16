@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -105,6 +106,9 @@ public sealed class DatabaseDumpService
             return;
         }
 
+        var keySelector = TryCreateKeySelector<T>(ctx);
+        var seenKeys = keySelector != null ? new HashSet<string>(StringComparer.Ordinal) : null;
+        var duplicateCount = 0;
         var buffer = new List<T>(ImportBatchSize);
         var total = 0;
 
@@ -113,6 +117,15 @@ public sealed class DatabaseDumpService
             if (string.IsNullOrWhiteSpace(line)) continue;
             var entity = JsonSerializer.Deserialize<T>(line, SerializerOptions);
             if (entity == null) continue;
+            if (seenKeys != null && keySelector != null)
+            {
+                var key = keySelector(entity);
+                if (!seenKeys.Add(key))
+                {
+                    duplicateCount++;
+                    continue;
+                }
+            }
             buffer.Add(entity);
             total++;
 
@@ -133,7 +146,37 @@ public sealed class DatabaseDumpService
             ctx.ChangeTracker.Clear();
         }
 
+        if (duplicateCount > 0)
+        {
+            Log.Information("Skipped {DuplicateCount} duplicate rows while importing {FileName}.", duplicateCount, Path.GetFileName(filePath));
+        }
+
         Log.Information("Imported {RowCount} rows from {FileName}.", total, Path.GetFileName(filePath));
+    }
+
+    private static Func<T, string>? TryCreateKeySelector<T>(DavDatabaseContext ctx)
+    {
+        var entityType = ctx.Model.FindEntityType(typeof(T));
+        var primaryKey = entityType?.FindPrimaryKey();
+        if (primaryKey == null) return null;
+        var propertyInfos = primaryKey.Properties
+            .Select(p => p.PropertyInfo)
+            .Where(p => p != null)
+            .Cast<System.Reflection.PropertyInfo>()
+            .ToArray();
+        if (propertyInfos.Length == 0) return null;
+
+        return entity =>
+        {
+            var values = new string[propertyInfos.Length];
+            for (var i = 0; i < propertyInfos.Length; i++)
+            {
+                var value = propertyInfos[i].GetValue(entity);
+                values[i] = value?.ToString() ?? string.Empty;
+            }
+
+            return string.Join('|', values);
+        };
     }
 
     private static async Task ImportConfigItemsAsync(DavDatabaseContext ctx, string filePath, CancellationToken ct)
