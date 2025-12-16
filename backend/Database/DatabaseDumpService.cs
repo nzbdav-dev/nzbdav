@@ -60,7 +60,7 @@ public sealed class DatabaseDumpService
         ctx.ChangeTracker.AutoDetectChangesEnabled = false;
         try
         {
-            await ImportTableAsync(ctx, ctx.ConfigItems, Path.Combine(inputDirectory, "ConfigItems.jsonl"), ct).ConfigureAwait(false);
+            await ImportConfigItemsAsync(ctx, Path.Combine(inputDirectory, "ConfigItems.jsonl"), ct).ConfigureAwait(false);
             await ImportTableAsync(ctx, ctx.Accounts, Path.Combine(inputDirectory, "Accounts.jsonl"), ct).ConfigureAwait(false);
             await ImportTableAsync(ctx, ctx.Items, Path.Combine(inputDirectory, "DavItems.jsonl"), ct).ConfigureAwait(false);
             await ImportTableAsync(ctx, ctx.NzbFiles, Path.Combine(inputDirectory, "DavNzbFiles.jsonl"), ct).ConfigureAwait(false);
@@ -134,5 +134,35 @@ public sealed class DatabaseDumpService
         }
 
         Log.Information("Imported {RowCount} rows from {FileName}.", total, Path.GetFileName(filePath));
+    }
+
+    private static async Task ImportConfigItemsAsync(DavDatabaseContext ctx, string filePath, CancellationToken ct)
+    {
+        if (!File.Exists(filePath))
+        {
+            Log.Information("Skipping import for {FileName}; file not found.", Path.GetFileName(filePath));
+            return;
+        }
+
+        var items = new Dictionary<string, ConfigItem>(StringComparer.Ordinal);
+        await foreach (var line in File.ReadLinesAsync(filePath, ct))
+        {
+            if (string.IsNullOrWhiteSpace(line)) continue;
+            var entity = JsonSerializer.Deserialize<ConfigItem>(line, SerializerOptions);
+            if (entity == null || string.IsNullOrWhiteSpace(entity.ConfigName)) continue;
+            items[entity.ConfigName] = entity;
+        }
+
+        if (items.Count == 0)
+        {
+            Log.Information("Imported 0 rows from {FileName}.", Path.GetFileName(filePath));
+            return;
+        }
+
+        await ctx.ConfigItems.AddRangeAsync(items.Values, ct).ConfigureAwait(false);
+        await ctx.SaveChangesAsync(ct).ConfigureAwait(false);
+        ctx.ChangeTracker.Clear();
+
+        Log.Information("Imported {RowCount} rows from {FileName}.", items.Count, Path.GetFileName(filePath));
     }
 }
