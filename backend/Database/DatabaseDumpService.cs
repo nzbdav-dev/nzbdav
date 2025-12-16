@@ -25,7 +25,13 @@ public sealed class DatabaseDumpService
         Log.Information("Exporting database to {Directory}.", outputDirectory);
 
         await ExportTableAsync(ctx.ConfigItems.AsNoTracking().OrderBy(x => x.ConfigName), Path.Combine(outputDirectory, "ConfigItems.jsonl"), ct).ConfigureAwait(false);
-        await ExportTableAsync(ctx.Accounts.AsNoTracking().OrderBy(x => new { x.Type, x.Username }), Path.Combine(outputDirectory, "Accounts.jsonl"), ct).ConfigureAwait(false);
+        await ExportTableAsync(
+            ctx.Accounts
+                .AsNoTracking()
+                .OrderBy(x => x.Type)
+                .ThenBy(x => x.Username),
+            Path.Combine(outputDirectory, "Accounts.jsonl"),
+            ct).ConfigureAwait(false);
         await ExportTableAsync(ctx.Items.AsNoTracking().OrderBy(x => x.Id), Path.Combine(outputDirectory, "DavItems.jsonl"), ct).ConfigureAwait(false);
         await ExportTableAsync(ctx.NzbFiles.AsNoTracking().OrderBy(x => x.Id), Path.Combine(outputDirectory, "DavNzbFiles.jsonl"), ct).ConfigureAwait(false);
         await ExportTableAsync(ctx.RarFiles.AsNoTracking().OrderBy(x => x.Id), Path.Combine(outputDirectory, "DavRarFiles.jsonl"), ct).ConfigureAwait(false);
