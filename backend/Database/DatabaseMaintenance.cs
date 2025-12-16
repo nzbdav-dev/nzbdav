@@ -4,6 +4,7 @@ using NzbWebDAV.Config;
 using NzbWebDAV.Database.Models;
 using NzbWebDAV.Utils;
 using Serilog;
+using Serilog.Events;
 
 namespace NzbWebDAV.Database;
 
@@ -194,7 +195,7 @@ public static class DatabaseMaintenance
             return 0;
         }
 
-        Log.Information("Rewriting DavNzbFiles payloads ({Total} rows).", total);
+        LogProgressMessage("Rewriting DavNzbFiles payloads ({Total} rows).", total);
 
         var rewritten = 0;
         var lastLoggedProgress = 0;
@@ -257,7 +258,7 @@ public static class DatabaseMaintenance
             return 0;
         }
 
-        Log.Information("Rewriting DavRarFiles payloads ({Total} rows).", total);
+        LogProgressMessage("Rewriting DavRarFiles payloads ({Total} rows).", total);
 
         var rewritten = 0;
         var lastLoggedProgress = 0;
@@ -321,7 +322,7 @@ public static class DatabaseMaintenance
             return 0;
         }
 
-        Log.Information("Rewriting DavMultipartFiles payloads ({Total} rows).", total);
+        LogProgressMessage("Rewriting DavMultipartFiles payloads ({Total} rows).", total);
 
         var rewritten = 0;
         var lastLoggedProgress = 0;
@@ -386,6 +387,18 @@ public static class DatabaseMaintenance
     private static void LogRewriteProgress(string entityName, int processed, int total)
     {
         var percent = total == 0 ? 100 : (int)((double)processed / total * 100);
-        Log.Information("{Entity} rewrite progress: {Processed}/{Total} rows ({Percent}% complete).", entityName, processed, total, percent);
+        LogProgressMessage("{Entity} rewrite progress: {Processed}/{Total} rows ({Percent}% complete).", entityName, processed, total, percent);
+    }
+
+    private static void LogProgressMessage(string messageTemplate, params object?[] args)
+    {
+        if (Log.IsEnabled(LogEventLevel.Information))
+        {
+            Log.Information(messageTemplate, args);
+        }
+        else
+        {
+            Log.Warning(messageTemplate, args);
+        }
     }
 }
