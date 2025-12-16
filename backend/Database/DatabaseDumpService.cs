@@ -144,6 +144,8 @@ public sealed class DatabaseDumpService
             return;
         }
 
+        await ctx.ConfigItems.ExecuteDeleteAsync(ct).ConfigureAwait(false);
+
         var items = new Dictionary<string, ConfigItem>(StringComparer.Ordinal);
         await foreach (var line in File.ReadLinesAsync(filePath, ct))
         {

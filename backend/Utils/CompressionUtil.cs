@@ -33,13 +33,10 @@ public static class CompressionUtil
         catch (Exception ex) when (ex is InvalidDataException or InvalidOperationException or IOException)
         {
             var count = Interlocked.Increment(ref _loggedFallbackCount);
-            if (count == MaxLoggedFallbacks)
+            if (count <= MaxLoggedFallbacks && Log.IsEnabled(Serilog.Events.LogEventLevel.Debug))
             {
-                Log.Warning(ex, "Failed to decompress payload; falling back to UTF8 decode. Further warnings will be suppressed.");
-            }
-            else if (count < MaxLoggedFallbacks)
-            {
-                Log.Warning(ex, "Failed to decompress payload; falling back to UTF8 decode.");
+                var suffix = count == MaxLoggedFallbacks ? " Further messages suppressed." : string.Empty;
+                Log.Debug(ex, "Failed to decompress payload; falling back to UTF8 decode.{Suffix}", suffix);
             }
             return Encoding.UTF8.GetString(data);
         }
@@ -61,7 +58,10 @@ public static class CompressionUtil
         }
         catch (JsonException ex)
         {
-            Log.Warning(ex, "Failed to deserialize payload as JSON; returning default value.");
+            if (Log.IsEnabled(Serilog.Events.LogEventLevel.Debug))
+            {
+                Log.Debug(ex, "Failed to deserialize payload as JSON; returning default value.");
+            }
             return defaultFactory();
         }
     }
