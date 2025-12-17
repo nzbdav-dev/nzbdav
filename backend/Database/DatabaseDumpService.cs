@@ -62,16 +62,16 @@ public sealed class DatabaseDumpService
         try
         {
             await ImportConfigItemsAsync(ctx, Path.Combine(inputDirectory, "ConfigItems.jsonl"), ct).ConfigureAwait(false);
-            await ImportTableAsync(ctx, ctx.Accounts, Path.Combine(inputDirectory, "Accounts.jsonl"), x => $"{(int)x.Type}|{x.Username}", ct).ConfigureAwait(false);
-            await ImportTableAsync(ctx, ctx.Items, Path.Combine(inputDirectory, "DavItems.jsonl"), x => x.Id.ToString(), ct).ConfigureAwait(false);
-            await ImportTableAsync(ctx, ctx.NzbFiles, Path.Combine(inputDirectory, "DavNzbFiles.jsonl"), x => x.Id.ToString(), ct).ConfigureAwait(false);
-            await ImportTableAsync(ctx, ctx.RarFiles, Path.Combine(inputDirectory, "DavRarFiles.jsonl"), x => x.Id.ToString(), ct).ConfigureAwait(false);
-            await ImportTableAsync(ctx, ctx.MultipartFiles, Path.Combine(inputDirectory, "DavMultipartFiles.jsonl"), x => x.Id.ToString(), ct).ConfigureAwait(false);
-            await ImportTableAsync(ctx, ctx.QueueItems, Path.Combine(inputDirectory, "QueueItems.jsonl"), x => x.Id.ToString(), ct).ConfigureAwait(false);
-            await ImportTableAsync(ctx, ctx.QueueNzbContents, Path.Combine(inputDirectory, "QueueNzbContents.jsonl"), x => x.Id.ToString(), ct).ConfigureAwait(false);
-            await ImportTableAsync(ctx, ctx.HistoryItems, Path.Combine(inputDirectory, "HistoryItems.jsonl"), x => x.Id.ToString(), ct).ConfigureAwait(false);
-            await ImportTableAsync(ctx, ctx.HealthCheckResults, Path.Combine(inputDirectory, "HealthCheckResults.jsonl"), x => x.Id.ToString(), ct).ConfigureAwait(false);
-            await ImportTableAsync(ctx, ctx.HealthCheckStats, Path.Combine(inputDirectory, "HealthCheckStats.jsonl"), x => $"{x.DateStartInclusive.ToUnixTimeSeconds()}|{x.DateEndExclusive.ToUnixTimeSeconds()}|{(int)x.Result}|{(int)x.RepairStatus}", ct).ConfigureAwait(false);
+            await ImportTableAsync(ctx, ctx.Accounts, Path.Combine(inputDirectory, "Accounts.jsonl"), x => $"{(int)x.Type}|{x.Username}", null, ct).ConfigureAwait(false);
+            await ImportTableAsync(ctx, ctx.Items, Path.Combine(inputDirectory, "DavItems.jsonl"), x => x.Id.ToString(), null, ct).ConfigureAwait(false);
+            await ImportTableAsync(ctx, ctx.NzbFiles, Path.Combine(inputDirectory, "DavNzbFiles.jsonl"), x => x.Id.ToString(), x => x.DavItem = null, ct).ConfigureAwait(false);
+            await ImportTableAsync(ctx, ctx.RarFiles, Path.Combine(inputDirectory, "DavRarFiles.jsonl"), x => x.Id.ToString(), x => x.DavItem = null, ct).ConfigureAwait(false);
+            await ImportTableAsync(ctx, ctx.MultipartFiles, Path.Combine(inputDirectory, "DavMultipartFiles.jsonl"), x => x.Id.ToString(), x => x.DavItem = null, ct).ConfigureAwait(false);
+            await ImportTableAsync(ctx, ctx.QueueItems, Path.Combine(inputDirectory, "QueueItems.jsonl"), x => x.Id.ToString(), null, ct).ConfigureAwait(false);
+            await ImportTableAsync(ctx, ctx.QueueNzbContents, Path.Combine(inputDirectory, "QueueNzbContents.jsonl"), x => x.Id.ToString(), x => x.QueueItem = null, ct).ConfigureAwait(false);
+            await ImportTableAsync(ctx, ctx.HistoryItems, Path.Combine(inputDirectory, "HistoryItems.jsonl"), x => x.Id.ToString(), null, ct).ConfigureAwait(false);
+            await ImportTableAsync(ctx, ctx.HealthCheckResults, Path.Combine(inputDirectory, "HealthCheckResults.jsonl"), x => x.Id.ToString(), null, ct).ConfigureAwait(false);
+            await ImportTableAsync(ctx, ctx.HealthCheckStats, Path.Combine(inputDirectory, "HealthCheckStats.jsonl"), x => $"{x.DateStartInclusive.ToUnixTimeSeconds()}|{x.DateEndExclusive.ToUnixTimeSeconds()}|{(int)x.Result}|{(int)x.RepairStatus}", null, ct).ConfigureAwait(false);
         }
         finally
         {
@@ -97,7 +97,7 @@ public sealed class DatabaseDumpService
         Log.Information("Exported {RowCount} rows to {FileName}.", total, Path.GetFileName(filePath));
     }
 
-    private static async Task ImportTableAsync<T>(DavDatabaseContext ctx, DbSet<T> dbSet, string filePath, Func<T, string>? keySelector, CancellationToken ct)
+    private static async Task ImportTableAsync<T>(DavDatabaseContext ctx, DbSet<T> dbSet, string filePath, Func<T, string>? keySelector, Action<T>? prepareEntity, CancellationToken ct)
         where T : class
     {
         if (!File.Exists(filePath))
@@ -116,6 +116,7 @@ public sealed class DatabaseDumpService
             if (string.IsNullOrWhiteSpace(line)) continue;
             var entity = JsonSerializer.Deserialize<T>(line, SerializerOptions);
             if (entity == null) continue;
+            prepareEntity?.Invoke(entity);
             if (seenKeys != null && keySelector != null)
             {
                 var key = keySelector(entity);
