@@ -117,36 +117,79 @@ Once you have the webdav mounted onto your filesystem (e.g. accessible at `/mnt/
 * The symlinks always point to the `/mnt/nzbdav/.ids` folder which contains the streamable content.
 * Plex accesses one of the symlinks from your media library, it will automatically fetch and stream it from the mounted webdav.
 
+## Database Maintenance
+
+The backend now keeps the embedded SQLite database tidy without manual intervention:
+
+- **Compressed payloads** – large NZB XML blobs and segment lists are transparently stored as compressed base64 text. The first start after upgrading may take a little longer while legacy rows are rewritten.
+- **Automatic retention** – a background worker prunes historical rows and runs `VACUUM` so the file does not grow without bound. Defaults are 90 days for SAB history and 30 days for health-check logs.
+- **Auto-vacuum/WAL** – every connection enables foreign keys, WAL mode, synchronous `NORMAL`, and full auto-vacuum so free pages are reclaimed proactively.
+
+You can override the retention/maintenance cadence via environment variables:
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `DATABASE_HISTORY_RETENTION_DAYS` | `90` | Keep history entries for this many days. Set to `0` to retain everything. |
+| `DATABASE_HEALTHCHECK_RETENTION_DAYS` | `30` | Keep health-check result rows for this many days. Set to `0` to retain everything. |
+| `DATABASE_MAINTENANCE_INTERVAL_HOURS` | `6` | How often the background maintenance worker runs VACUUM/cleanup. |
+
+These can also be persisted via the `ConfigItems` table (`database.history-retention-days`, `database.healthcheck-retention-days`).
+
+### Manual compaction / external volume
+
+For large databases you can run an offline export/import cycle instead of rewriting rows in place. The exporter streams every table to newline-delimited JSON, and the importer recreates a clean database while compressing payloads on the way in:
+
+```bash
+# Dump the database located under CONFIG_PATH
+CONFIG_PATH=/vacuum/source \
+  ./NzbWebDAV --export-db /vacuum/dumps/nzbdav-export
+
+# Rebuild a fresh db.sqlite inside CONFIG_PATH from that dump
+CONFIG_PATH=/vacuum/target \
+  ./NzbWebDAV --import-db /vacuum/dumps/nzbdav-export
+```
+
+* Always run the commands from inside the container/pod so they see the same filesystem layout.
+* `--export-db` and `--import-db` run in CLI-only mode, so no background services touch the database while the dump/import is running.
+* After `--import-db` finishes, run `sqlite3 /vacuum/target/db.sqlite "PRAGMA integrity_check;"` to verify the result, then replace `/config/db.sqlite` with the new file while the service is stopped.
+* The dump directory contains simple `.jsonl` files per table, which makes it easy to back up or inspect data before re-importing.
+
 
 # Example Docker Compose Setup
-Fully containerized setup for docker compose. 
+
+Fully containerized setup for docker compose.
 
 See rclone [docs](https://rclone.org/docker/) for more info.
 
 Verify FUSER driver is installed:
-```
-$ fusermount3 --version
+ 
+```bash
+fusermount3 --version
 ```
 
 Install FUSER driver if needed:
-- `sudo pacman -S fuse3` OR
-- `sudo dnf install fuse3` OR
-- `sudo apt install fuse3` OR
-- `sudo apk add fuse3`
-- etc...
+
+* `sudo pacman -S fuse3` OR
+* `sudo dnf install fuse3` OR
+* `sudo apt install fuse3` OR
+* `sudo apk add fuse3`
+* etc...
 
 
 Install the rclone volume plugin:
+
+```bash
+sudo mkdir -p /var/lib/docker-plugins/rclone/config
+sudo mkdir -p /var/lib/docker-plugins/rclone/cache
+docker plugin install rclone/docker-volume-rclone:amd64 args="-v --links --buffer-size=1024" --alias rclone --grant-all-permissions
 ```
-$ sudo mkdir -p /var/lib/docker-plugins/rclone/config
-$ sudo mkdir -p /var/lib/docker-plugins/rclone/cache
-$ docker plugin install rclone/docker-volume-rclone:amd64 args="-v --links --buffer-size=1024" --alias rclone --grant-all-permissions
-```
+
 You can set any options here in the `args="..."` section. The command above sets bare minimum, and must be accompanied with more options in the example compose file.
 
 Move or create `rclone.conf` in `/var/lib/docker-plugins/rclone/config/`. Contents should follow the [example](https://github.com/nzbdav-dev/nzbdav?tab=readme-ov-file#rclone).
 
 In your compose.yaml... **NOTE: Ubuntu container is not required, and is only included for testing the rclone volume.**
+
 ```yml
 services:
   nzbdav:
@@ -190,16 +233,18 @@ volumes:
 ```
 
 To verify proper rclone volume creation:
-```
-$ docker exec -it <ubuntu container name> bash
-$ ls -la /mnt/nzbdav
+
+```bash
+docker exec -it <ubuntu container name> bash
+ls -la /mnt/nzbdav
 ```
 
-## Accessing the rclone volume from a separate stack.
-Note: Your rclone volume **must** be already created by another stack, for example: 
+## Accessing the rclone volume from a separate stack
 
-- Media backend: nzbdav + sonarr + radarr <--- This stack is creating the rclone volume
-- Media frontend: jellyfin <--- Mounts the external arrstack rclone volume
+Note: Your rclone volume **must** be already created by another stack, for example:
+
+* Media backend: nzbdav + sonarr + radarr <--- This stack is creating the rclone volume
+* Media frontend: jellyfin <--- Mounts the external arrstack rclone volume
 
 To do so, see the bottom 11 lines in the example compose file in the above section.
 
@@ -207,11 +252,13 @@ The example below uses ubuntu again, but the concept is the same for a different
 
 
 Find the stack name that creates the rclone volume:
-```
-$ docker-compose ls
+
+```bash
+docker-compose ls
 ```
 
 Combine in the new separate compose file:
+
 ```yml
 services:
   ubuntu:
@@ -232,8 +279,9 @@ volumes:
 
 
 # More screenshots
-<img width="300" alt="onboarding" src="https://github.com/user-attachments/assets/4ca1bfed-3b98-4ff2-8108-59ed07a25591" />
-<img width="300" alt="queue and history" src="https://github.com/user-attachments/assets/4f69f8dd-0dba-47b4-b02f-3e83ead293db" />
-<img width="300" alt="dav-explorer" src="https://github.com/user-attachments/assets/54a1d49b-8a8d-4306-bcda-9740bd5c9f52" />
-<img width="300" alt="health-page" src="https://github.com/user-attachments/assets/709b81c2-550b-47d0-ad50-65dc184cd3fa" />
+
+![onboarding](https://github.com/user-attachments/assets/4ca1bfed-3b98-4ff2-8108-59ed07a25591)
+![queue and history](https://github.com/user-attachments/assets/4f69f8dd-0dba-47b4-b02f-3e83ead293db)
+![dav-explorer](https://github.com/user-attachments/assets/54a1d49b-8a8d-4306-bcda-9740bd5c9f52)
+![health-page](https://github.com/user-attachments/assets/709b81c2-550b-47d0-ad50-65dc184cd3fa)
 

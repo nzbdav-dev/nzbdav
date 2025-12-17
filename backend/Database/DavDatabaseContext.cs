@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NzbWebDAV.Database.Interceptors;
 using NzbWebDAV.Database.Models;
+using NzbWebDAV.Utils;
 
 namespace NzbWebDAV.Database;
 
@@ -12,11 +13,23 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
     public static string DatabaseFilePath => Path.Join(ConfigPath, "db.sqlite");
 
     private static readonly Lazy<DbContextOptions<DavDatabaseContext>> Options = new(
-        () => new DbContextOptionsBuilder<DavDatabaseContext>()
-            .UseSqlite($"Data Source={DatabaseFilePath}")
-            .AddInterceptors(new SqliteForeignKeyEnabler())
-            .Options
+        () =>
+        {
+            DatabaseMaintenance.EnsureAutoVacuumConfigured();
+            return new DbContextOptionsBuilder<DavDatabaseContext>()
+                .UseSqlite($"Data Source={DatabaseFilePath}")
+                .AddInterceptors(new SqliteForeignKeyEnabler())
+                .Options;
+        }
     );
+
+    private static ValueConverter<T, byte[]> CreateCompressedJsonBinaryConverter<T>(Func<T> fallbackFactory)
+    {
+        return new ValueConverter<T, byte[]>(
+            v => CompressionUtil.SerializeToCompressedJson(v ?? fallbackFactory()),
+            v => CompressionUtil.DeserializeCompressedJson(v, fallbackFactory)
+        );
+    }
 
     // database sets
     public DbSet<Account> Accounts => Set<Account>();
@@ -126,12 +139,8 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
                 .ValueGeneratedNever();
 
             e.Property(f => f.SegmentIds)
-                .HasConversion(new ValueConverter<string[], string>
-                (
-                    v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
-                    v => JsonSerializer.Deserialize<string[]>(v, (JsonSerializerOptions?)null) ?? Array.Empty<string>()
-                ))
-                .HasColumnType("TEXT") // store raw JSON
+                .HasConversion(CreateCompressedJsonBinaryConverter(() => Array.Empty<string>()))
+                .HasColumnType("BLOB")
                 .IsRequired();
 
             e.HasOne(f => f.DavItem)
@@ -150,13 +159,8 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
                 .ValueGeneratedNever();
 
             e.Property(f => f.RarParts)
-                .HasConversion(new ValueConverter<DavRarFile.RarPart[], string>
-                (
-                    v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
-                    v => JsonSerializer.Deserialize<DavRarFile.RarPart[]>(v, (JsonSerializerOptions?)null)
-                         ?? Array.Empty<DavRarFile.RarPart>()
-                ))
-                .HasColumnType("TEXT") // store raw JSON
+                .HasConversion(CreateCompressedJsonBinaryConverter(() => Array.Empty<DavRarFile.RarPart>()))
+                .HasColumnType("BLOB")
                 .IsRequired();
 
             e.HasOne(f => f.DavItem)
@@ -175,13 +179,8 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
                 .ValueGeneratedNever();
 
             e.Property(f => f.Metadata)
-                .HasConversion(new ValueConverter<DavMultipartFile.Meta, string>
-                (
-                    v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
-                    v => JsonSerializer.Deserialize<DavMultipartFile.Meta>(v, (JsonSerializerOptions?)null) ??
-                         new DavMultipartFile.Meta()
-                ))
-                .HasColumnType("TEXT") // store raw JSON
+                .HasConversion(CreateCompressedJsonBinaryConverter(() => new DavMultipartFile.Meta()))
+                .HasColumnType("BLOB")
                 .IsRequired();
 
             e.HasOne(f => f.DavItem)
@@ -309,6 +308,7 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
                 .ValueGeneratedNever();
 
             e.Property(i => i.NzbContents)
+                .HasColumnType("TEXT")
                 .IsRequired();
 
             e.HasOne(f => f.QueueItem)
