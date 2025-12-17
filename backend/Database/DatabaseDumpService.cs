@@ -1,4 +1,3 @@
-using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -105,6 +104,8 @@ public sealed class DatabaseDumpService
             Log.Information("Skipping import for {FileName}; file not found.", Path.GetFileName(filePath));
             return;
         }
+
+        await dbSet.ExecuteDeleteAsync(ct).ConfigureAwait(false);
 
         var seenKeys = keySelector != null ? new HashSet<string>(StringComparer.Ordinal) : null;
         var duplicateCount = 0;
