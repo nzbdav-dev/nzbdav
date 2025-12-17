@@ -58,6 +58,7 @@ public sealed class DatabaseDumpService
 
         var previousAutoDetect = ctx.ChangeTracker.AutoDetectChangesEnabled;
         ctx.ChangeTracker.AutoDetectChangesEnabled = false;
+        await ctx.Database.ExecuteSqlRawAsync("PRAGMA foreign_keys = OFF;", cancellationToken: ct).ConfigureAwait(false);
         try
         {
             await ImportConfigItemsAsync(ctx, Path.Combine(inputDirectory, "ConfigItems.jsonl"), ct).ConfigureAwait(false);
@@ -74,6 +75,7 @@ public sealed class DatabaseDumpService
         }
         finally
         {
+            await ctx.Database.ExecuteSqlRawAsync("PRAGMA foreign_keys = ON;", cancellationToken: ct).ConfigureAwait(false);
             ctx.ChangeTracker.AutoDetectChangesEnabled = previousAutoDetect;
             ctx.ChangeTracker.Clear();
         }
