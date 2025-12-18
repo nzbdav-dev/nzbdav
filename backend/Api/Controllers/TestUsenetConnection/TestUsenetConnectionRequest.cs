@@ -7,8 +7,8 @@ namespace NzbWebDAV.Api.Controllers.TestUsenetConnection;
 public class TestUsenetConnectionRequest
 {
     public string Host { get; init; }
-    public string User { get; init; }
-    public string Pass { get; init; }
+    public string User { get; init; } = string.Empty;
+    public string Pass { get; init; } = string.Empty;
     public int Port { get; init; }
     public bool UseSsl { get; init; }
 
@@ -17,11 +17,9 @@ public class TestUsenetConnectionRequest
         Host = context.Request.Form["host"].FirstOrDefault()
                ?? throw new BadHttpRequestException("Usenet host is required");
 
-        User = context.Request.Form["user"].FirstOrDefault()
-               ?? throw new BadHttpRequestException("Usenet user is required");
+         User = context.Request.Form["user"].FirstOrDefault() ?? string.Empty;
 
-        Pass = context.Request.Form["pass"].FirstOrDefault()
-               ?? throw new BadHttpRequestException("Usenet pass is required");
+         Pass = context.Request.Form["pass"].FirstOrDefault() ?? string.Empty;
 
         var port = context.Request.Form["port"].FirstOrDefault()
                    ?? throw new BadHttpRequestException("Usenet port is required");
@@ -43,8 +41,8 @@ public class TestUsenetConnectionRequest
         return new UsenetProviderConfig.ConnectionDetails
         {
             Host = Host,
-            User = User,
-            Pass = Pass,
+            User = string.IsNullOrWhiteSpace(User) ? null : User,
+            Pass = string.IsNullOrEmpty(Pass) ? null : Pass,
             Port = Port,
             UseSsl = UseSsl,
             MaxConnections = 1,

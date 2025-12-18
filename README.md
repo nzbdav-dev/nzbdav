@@ -117,6 +117,24 @@ Once you have the webdav mounted onto your filesystem (e.g. accessible at `/mnt/
 * The symlinks always point to the `/mnt/nzbdav/.ids` folder which contains the streamable content.
 * Plex accesses one of the symlinks from your media library, it will automatically fetch and stream it from the mounted webdav.
 
+## Database Maintenance
+
+The backend now keeps the embedded SQLite database tidy without manual intervention:
+
+- **Compressed payloads** – large NZB XML blobs and segment lists are transparently stored as compressed base64 text. The first start after upgrading may take a little longer while legacy rows are rewritten.
+- **Automatic retention** – a background worker prunes historical rows and runs `VACUUM` so the file does not grow without bound. Defaults are 90 days for SAB history and 30 days for health-check logs.
+- **Auto-vacuum/WAL** – every connection enables foreign keys, WAL mode, synchronous `NORMAL`, and full auto-vacuum so free pages are reclaimed proactively.
+
+You can override the retention/maintenance cadence via environment variables:
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `DATABASE_HISTORY_RETENTION_DAYS` | `90` | Keep history entries for this many days. Set to `0` to retain everything. |
+| `DATABASE_HEALTHCHECK_RETENTION_DAYS` | `30` | Keep health-check result rows for this many days. Set to `0` to retain everything. |
+| `DATABASE_MAINTENANCE_INTERVAL_HOURS` | `6` | How often the background maintenance worker runs VACUUM/cleanup. |
+
+These can also be persisted via the `ConfigItems` table (`database.history-retention-days`, `database.healthcheck-retention-days`).
+
 
 # Example Docker Compose Setup
 Fully containerized setup for docker compose. 

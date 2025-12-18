@@ -89,7 +89,12 @@ public class UsenetStreamingClient : WrappingNntpClient
         var user = connectionDetails.User;
         var pass = connectionDetails.Pass;
         await connection.ConnectAsync(host, port, useSsl, ct).ConfigureAwait(false);
-        await connection.AuthenticateAsync(user, pass, ct).ConfigureAwait(false);
+        var hasCredentials = !string.IsNullOrWhiteSpace(user) || !string.IsNullOrEmpty(pass);
+        if (hasCredentials)
+        {
+            await connection.AuthenticateAsync(user ?? string.Empty, pass ?? string.Empty, ct)
+                .ConfigureAwait(false);
+        }
         return connection;
     }
 }
