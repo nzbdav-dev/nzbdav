@@ -14,7 +14,7 @@ public class StrmToSymlinksTask(
     ConfigManager configManager,
     DavDatabaseClient dbClient,
     WebsocketManager websocketManager
-) : BaseTask
+) : BaseTask(websocketManager, WebsocketTopic.StrmToSymlinksTaskProgress)
 {
     protected override async Task ExecuteInternal()
     {
@@ -95,11 +95,6 @@ public class StrmToSymlinksTask(
         if (link.SymlinkOrStrmInfo is not SymlinkAndStrmUtil.StrmInfo strmInfo) return null;
         var queryParams = HttpUtility.ParseQueryString(new Uri(strmInfo.TargetUrl).Query);
         return queryParams.Get("extension");
-    }
-
-    private void Report(string message)
-    {
-        _ = websocketManager.SendMessage(WebsocketTopic.StrmToSymlinksTaskProgress, message);
     }
 
     private void ReportProgress(string message, int completedCount)

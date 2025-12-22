@@ -1,6 +1,11 @@
-﻿namespace NzbWebDAV.Tasks;
+﻿using NzbWebDAV.Websocket;
 
-public abstract class BaseTask
+namespace NzbWebDAV.Tasks;
+
+public abstract class BaseTask(
+    WebsocketManager websocketManager,
+    WebsocketTopic reportTopic
+)
 {
     protected abstract Task ExecuteInternal();
 
@@ -29,5 +34,10 @@ public abstract class BaseTask
         // and wait for it to finish.
         await task.ConfigureAwait(false);
         return true;
+    }
+
+    protected void Report(string message)
+    {
+        _ = websocketManager.SendMessage(reportTopic, message);
     }
 }
