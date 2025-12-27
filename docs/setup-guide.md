@@ -5,21 +5,22 @@ This guide is an opinionated, step-by-step walkthrough to setting up NzbDav for 
 ## How the "Infinite Library" Works
 Before configuring, it helps to understand the flow:
 
-### Path A: The Automation Flow (Radarr/Sonarr + Plex)
+### Path A: The Automation Flow (Radarr/Sonarr + Plex/Jellyfin)
 1. **Radarr** sends an `.nzb` file to NzbDav (acting as a download client) to "download".
 2. **NzbDav** mounts the nzb onto the webdav without actually downloading it.
 3. **NzbDav** tells Radarr the "download" is finished and points to a folder of **Symlinks** at `/mnt/remote/nzbdav/completed-symlinks`.
-    * The **Symlinks** always point to the `/mnt/nzbdav/.ids` folder which contains the streamable content.
-4. **Radarr** imports these Symlinks into your library. For eg: `/mnt/media`.
+    * The **Symlinks** always point to the `/mnt/remote/nzbdav/.ids` folder which contains the streamable content.
+4. **Radarr** imports these Symlinks into your library. For eg: `/mnt/media/movies`.
 5. **Plex** reads the Symlink -> Rclone Mount -> WebDAV Stream -> Usenet Provider.
     * **RClone** will make the nzb contents available to your filesystem by streaming, without using any storage space on your server.
 
 ### Path B: The On-Demand Flow (Stremio)
-1. **Stremio (via AIOStreams)** searches your indexers and finds a release.
-2. **AIOStreams** sends the `.nzb` URL to NzbDav's API.
-3. **NzbDav** mounts the stream instantly.
-4. **AIOStreams** generates a streamable URL pointing to your NzbDav webdav.
-5. **Stremio** plays the video directly from that URL (bypassing Rclone/Symlinks entirely).
+1. **Stremio (via AIOStreams)** searches your indexers using the `Newznab` addon and finds a release.
+2. **AIOStreams** sends the `.nzb` to NzbDav's API to mount it.
+3. **NzbDav** mounts the file instantly via WebDAV.
+4. **AIOStreams** generates a streamable URL.
+   * *Note: If using the recommended Proxy setup, this URL points to AIOStreams, which tunnels the traffic from NzbDav.*
+5. **Stremio** plays the video from that URL (bypassing Rclone/Symlinks entirely).
 
 ## Phase 1: Prerequisites
 
