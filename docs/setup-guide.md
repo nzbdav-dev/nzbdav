@@ -2,6 +2,25 @@
 
 This guide is an opinionated, step-by-step walkthrough to setting up NzbDav for maximum performance ("infinite library" style) with Radarr, Sonarr, Plex/Jellyfin and Stremio.
 
+## How the "Infinite Library" Works
+Before configuring, it helps to understand the flow:
+
+### Path A: The Automation Flow (Radarr/Sonarr + Plex)
+1. **Radarr** sends an `.nzb` file to NzbDav (acting as a download client) to "download".
+2. **NzbDav** mounts the nzb onto the webdav without actually downloading it.
+3. **NzbDav** tells Radarr the "download" is finished and points to a folder of **Symlinks** at `/mnt/remote/nzbdav/completed-symlinks`.
+    * The **Symlinks** always point to the `/mnt/nzbdav/.ids` folder which contains the streamable content.
+4. **Radarr** imports these Symlinks into your library. For eg: `/mnt/media`.
+5. **Plex** reads the Symlink -> Rclone Mount -> WebDAV Stream -> Usenet Provider.
+    * **RClone** will make the nzb contents available to your filesystem by streaming, without using any storage space on your server.
+
+### Path B: The On-Demand Flow (Stremio)
+1. **Stremio (via AIOStreams)** searches your indexers and finds a release.
+2. **AIOStreams** sends the `.nzb` URL to NzbDav's API.
+3. **NzbDav** mounts the stream instantly.
+4. **AIOStreams** generates a streamable URL pointing to your NzbDav webdav.
+5. **Stremio** plays the video directly from that URL (bypassing Rclone/Symlinks entirely).
+
 ## Phase 1: Prerequisites
 
 ### 1. Usenet Provider
@@ -151,7 +170,7 @@ pass = <PASTE_OBSCURED_PASSWORD_HERE_WITHOUT_ANGLE_BRACKETS>
 
 ### 3. Update `docker-compose.yml`
 
-Add the Rclone sidecar service to your existing `apps/nzbdav/docker-compose.yml`. This uses specific flags optimized for streaming.
+Add the Rclone sidecar service to your existing `apps/nzbdav/docker-compose.yml`.
 
 Update `PUID`, `PGID`, `TZ`, and volume paths as needed.
 You can get your PUID/PGID by running `id` in your terminal.
@@ -214,6 +233,21 @@ Check out the mount is working
 ls -la /mnt/remote/nzbdav
 # Should show: .ids, completed-symlinks, content, nzbs
 ```
+
+#### Understanding the Flags
+* **`--links`**: **Crucial**. This allows `*.rclonelink` files within the webdav to be translated to symlinks when mounted onto your filesystem.
+  > *Note: Requires Rclone v1.70.3+.*
+* **`--use-cookies`**: **Performance**. Without this, Rclone re-authenticates on every single request, causing massive slowdowns.
+* **`--allow-other`**: **Permissions**. Ensures other containers (like Radarr/Plex) can see the mounted files.
+* **`--vfs-cache-mode=full`**: **Performance**. Enables the full VFS cache, which is required for seeking and proper file handling.
+* **`--buffer-size 0M`**: **Stability**. Prevents double-caching (RAM + Disk). 
+* **`--vfs-read-ahead=512M`**: **Smooth Playback**. Buffers 512MB into VFS disk cache ahead of the current position to handle high-bitrate spikes without stuttering.
+* **`--vfs-cache-max-size=20G`**: **Disk Management**. Limits the local disk space used by the cache. Adjust based on your available storage.
+* **`--dir-cache-time=20s`**: **Responsiveness**. Keeps the directory cache short so new downloads/links appear quickly in the mount.
+
+These flags are optimized for streaming. 
+
+Remember: `unnecessary flags = potential pitfalls`.
 
 #### Rclone flags reference
 * [Rclone Forum Discussion on Buffer Size](https://forum.rclone.org/t/whats-the-suitable-value-to-set-for-buffer-size-with-vfs-read-ahead/39971/4)
