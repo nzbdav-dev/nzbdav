@@ -1,6 +1,6 @@
 # Comprehensive NzbDav Setup Guide
 
-This guide is an opinionated, step-by-step walkthrough to setting up NzbDav for maximum performance ("infinite library" style) with Radarr, Sonarr, and Stremio.
+This guide is an opinionated, step-by-step walkthrough to setting up NzbDav for maximum performance ("infinite library" style) with Radarr, Sonarr, Plex/Jellyfin and Stremio.
 
 ## Phase 1: Prerequisites
 
@@ -35,7 +35,7 @@ You can get your PUID/PGID by running `id` in your terminal.
 ```yaml
 services:
   nzbdav:
-    image: nzbdav/nzbdav:alpha
+    image: nzbdav/nzbdav:latest
     container_name: nzbdav
     restart: unless-stopped
     healthcheck:
@@ -86,11 +86,11 @@ Set your username and password.
 * **Set WebDAV Password:** Create a password (you will need this for Rclone).
 * **Enforce Read-Only:** Uncheck it if you'd like to delete files from terminal. Otherwise, leave it checked.
 
-### 3. Speed Tuning (Crucial)
+### 3. Speed Tuning (Optional)
 
-You must find the optimal **Max Download Connections** for your network (`Settings > WebDAV > Max Download Connections`).
+_Note: The default Max Download Connections setting of `15` works perfectly for most users (handling ~1Gbps). You only need to touch this if you are experiencing speed issues._
 
-`Too high = high CPU usage, no speed gain`.
+You can find the optimal **Max Download Connections** for your network (`Settings > WebDAV > Max Download Connections`) using the steps below:
 
 1. **Baseline Test:** Run this on your server to check raw bandwidth.
    ```bash
@@ -111,7 +111,7 @@ You must find the optimal **Max Download Connections** for your network (`Settin
 3. **Adjust & Repeat:**
    * Set `Max Download Connections` to `10`. Test speed. (e.g., 500Mbps @ 70% CPU)
    * Set `Max Download Connections` to `15`. Test speed. (e.g., 1Gbps @ 85% CPU)
-   * *Sweet Spot:* Stop when speed plateaus. For me, **15** was the magic number.
+   * *Sweet Spot:* Stop when speed plateaus. For me, **15** (the default value) was the magic number.
 
 ---
 
@@ -182,7 +182,7 @@ nzbdav_rclone:
       condition: service_healthy
       restart: true
   # Optimized mounting flags for streaming
-  # 0M buffer size reduces double-caching (File System + RAM)
+  # 0M buffer size prevents double-caching (Kernel + RClone)
   # 512M read-ahead ensures smooth playback
   command: >
     mount nzbdav: /mnt/remote/nzbdav
@@ -216,7 +216,7 @@ ls -la /mnt/remote/nzbdav
 ```
 
 #### Rclone flags reference
-* https://forum.rclone.org/t/whats-the-suitable-value-to-set-for-buffer-size-with-vfs-read-ahead/39971/4
+* [Rclone Forum Discussion on Buffer Size](https://forum.rclone.org/t/whats-the-suitable-value-to-set-for-buffer-size-with-vfs-read-ahead/39971/4)
 
 ---
 
@@ -242,26 +242,28 @@ Go to NzbDav `Settings` > `Radarr/Sonarr`.
 2. **Sonarr Instances > Add**
    * **Host:** `http://sonarr:8989`
    * **API Key:** (Sonarr > Settings > General > Security > API Key)
-3. **Automatic Queue Management (Recommended):**
+3. **Automatic Queue Management:**
 
-   Configure these rules to automatically handle failed or bad releases, keeping your queue clean without manual intervention.
+   Configure these rules to handle failed or bad releases, keeping your queue clean with as little manual intervention as possible. 
+   Feel free to experiment and adjust these rules to your liking.
 
+   * **Do Nothing:**
+       * Found matching series via grab history, but release was matched to series by ID. Automatic import is not possible.
+       * Found matching movie via grab history, but release was matched to movie by ID. Manual Import required.
+       * Episode was not found in the grabbed release.
+       * Episode was unexpected considering the folder name.
+       * Invalid season or episode.
+       * Unable to determine if file is a sample.
    * **Remove, Blocklist, and Search:**
-     * Found matching series via grab history, but release was matched to series by ID. Automatic import is not possible.
-     * Found matching movie via grab history, but release was matched to movie by ID. Manual Import required.
-     * Episode was not found in the grabbed release.
-     * Episode was unexpected considering the folder name.
-     * No files found are eligible for import.
-     * No audio tracks detected.
-     * Invalid season or episode.
-     * Unable to determine if file is a sample.
-     * Sample.
+       * No files found are eligible for import.
+       * No audio tracks detected.
+       * Sample.
    * **Remove and Blocklist:**
-     * Not an upgrade for existing episode file(s).
-     * Not an upgrade for existing movie file.
-     * Not a Custom Format upgrade.
+       * Not an upgrade for existing episode file(s).
+       * Not an upgrade for existing movie file.
+       * Not a Custom Format upgrade.
    * **Remove:**
-     * Episode file already imported.
+       * Episode file already imported.
 
 ### 3. Configure Mount & Repairs
 
@@ -279,6 +281,8 @@ Go to NzbDav `Settings` > `Radarr/Sonarr`.
 ## Phase 5: Usenet Streaming in Stremio (via AIOStreams)
 
 You can stream your Usenet content directly in Stremio using [AIOStreams](https://github.com/Viren070/AIOStreams).
+
+For more info, check out their [Usenet Wiki](https://github.com/Viren070/AIOStreams/wiki/Usenet).
 
 ### 1. Configure NzbDav Service
 
@@ -310,4 +314,5 @@ In the AIOStreams UI:
 ### 3. Install to Stremio
 
 Go to the **Save & Install** tab, click **Save**, and then install the addon to Stremio.
-You can now stream high-bitrate Usenet content instantly!
+
+

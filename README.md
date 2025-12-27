@@ -26,7 +26,40 @@ https://github.com/user-attachments/assets/be3e59bc-99df-440d-8144-43b030a4eaa4
 
 # Getting Started
 
-Check out the [comprehensive setup guide](docs/setup-guide.md) for detailed instructions on setting up NzbDav covering:
+The easiest way to get started is by using the official Docker image.
+
+To try it out, run the following command to pull and run the image with port `3000` exposed:
+
+```bash
+docker run --rm -it -p 3000:3000 nzbdav/nzbdav:alpha
+```
+
+And if you would like to persist saved settings, attach a volume at `/config`
+
+```
+mkdir -p $(pwd)/nzbdav && \
+docker run --rm -it \
+  -v $(pwd)/nzbdav:/config \
+  -e PUID=1000 \
+  -e PGID=1000 \
+  -p 3000:3000 \
+  nzbdav/nzbdav:alpha
+```
+After starting the container, be sure to navigate to the Settings page on the UI to finish setting up your usenet connection settings.
+
+<p align="center">
+    <img width="600" alt="settings-page" src="https://github.com/user-attachments/assets/ca0a7fa7-be43-412d-9fec-eda24eb25fdb" />
+</p>
+
+You'll also want to set up a username and password for logging in to the webdav server
+
+<p align="center">
+    <img width="600" alt="webdav-settings" src="https://github.com/user-attachments/assets/833b382c-4e1d-480a-ac25-b9cc674baea4" />
+</p>
+
+# Comprehensive Setup Guide
+
+If you'd like to get the most out of NzbDav, check out the [comprehensive guide](docs/setup-guide.md) for detailed instructions covering:
 * **Docker Compose:** Full stack with Rclone sidecar and healthchecks.
 * **Performance Tuning:** Benchmarking WebDAV connection limits.
 * **Integrations:** Automating Radarr/Sonarr queue management and repairs.
