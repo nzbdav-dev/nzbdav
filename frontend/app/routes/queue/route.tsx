@@ -199,7 +199,7 @@ export async function action({ request }: Route.ActionArgs) {
 
         nzbFiles.forEach(async (nzbFile) => {
             if (nzbFile instanceof File) {
-                await backendClient.addNzb(nzbFile);
+                await backendClient.addNzb(nzbFile).catch(_ => errorCount++);
             } else {
                 errorCount++;
             }
