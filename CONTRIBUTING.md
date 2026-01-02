@@ -5,10 +5,12 @@
 The project consists of two sub projects: frontend and backend
 Both share some necessary environment variables.
 
+**Ensure that frontend and backend share the same environment configuration!**
+
 Environment variables:
 
 ```bash
-export CONFIG_PATH=~/workspace/nzbdav/backend/publish/config
+export CONFIG_PATH=/where/to/create/database/
 export FRONTEND_BACKEND_API_KEY=$(head -c 32 /dev/urandom | hexdump -ve '1/1 "%.2x"')
 export BACKEND_URL=http://localhost:5000
 ```
@@ -31,11 +33,11 @@ sudo pacman -S dotnet-sdk aspnet-runtime nodejs npm
 ```bash
 cd backend
 
-# Build
+# Build (release)
 dotnet publish -c Release -o ./publish
 
 # Create database
-mkdir publish/config
+mkdir -p $CONFIG_PATH
 ./publish/NzbWebDAV --db-migration
 
 # Run backend
