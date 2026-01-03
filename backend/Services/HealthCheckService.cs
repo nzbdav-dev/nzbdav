@@ -120,7 +120,7 @@ public class HealthCheckService
 
             // setup progress tracking
             var progressHook = new Progress<int>();
-            var debounce = DebounceUtil.CreateDebounce(TimeSpan.FromMilliseconds(200));
+            var debounce = DebounceUtil.CreateDebounce();
             progressHook.ProgressChanged += (_, progress) =>
             {
                 var message = $"{davItem.Id}|{progress}";

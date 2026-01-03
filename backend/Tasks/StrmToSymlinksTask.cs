@@ -33,7 +33,6 @@ public class StrmToSymlinksTask(
     private async Task ConvertAllStrmFilesToSymlinks(CancellationToken token)
     {
         var completedCount = 0;
-        var debounce = DebounceUtil.CreateDebounce(TimeSpan.FromMilliseconds(200));
         var batches = OrganizedLinksUtil.GetLibraryDavItemLinks(configManager)
             .Where(x => x.SymlinkOrStrmInfo is SymlinkAndStrmUtil.StrmInfo)
             .ToBatches(batchSize: 100);
@@ -47,7 +46,7 @@ public class StrmToSymlinksTask(
         void OnItemCompleted()
         {
             completedCount++;
-            debounce(() => ReportProgress("Scanning library for strm files...", completedCount));
+            ReportProgress("Scanning library for strm files...", completedCount, true);
         }
     }
 
@@ -97,8 +96,9 @@ public class StrmToSymlinksTask(
         return queryParams.Get("extension");
     }
 
-    private void ReportProgress(string message, int completedCount)
+    private void ReportProgress(string message, int completedCount, bool debounce = false)
     {
-        Report($"{message}\nConverted: {completedCount} strm file(s) to symlinks.");
+        Action<string> report = debounce ? ReportDebounced : Report;
+        report($"{message}\nConverted: {completedCount} strm file(s) to symlinks.");
     }
 }

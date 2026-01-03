@@ -151,7 +151,7 @@ public class QueueManager : IDisposable
             ProgressPercentage = 0,
             CancellationTokenSource = cts
         };
-        var debounce = DebounceUtil.CreateDebounce(TimeSpan.FromMilliseconds(200));
+        var debounce = DebounceUtil.CreateDebounce();
         progressHook.ProgressChanged += (_, progress) =>
         {
             inProgressQueueItem.ProgressPercentage = progress;
