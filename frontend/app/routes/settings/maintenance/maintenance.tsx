@@ -2,6 +2,7 @@ import { Accordion } from "react-bootstrap";
 import styles from "./maintenance.module.css"
 import { RemoveUnlinkedFiles } from "./remove-unlinked-files/remove-unlinked-files";
 import { ConvertStrmToSymlinks } from "./strm-to-symlinks/strm-to-symlinks";
+import {PurgeSampleFiles} from "~/routes/settings/maintenance/purge-stream-files/purge-sample-files";
 
 type MaintenanceProps = {
     savedConfig: Record<string, string>
@@ -28,6 +29,15 @@ export function Maintenance({ savedConfig }: MaintenanceProps) {
                     </Accordion.Header>
                     <Accordion.Body className={styles.accordionBody}>
                         <ConvertStrmToSymlinks savedConfig={savedConfig} />
+                    </Accordion.Body>
+                </Accordion.Item>
+
+                <Accordion.Item className={styles.accordionItem} eventKey="purge-sample-files">
+                    <Accordion.Header className={styles.accordionHeader}>
+                        Purge Sample Files
+                    </Accordion.Header>
+                    <Accordion.Body className={styles.accordionBody}>
+                        <PurgeSampleFiles savedConfig={savedConfig} />
                     </Accordion.Body>
                 </Accordion.Item>
 
