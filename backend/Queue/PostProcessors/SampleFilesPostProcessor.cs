@@ -5,7 +5,7 @@ using NzbWebDAV.Database.Models;
 
 namespace NzbWebDAV.Queue.PostProcessors;
 
-public class SampleAbstractFilesPostProcessor(ConfigManager configManager, DavDatabaseClient dbClient)
+public class SampleFilesPostProcessor(ConfigManager configManager, DavDatabaseClient dbClient)
     : AbstractFileRemovingPostProcessor(dbClient)
 {
     protected override IEnumerable<DavItem> GetFilesToRemove()
