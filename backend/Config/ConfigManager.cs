@@ -212,6 +212,13 @@ public class ConfigManager
             .Select(x => x.ToLower())
             .ToHashSet();
     }
+    
+    public bool IsIgnoreSampleFilesEnabled()
+    {
+        var defaultValue = false;
+        var configValue = StringUtil.EmptyToNull(GetConfigValue("api.ignore-sample-files"));
+        return (configValue != null ? bool.Parse(configValue) : defaultValue);
+    }
 
     public string GetImportStrategy()
     {

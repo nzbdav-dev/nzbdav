@@ -19,6 +19,7 @@ const defaultConfig = {
     "api.ensure-article-existence": "false",
     "api.ignore-history-limit": "true",
     "api.download-extension-blacklist": ".nfo, .par2, .sfv",
+    "api.ignore-sample-files": "false",
     "api.duplicate-nzb-behavior": "increment",
     "api.import-strategy": "symlinks",
     "api.completed-downloads-dir": "",

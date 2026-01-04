@@ -200,6 +200,20 @@ export function SabnzbdSettings({ config, setNewConfig }: SabnzbdSettingsProps) 
                     <a href="https://github.com/Sonarr/Sonarr/issues/5452">See here</a>.
                 </Form.Text>
             </Form.Group>
+            <hr />
+            <Form.Group>
+                <Form.Check
+                    className={styles.input}
+                    type="checkbox"
+                    id="ignore-sample-files-checkbox"
+                    aria-describedby="ignore-sample-files-help"
+                    label={`Ignore sample files`}
+                    checked={config["api.ignore-sample-files"] === "true"}
+                    onChange={e => setNewConfig({ ...config, "api.ignore-sample-files": "" + e.target.checked })} />
+                <Form.Text id="ignore-sample-files-help" muted>
+                    Whether to ignore sample files contained in the release.&nbsp;
+                </Form.Text>
+            </Form.Group>
         </div>
     );
 }
@@ -217,6 +231,7 @@ export function isSabnzbdSettingsUpdated(config: Record<string, string>, newConf
         || config["api.import-strategy"] !== newConfig["api.import-strategy"]
         || config["api.completed-downloads-dir"] !== newConfig["api.completed-downloads-dir"]
         || config["general.base-url"] !== newConfig["general.base-url"]
+        || config["api.ignore-sample-files"] !== newConfig["api.ignore-sample-files"]
 }
 
 export function isSabnzbdSettingsValid(newConfig: Record<string, string>) {

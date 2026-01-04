@@ -10,18 +10,30 @@ public class BlacklistedExtensionPostProcessor(ConfigManager configManager, DavD
 {
     public void RemoveBlacklistedExtensions()
     {
-        var blacklistedExtensions = configManager.GetBlacklistedExtensions();
-        var blacklistedFiles = dbClient.Ctx.ChangeTracker.Entries<DavItem>()
+        // Files that are relevant to filtering
+        var trueFiles = dbClient.Ctx.ChangeTracker.Entries<DavItem>()
             .Where(x => x.State == EntityState.Added)
             .Select(x => x.Entity)
-            .Where(x => x.Type != DavItem.ItemType.Directory)
+            .Where(x => x.Type != DavItem.ItemType.Directory).ToArray();
+        
+        // Explicitly Blacklisted files
+        var blacklistedExtensions = configManager.GetBlacklistedExtensions();
+        var blacklistedFiles = trueFiles
             .Where(x => blacklistedExtensions.Contains(Path.GetExtension(x.Name).ToLower()));
-
         foreach (var blacklistedFile in blacklistedFiles)
-            RemoveBlacklistedFile(blacklistedFile);
+            RemoveFile(blacklistedFile);
+
+        // Remove sample files, if enabled
+        if (configManager.IsIgnoreSampleFilesEnabled())
+        {
+            var sampleFiles = trueFiles
+                .Where(x => x.Name.EndsWith("-sample.mkv", StringComparison.OrdinalIgnoreCase));
+            foreach (var sampleFile in sampleFiles) 
+                RemoveFile(sampleFile);   
+        }
     }
 
-    private void RemoveBlacklistedFile(DavItem davItem)
+    private void RemoveFile(DavItem davItem)
     {
         if (davItem.Type == DavItem.ItemType.NzbFile)
         {
