@@ -178,7 +178,8 @@ public class QueueItemProcessor(
 
             // post-processing
             new RenameDuplicatesPostProcessor(dbClient).RenameDuplicates();
-            new BlacklistedExtensionPostProcessor(configManager, dbClient).RemoveBlacklistedExtensions();
+            new BlacklistedExtensionPostProcessor(configManager, dbClient).RemoveFiles();
+            new SampleAbstractFilesPostProcessor(configManager, dbClient).RemoveFiles();
 
             // validate video files found
             if (configManager.IsEnsureImportableVideoEnabled())
