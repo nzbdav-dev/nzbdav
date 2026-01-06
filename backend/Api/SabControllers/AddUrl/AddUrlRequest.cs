@@ -113,7 +113,15 @@ public class AddUrlRequest() : AddFileRequest
             MaxAutomaticRedirections = MaxAutomaticRedirections,
         };
         var httpClient = new HttpClient(handler);
-        httpClient.DefaultRequestHeaders.Add("User-Agent", UserAgentHeader);
+        var userAgentEnv = Environment.GetEnvironmentVariable("NZB_GRAB_USER_AGENT");
+        
+        var addedCustom = !string.IsNullOrWhiteSpace(userAgentEnv) && 
+                          httpClient.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", userAgentEnv);
+
+        if (!addedCustom)
+        {
+            httpClient.DefaultRequestHeaders.Add("User-Agent", UserAgentHeader);
+        }
         return httpClient;
     }
 
