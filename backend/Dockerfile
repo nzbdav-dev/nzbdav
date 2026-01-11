@@ -1,12 +1,12 @@
 # Build the project
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build-env
+FROM mcr.microsoft.com/dotnet/sdk:10.0-alpine AS build-env
 WORKDIR /nzb-webdav
 COPY ./ ./
 RUN dotnet restore
 RUN dotnet publish -c Release -r linux-musl-x64 -o ./publish
 
 # Build the production image
-FROM mcr.microsoft.com/dotnet/aspnet:9.0-alpine
+FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine
 EXPOSE 8080
 WORKDIR /nzb-webdav
 RUN mkdir /config
