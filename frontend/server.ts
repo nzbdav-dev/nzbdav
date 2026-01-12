@@ -11,7 +11,25 @@ const PORT = Number.parseInt(process.env.PORT || "3000");
 
 // Initialize the express app
 const app = express();
-app.use(compression());
+app.use(
+  compression({
+    // Don't compress proxied WebDAV/media/API responses; keep Content-Length intact for seek
+    filter: (req, res) => {
+      const path = req.path || "";
+      if (
+        path.startsWith("/view") ||
+        path.startsWith("/.ids") ||
+        path.startsWith("/nzbs") ||
+        path.startsWith("/content") ||
+        path.startsWith("/completed-symlinks") ||
+        path.startsWith("/api")
+      ) {
+        return false;
+      }
+      return compression.filter(req, res);
+    },
+  }),
+);
 app.disable("x-powered-by");
 
 // Initialize the websocket server as soon as both it and the server-module are ready

@@ -23,6 +23,9 @@ public class ListWebdavDirectoryController(DatabaseStore store, ConfigManager co
         if (item is null) throw new BadHttpRequestException("The file does not exist.");
         if (item is IStoreCollection) throw new BadHttpRequestException("The file does not exist.");
 
+        // disable compression to keep Content-Length intact for clients that need seeking
+        Response.Headers["Content-Encoding"] = "identity";
+
         // handle par2 preview
         if (Path.GetExtension(item.Name).ToLower() == ".par2" && configManager.IsPreviewPar2FilesEnabled())
             return await GetPar2PreviewStream(item).ConfigureAwait(false);
@@ -33,6 +36,8 @@ public class ListWebdavDirectoryController(DatabaseStore store, ConfigManager co
 
         // set the content-typ header
         Response.Headers["Content-Type"] = GetContentType(item.Name);
+        // disable compression to keep Content-Length intact for clients that need seeking
+        Response.Headers["Content-Encoding"] = "identity";
         Response.Headers["Accept-Ranges"] = "bytes";
 
         if (request.RangeStart is not null)
@@ -67,6 +72,22 @@ public class ListWebdavDirectoryController(DatabaseStore store, ConfigManager co
             var request = new GetWebdavItemRequest(HttpContext);
             await using var response = await GetWebdavItem(request).ConfigureAwait(false);
             await response.CopyToAsync(Response.Body, bufferSize: 1024, HttpContext.RequestAborted).ConfigureAwait(false);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            Response.StatusCode = 401;
+        }
+    }
+
+    [HttpHead]
+    public async Task HandleHeadRequest()
+    {
+        try
+        {
+            HttpContext.Items["configManager"] = configManager;
+            var request = new GetWebdavItemRequest(HttpContext);
+            await using var response = await GetWebdavItem(request).ConfigureAwait(false);
+            // HEAD: headers already set, body omitted
         }
         catch (UnauthorizedAccessException)
         {
