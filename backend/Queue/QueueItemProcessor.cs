@@ -131,7 +131,8 @@ public class QueueItemProcessor(
             segments, par2FileDescriptors);
 
         // step 2 -- perform file processing
-        var fileProcessors = GetFileProcessors(fileInfos, archivePassword).ToList();
+        // The file name's password takes priority
+        var fileProcessors = GetFileProcessors(fileInfos, FilenameUtil.GetNzbPassword(queueItem.FileName) ?? archivePassword).ToList();
         var part2Progress = progress
             .Offset(50)
             .Scale(50, 100)

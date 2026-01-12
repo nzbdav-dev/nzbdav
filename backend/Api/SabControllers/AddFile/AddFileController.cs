@@ -7,6 +7,7 @@ using NzbWebDAV.Database;
 using NzbWebDAV.Database.Models;
 using NzbWebDAV.Extensions;
 using NzbWebDAV.Queue;
+using NzbWebDAV.Utils;
 using NzbWebDAV.Websocket;
 using Usenet.Nzb;
 
@@ -34,7 +35,7 @@ public class AddFileController(
             Id = Guid.NewGuid(),
             CreatedAt = DateTime.Now,
             FileName = request.FileName,
-            JobName = Path.GetFileNameWithoutExtension(request.FileName),
+            JobName = FilenameUtil.GetJobName(request.FileName),
             NzbFileSize = documentBytes.Length,
             TotalSegmentBytes = document.Files.SelectMany(x => x.Segments).Select(x => x.Size).Sum(),
             Category = request.Category,
