@@ -2,8 +2,14 @@
 
 namespace NzbWebDAV.Utils;
 
-public class FilenameUtil
+public partial class FilenameUtil
 {
+    // Group `pw` contains the password,
+    // Group `rm` contains the part of the filename that should be removed to create a clean job name
+    // Group `br` ensures that the brackets are closed / is used for back reference
+    [GeneratedRegex(@"(?<rm>[\s-]*(?:(?<br>{{)|password=)(?<pw>\w+)(?(br)}}))\.nzb$", RegexOptions.IgnoreCase)]
+    public static partial Regex PasswordRegex { get; }
+
     private static readonly HashSet<string> VideoExtensions =
     [
         ".webm", ".m4v", ".3gp", ".nsv", ".ty", ".strm", ".rm", ".rmvb", ".m3u", ".ifo", ".mov", ".qt", ".divx",
@@ -42,5 +48,21 @@ public class FilenameUtil
     {
         if (string.IsNullOrEmpty(filename)) return false;
         return Regex.IsMatch(filename, @"\.mkv\.(\d+)?$", RegexOptions.IgnoreCase);
+    }
+
+    public static string GetJobName(string filename)
+    {
+        var passMatch = PasswordRegex.Match(filename);
+        return Path.GetFileNameWithoutExtension(
+            passMatch.Success ?
+            filename.Replace(passMatch.Groups["rm"].Value, "") :
+            filename
+        );
+    }
+
+    public static string? GetNzbPassword(string filename)
+    {
+        var passMatch = PasswordRegex.Match(filename);
+        return passMatch.Success ? passMatch.Groups["pw"].Value : null;
     }
 }
