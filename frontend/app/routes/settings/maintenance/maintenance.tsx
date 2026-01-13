@@ -38,7 +38,7 @@ export function Maintenance({ savedConfig }: MaintenanceProps) {
                         Export all available Media to Strm Files
                     </Accordion.Header>
                     <Accordion.Body className={styles.accordionBody}>
-                        <RecreateStrmFiles savedConfig={savedConfig} />
+                        <RecreateStrmFiles />
                     </Accordion.Body>
                 </Accordion.Item>
 

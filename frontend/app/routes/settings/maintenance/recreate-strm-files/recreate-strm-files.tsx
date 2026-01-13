@@ -1,25 +1,20 @@
-import { Alert, Button, Form } from "react-bootstrap";
+import { Button, Form } from "react-bootstrap";
 import styles from "./recreate-strm-files.module.css";
 import { useCallback, useEffect, useState } from "react";
 import { receiveMessage } from "~/utils/websocket-util";
 
 const cleanupTaskTopic = { 'crst': 'state' };
 
-type RecreateStrmFilesProps = {
-    savedConfig: Record<string, string>
-};
-
-export function RecreateStrmFiles({ savedConfig }: RecreateStrmFilesProps) {
+export function RecreateStrmFiles() {
     // stateful variables
     const [connected, setConnected] = useState<boolean>(false);
     const [progress, setProgress] = useState<string | null>(null);
     const [isFetching, setIsFetching] = useState<boolean>(false);
 
     // derived variables
-    const completeDlDir = savedConfig["api.completed-downloads-dir"];
     const isFinished = progress?.startsWith("Done") || progress?.startsWith("Failed");
     const isRunning = !isFinished && (isFetching || progress !== null);
-    const isRunButtonEnabled = !!completeDlDir && connected && !isRunning;
+    const isRunButtonEnabled = connected && !isRunning;
     const runButtonVariant = isRunButtonEnabled ? 'success' : 'secondary';
     const runButtonLabel = isRunning ? "⌛ Running.." : '▶ Run Task';
 
@@ -47,17 +42,6 @@ export function RecreateStrmFiles({ savedConfig }: RecreateStrmFilesProps) {
 
     return (
         <>
-            {!completeDlDir &&
-                <Alert className={styles.alert} variant="warning">
-                    Warning
-                    <ul className={styles.list}>
-                        <li className={styles["list-item"]}>
-                            You must first configure the Completed Downloads Directory setting before running this task.
-                            Head over to the SABnzbd tab with selected 'STRM Files' Import Strategy.
-                        </li>
-                    </ul>
-                </Alert>
-            }
             <div className={styles.task}>
                 <Form.Group>
                     <div className={styles.run}>
