@@ -161,7 +161,7 @@ public class MultiConnectionNntpClient(ConnectionPool<INntpClient> connectionPoo
                 LogException(() => connectionLock?.Dispose());
                 if (retryCount > 0)
                 {
-                    Log.Warning(e, "Error getting connection-lock. Retrying with a new connection.");
+                    Log.Debug(e, "Error getting connection-lock. Retrying with a new connection.");
                     retryCount--;
                     continue;
                 }
@@ -194,7 +194,7 @@ public class MultiConnectionNntpClient(ConnectionPool<INntpClient> connectionPoo
                 LogException(() => connectionLock?.Dispose());
                 if (retryCount > 0)
                 {
-                    Log.Warning(e, $"Error executing nntp {name} command. Retrying with a new connection.");
+                    Log.Debug(e, $"Error executing nntp {name} command. Retrying with a new connection.");
                     retryCount--;
                     continue;
                 }
