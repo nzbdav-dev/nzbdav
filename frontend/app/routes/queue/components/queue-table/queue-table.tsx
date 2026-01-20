@@ -6,7 +6,10 @@ import type { TriCheckboxState } from "../tri-checkbox/tri-checkbox"
 import { PageRow, PageTable } from "../page-table/page-table"
 import { PageSection } from "../page-section/page-section"
 import { EmptyQueue } from "../empty-queue/empty-queue"
+import { SimpleDropdown } from "../simple-dropdown/simple-dropdown"
 import styles from "../../route.module.css"
+import { WideViewport } from "../wide-viewport/wide-viewport"
+import { ThinViewport } from "../thin-viewport/thin-viewport"
 
 export type QueueTableProps = {
     queueSlots: PresentationQueueSlot[],
@@ -18,6 +21,7 @@ export type QueueTableProps = {
 
 export function QueueTable({ queueSlots, totalQueueCount, onIsSelectedChanged, onIsRemovingChanged, onRemoved }: QueueTableProps) {
     const [isConfirmingRemoval, setIsConfirmingRemoval] = useState(false);
+    const [selectedCategory, setSelectedCategory] = useState("Uncategorized");
     var selectedCount = queueSlots.filter(x => !!x.isSelected).length;
     var headerCheckboxState: TriCheckboxState = selectedCount === 0 ? 'none' : selectedCount === queueSlots.length ? 'all' : 'some';
 
@@ -62,17 +66,38 @@ export function QueueTable({ queueSlots, totalQueueCount, onIsSelectedChanged, o
         onIsRemovingChanged(queued_nzo_ids, false);
     }, [queueSlots, setIsConfirmingRemoval, onIsRemovingChanged, onRemoved]);
 
-    var sectionTitle = (
+    const categoryDropdown = (
+        <div title="Choose the category for manual nzb uploads.">
+            <SimpleDropdown
+                options={["Uncategorized", "Movies", "Tv"]}
+                value={selectedCategory}
+                onChange={setSelectedCategory}
+            />
+        </div>
+    );
+
+    const sectionTitle = (
         <div className={styles.sectionTitle}>
             <h3>Queue</h3>
             {headerCheckboxState !== 'none' &&
                 <ActionButton type="delete" onClick={onRemove} />
             }
+            <WideViewport width="450px">
+                <div style={{ marginLeft: '10px' }}>
+                    {categoryDropdown}
+                </div>
+            </WideViewport>
         </div>
     );
 
+    const sectionSubTitle = (
+        <ThinViewport width="450px">
+            {categoryDropdown}
+        </ThinViewport>
+    );
+
     return (
-        <PageSection title={sectionTitle} badgeText={`${queueSlots.length} of ${totalQueueCount}`}>
+        <PageSection title={sectionTitle} subTitle={sectionSubTitle} badgeText={`${queueSlots.length} of ${totalQueueCount}`}>
             {queueSlots?.length == 0 ? (
                 <EmptyQueue />
             ) : (

@@ -3,18 +3,22 @@ import type { ReactNode } from "react";
 
 export type PageTableProps = {
     title: ReactNode,
+    subTitle?: ReactNode,
     badgeText: string,
     children?: ReactNode,
 }
 
-export function PageSection({ title, badgeText, children }: PageTableProps) {
+export function PageSection({ title, subTitle, badgeText, children }: PageTableProps) {
     return (
         <div className={styles.container}>
             <div className={styles.header}>
-                {title}
-                <div className={styles.badgeText}>
-                    {badgeText}
+                <div className={styles.titleRow}>
+                    {title}
+                    <div className={styles.badgeText}>
+                        {badgeText}
+                    </div>
                 </div>
+                {subTitle}
             </div>
             {children}
         </div>

@@ -10,12 +10,16 @@
 }
 
 .header {
+    margin-bottom: 24px;
+}
+
+.titleRow {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 24px;
     flex-wrap: wrap;
     gap: 16px;
+    margin-bottom: 10px;
 }
 
 .badgeText {

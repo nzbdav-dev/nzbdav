@@ -1,0 +1,59 @@
+.container {
+    position: relative;
+    display: inline-block;
+}
+
+.selected {
+    color: hsl(180, 7%, 55%);
+    font-size: 0.9em;
+    font-weight: 500;
+    padding: 0;
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.selected:hover {
+    color: hsl(180, 7%, 65%);
+}
+
+.arrow {
+    width: 0;
+    height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 4px solid hsl(180, 7%, 55%);
+    margin-left: 2px;
+}
+
+.selected:hover .arrow {
+    border-top-color: hsl(180, 7%, 65%);
+}
+
+.dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background: hsl(196.8 80% 7%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    margin-top: 4px;
+    z-index: 1000;
+    min-width: 100%;
+}
+
+.option {
+    color: hsl(180, 7%, 55%);
+    font-size: 0.9em;
+    font-weight: 500;
+    padding: 8px 12px;
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+}
+
+.option:hover {
+    background: hsl(196.8, 25%, 14.51%);
+    color: hsl(180, 7%, 65%);
+}
