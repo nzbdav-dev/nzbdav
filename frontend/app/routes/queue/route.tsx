@@ -59,7 +59,7 @@ export default function Queue(props: Route.ComponentProps) {
 
     // uploads
     const dropzone = useQueueDropzone(setUploadingFiles, uploadQueueRef, manualCategoryRef);
-    initializeUploadController(isUploadingRef, uploadQueueRef, manualCategoryRef, uploadingFiles, setUploadingFiles);
+    initializeUploadController(isUploadingRef, uploadQueueRef, uploadingFiles, setUploadingFiles);
 
     // view
     return (

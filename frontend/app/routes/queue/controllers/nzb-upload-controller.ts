@@ -4,19 +4,17 @@ import type { UploadingFile } from "../route";
 export function initializeUploadController(
     isUploadingRef: React.RefObject<boolean>,
     uploadQueueRef: React.RefObject<UploadingFile[]>,
-    manualCategoryRef: React.RefObject<string>,
     uploadingFiles: UploadingFile[],
     setUploadingFiles: (value: React.SetStateAction<UploadingFile[]>) => void,
 ) {
     useEffect(() => {
-        processUploadQueue(isUploadingRef, uploadQueueRef, manualCategoryRef, setUploadingFiles);
+        processUploadQueue(isUploadingRef, uploadQueueRef, setUploadingFiles);
     }, [uploadingFiles]);
 }
 
 async function processUploadQueue(
     isUploadingRef: React.RefObject<boolean>,
     uploadQueueRef: React.RefObject<UploadingFile[]>,
-    manualCategoryRef: React.RefObject<string>,
     setUploadingFiles: (value: React.SetStateAction<UploadingFile[]>) => void
 ) {
     if (isUploadingRef.current || uploadQueueRef.current.length === 0) return;
@@ -66,7 +64,7 @@ async function processUploadQueue(
             xhr.addEventListener('error', () => reject(new Error('Upload failed')));
             xhr.addEventListener('abort', () => reject(new Error('Upload aborted')));
 
-            xhr.open('POST', `/api?mode=addfile&cat=${manualCategoryRef.current}&priority=0&pp=0`);
+            xhr.open('POST', `/api?mode=addfile&cat=${fileToUpload.queueSlot.cat}&priority=0&pp=0`);
             xhr.send(formData);
         });
 
@@ -91,6 +89,6 @@ async function processUploadQueue(
     isUploadingRef.current = false;
 
     if (uploadQueueRef.current.length > 0) {
-        processUploadQueue(isUploadingRef, uploadQueueRef, manualCategoryRef, setUploadingFiles);
+        processUploadQueue(isUploadingRef, uploadQueueRef, setUploadingFiles);
     }
 }
