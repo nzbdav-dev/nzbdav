@@ -33,8 +33,8 @@ public class NzbFileStream(
 
     public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
     {
-        if (_innerStream == null)
-            _innerStream = await GetFileStream(_position, cancellationToken).ConfigureAwait(false);
+        if (_position >= fileSize) return 0;
+        _innerStream ??= await GetFileStream(_position, cancellationToken).ConfigureAwait(false);
         var read = await _innerStream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
         _position += read;
         return read;
