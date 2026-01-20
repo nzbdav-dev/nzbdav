@@ -11,7 +11,7 @@ export type PageTableProps = {
     children?: ReactNode,
     headerCheckboxState: TriCheckboxState,
     onHeaderCheckboxChange: (isChecked: boolean) => void,
-    footer?: string,
+    footer?: ReactNode,
 }
 
 export function PageTable({ children, headerCheckboxState, onHeaderCheckboxChange, footer }: PageTableProps) {

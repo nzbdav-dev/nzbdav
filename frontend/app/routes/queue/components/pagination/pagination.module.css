@@ -1,0 +1,36 @@
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.pageSelector {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.pageText {
+    color: hsl(180, 7%, 55%);
+    font-size: 0.9em;
+    font-weight: 500;
+}
+
+.navLink {
+    padding: 4px 8px;
+    text-decoration: none;
+    color: hsl(192deg 53.8% 38.24%);
+    cursor: pointer;
+}
+
+.navLink:hover {
+    text-decoration: underline;
+}
+
+.navLinkDisabled {
+    padding: 4px 8px;
+    color: var(--bs-secondary);
+    cursor: not-allowed;
+}
