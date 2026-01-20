@@ -83,6 +83,7 @@ class Program
             .AddSingleton<QueueManager>()
             .AddHostedService<HealthCheckService>()
             .AddHostedService<ArrMonitoringService>()
+            .AddHostedService<BlobCleanupService>()
             .AddScoped<DavDatabaseContext>()
             .AddScoped<DavDatabaseClient>()
             .AddScoped<DatabaseStore>()
