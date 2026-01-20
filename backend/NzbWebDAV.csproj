@@ -19,7 +19,7 @@
       <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
       <PackageReference Include="SharpCompress" Version="0.39.0" />
       <PackageReference Include="Usenet" Version="3.1.0" />
-      <PackageReference Include="UsenetSharp" Version="1.0.4" />
+      <PackageReference Include="UsenetSharp" Version="1.0.5" />
     </ItemGroup>
 
     <ItemGroup>
