@@ -16,11 +16,13 @@ public class FileAggregator(DavDatabaseClient dbClient, DavItem mountDirectory, 
         {
             if (processorResult is not FileProcessor.Result result) continue;
             if (result.FileName == "") continue; // skip files whose name we can't determine
+            var parentDirectory = EnsureParentDirectory(result.FileName);
+            var name = Path.GetFileName(result.FileName);
 
             var davItem = DavItem.New(
                 id: Guid.NewGuid(),
-                parent: mountDirectory,
-                name: result.FileName,
+                parent: parentDirectory,
+                name: name,
                 fileSize: result.FileSize,
                 type: DavItem.ItemType.NzbFile,
                 releaseDate: result.ReleaseDate,

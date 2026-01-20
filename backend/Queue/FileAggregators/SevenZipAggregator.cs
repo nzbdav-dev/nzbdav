@@ -30,7 +30,7 @@ public class SevenZipAggregator(
         {
             var pathWithinArchive = sevenZipFile.PathWithinArchive;
             var davMultipartFileMeta = sevenZipFile.DavMultipartFileMeta;
-            var parentDirectory = EnsureExtractPath(pathWithinArchive);
+            var parentDirectory = EnsureParentDirectory(pathWithinArchive);
             var name = Path.GetFileName(pathWithinArchive);
 
             // If there is only one file in the archive and the file-name is obfuscated,

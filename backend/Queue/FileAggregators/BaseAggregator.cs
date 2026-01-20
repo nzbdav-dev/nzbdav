@@ -10,10 +10,21 @@ public abstract class BaseAggregator
     protected abstract DavDatabaseClient DBClient { get; }
     protected abstract DavItem MountDirectory { get; }
 
-    protected DavItem EnsureExtractPath(string pathWithinArchive)
+    private static readonly char[] DirectorySeparators =
+    [
+        Path.DirectorySeparatorChar,
+        Path.AltDirectorySeparatorChar
+    ];
+
+    /// <summary>
+    /// Ensures that all parent-directories for the given `relativePath` exist.
+    /// </summary>
+    /// <param name="relativePath">The path at which to place a file, relative to the `MountDirectory`.</param>
+    /// <returns>The parentDirectory DavItem</returns>
+    protected DavItem EnsureParentDirectory(string relativePath)
     {
-        var pathSegments = pathWithinArchive
-            .Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+        var pathSegments = relativePath
+            .Split(DirectorySeparators, StringSplitOptions.RemoveEmptyEntries)
             .ToArray();
         var parentDirectory = MountDirectory;
         var pathKey = "";
