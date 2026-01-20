@@ -49,14 +49,10 @@ public class AddUrlRequest() : AddFileRequest
             var contentType = response.Content.Headers.ContentType?.MediaType;
 
             // determine the filename
-            var fileName = AddNzbExtension(nzbName);
-            if (fileName == null)
-            {
-                var contentDisposition = response.Content.Headers.ContentDisposition;
-                fileName = contentDisposition?.FileName?.Trim('"');
-                if (string.IsNullOrEmpty(fileName))
-                    throw new Exception("Filename could not be determined from Content-Disposition header.");
-            }
+            var fileName = AddNzbExtension(nzbName)
+                           ?? GetFilenameFromResponseHeader(response)
+                           ?? GetFilenameFromUrl(url)
+                           ?? throw new Exception("Nzb filename could not be determined.");
 
             // read the file contents
             var fileStream = await response.Content.ReadAsStreamAsync();
@@ -121,6 +117,29 @@ public class AddUrlRequest() : AddFileRequest
             httpClient.DefaultRequestHeaders.Add("User-Agent", UserAgentHeader);
         }
         return httpClient;
+    }
+
+    private static string? GetFilenameFromResponseHeader(HttpResponseMessage response)
+    {
+        var contentDisposition = response.Content.Headers.ContentDisposition;
+        var filename = contentDisposition?.FileName?.Trim('"');
+        return StringUtil.EmptyToNull(filename);
+    }
+
+    private static string? GetFilenameFromUrl(string url)
+    {
+        try
+        {
+            var filename = Path.GetFileName(new Uri(url).AbsolutePath);
+            if (string.IsNullOrWhiteSpace(filename)) return null;
+            filename = Uri.UnescapeDataString(filename);
+            filename = AddNzbExtension(filename);
+            return filename;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private class NzbFileResponse
