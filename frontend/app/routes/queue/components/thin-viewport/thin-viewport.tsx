@@ -1,5 +1,5 @@
 import type { ReactNode } from "react"
-import { useId } from "react"
+import { memo, useId } from "react"
 import styles from "./thin-viewport.module.css"
 
 export type ThinViewportProps = {
@@ -7,7 +7,7 @@ export type ThinViewportProps = {
     children: ReactNode,
 }
 
-export function ThinViewport({ width, children }: ThinViewportProps) {
+export const ThinViewport = memo(({ width, children }: ThinViewportProps) => {
     const id = useId();
     const uniqueId = `thin-viewport-${id.replace(/:/g, '-')}`;
 
@@ -27,4 +27,4 @@ export function ThinViewport({ width, children }: ThinViewportProps) {
             </div>
         </>
     );
-}
+});

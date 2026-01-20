@@ -1,5 +1,5 @@
 import { ActionButton } from "../action-button/action-button"
-import { memo, useCallback, useState } from "react"
+import { memo, useCallback, useMemo, useState } from "react"
 import { ConfirmModal } from "../confirm-modal/confirm-modal"
 import type { PresentationQueueSlot } from "../../route"
 import type { TriCheckboxState } from "../tri-checkbox/tri-checkbox"
@@ -92,7 +92,7 @@ export function QueueTable({
     }, [queueSlots, setIsConfirmingRemoval, onIsRemovingChanged, onRemoved]);
 
     // view
-    const categoryDropdown = (
+    const categoryDropdown = useMemo(() => (
         <div title="Choose the category for manual nzb uploads.">
             <SimpleDropdown
                 options={categories}
@@ -100,7 +100,7 @@ export function QueueTable({
                 onChange={onManualCategoryChanged}
             />
         </div>
-    );
+    ), [categories, manualCategory, onManualCategoryChanged]);
 
     const sectionTitle = (
         <div className={styles.sectionTitle}>
