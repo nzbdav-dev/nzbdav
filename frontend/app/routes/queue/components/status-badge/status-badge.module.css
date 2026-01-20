@@ -18,7 +18,7 @@
     width: 85px;
 }
 
-.badge-text {
+.badgeText {
     position: relative;
 }
 
@@ -41,6 +41,10 @@
     background-color: #60aa4a;
 }
 
+.uploadProgress {
+    background-color: hsl(198.69deg 74.6% 44.28%);
+}
+
 @media not (min-width: 900px) {
     .container {
         display: flex;
@@ -49,7 +53,7 @@
 
 @media not (pointer: coarse),
 (min-width: 900px) {
-    .failure-badge:hover {
+    .failureBadge:hover {
         cursor: pointer;
     }
 }

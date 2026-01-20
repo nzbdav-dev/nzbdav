@@ -146,6 +146,7 @@ export function QueueRow({ slot, onIsSelectedChanged, onIsRemovingChanged, onRem
                 fileSizeBytes={Number(slot.mb) * 1024 * 1024}
                 actions={<ActionButton type="delete" disabled={!!slot.isRemoving} onClick={onRemove} />}
                 onRowSelectionChanged={isSelected => onIsSelectedChanged(slot.nzo_id, isSelected)}
+                error={slot.error}
             />
             <ConfirmModal
                 show={isConfirmingRemoval}

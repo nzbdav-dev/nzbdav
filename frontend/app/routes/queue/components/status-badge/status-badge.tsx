@@ -1,75 +1,119 @@
 import { OverlayTrigger, Tooltip } from "react-bootstrap";
 import styles from "./status-badge.module.css";
-import type React from "react";
-import { className } from "~/utils/styling";
+import { classNames } from "~/utils/styling";
 
 export type StatusBadgeProps = {
+    className?: string,
     status: string,
     percentage?: string,
     error?: string,
 }
 
 
-export function StatusBadge({ status, percentage, error }: StatusBadgeProps) {
+export function StatusBadge({ className, status, percentage, error }: StatusBadgeProps) {
     const statusLower = status?.toLowerCase();
-    const percentNum = statusLower === "downloading" ? Number(percentage) : 0;
 
-    // determine badge color
-    let color = "grey";
-    if (statusLower === "completed") color = "rgba(var(--bs-success-rgb)";
-    if (statusLower === "failed") color = "rgba(var(--bs-danger-rgb)";
-    if (statusLower === "downloading" || percentNum > 0) color = `#333`;
-
-    // determine badge text
-    let badgeText = statusLower;
-    if (statusLower === "downloading" || percentNum > 0)
-        badgeText = `${percentNum > 100 ? percentNum - 100 : percentNum}%`;
-
-    // determine class name
-    if (error?.startsWith("Article with message-id")) error = "Missing articles";
-    const badgeClass = statusLower === "failed" ? styles["failure-badge"] : "";
-    const overlay = statusLower == "failed"
-        ? <Tooltip>{error}</Tooltip>
-        : <></>;
-
-    return (
-        <OverlayTrigger placement="top" overlay={overlay} trigger="click">
+    if (statusLower === "completed") {
+        return (
             <div className={styles.container}>
-                <ProgressBadge className={badgeClass} color={color} percentNum={percentNum}>{badgeText}</ProgressBadge>
+                <div className={styles.badge} style={{ backgroundColor: "rgba(var(--bs-success-rgb)" }}>
+                    <div className={styles.badgeText}>{statusLower}</div>
+                </div>
             </div>
-        </OverlayTrigger>
-    );
-}
+        );
+    }
 
-type ProgressBadgeProps = {
-    className?: string,
-    color: string,
-    percentNum: number,
-    children?: React.ReactNode
-}
+    if (statusLower === "failed" || statusLower == "upload failed") {
+        const badgeText = statusLower == "upload failed" ? "🡅 failed" : "failed";
+        if (error?.startsWith("Article with message-id"))
+            error = "Missing articles";
 
-export function ProgressBadge(props: ProgressBadgeProps) {
-    const isHealthCheck = props.percentNum > 100;
+        return (
+            <OverlayTrigger placement="top" overlay={<Tooltip>{error}</Tooltip>} trigger="click">
+                <div className={classNames([styles.container, styles.failureBadge])}>
+                    <div className={styles.badge} style={{ backgroundColor: "rgba(var(--bs-danger-rgb)" }}>
+                        <div className={styles.badgeText}>{badgeText}</div>
+                    </div>
+                </div>
+            </OverlayTrigger >
+        );
+    }
 
-    const progressOneClass = isHealthCheck
-        ? `${styles.progress} ${styles.gray}`
-        : styles.progress;
+    if (statusLower === "downloading") {
+        const percentNum = Number(percentage);
+        const badgeText = `${percentNum > 100 ? percentNum - 100 : percentNum}%`;
+        const isHealthChecking = percentNum > 100;
 
-    const progressOneStyle = (props.percentNum >= 0)
-        ? { width: `${Math.min(props.percentNum, 100)}%` }
-        : undefined;
+        // download progress-bar
+        const downloadProgressClass = isHealthChecking
+            ? `${styles.progress} ${styles.gray}`
+            : styles.progress;
+        const downloadProgressStyle = (percentNum >= 0)
+            ? { width: `${Math.min(percentNum, 100)}%` }
+            : undefined;
 
-    const progressTwoClass = `${styles.progress} ${styles.healthcheckProgress}`;
+        // health-check progress-bar
+        const healthCheckProgressClass = `${styles.progress} ${styles.healthcheckProgress}`;
+        const healthCheckProgressStyle = isHealthChecking
+            ? { width: `${Math.min(percentNum - 100, 100)}%` }
+            : undefined;
 
-    const progressTwoStyle = isHealthCheck
-        ? { width: `${Math.min(props.percentNum - 100, 100)}%` }
-        : undefined;
+        return (
+            <div className={styles.container}>
+                <div className={styles.badge} style={{ backgroundColor: "#333" }}>
+                    <div className={downloadProgressClass} style={downloadProgressStyle} />
+                    <div className={healthCheckProgressClass} style={healthCheckProgressStyle} />
+                    <div className={styles.badgeText}>{badgeText}</div>
+                </div>
+            </div>
+        );
+    }
+
+    if (statusLower === "uploading") {
+        const percentNum = Number(percentage);
+        const badgeText = `🡅 ${percentNum}%`;
+        const uploadProgressClass = `${styles.progress} ${styles.uploadProgress}`;
+        const uploadProgressStyle = { width: `${Math.min(percentNum, 100)}%` };
+
+        return (
+            <div className={styles.container}>
+                <div className={styles.badge} style={{ backgroundColor: "#333" }}>
+                    <div className={uploadProgressClass} style={uploadProgressStyle} />
+                    <div className={styles.badgeText}>{badgeText}</div>
+                </div>
+            </div>
+        );
+    }
+
+    if (statusLower === "pending") {
+        return (
+            <div className={styles.container}>
+                <div className={styles.badge} style={{ backgroundColor: "#333" }}>
+                    <div className={styles.badgeText}>{'🡅 pending'}</div>
+                </div>
+            </div>
+        );
+    }
+
+    if (statusLower === "health-checking") {
+        const percentNum = Number(percentage);
+        const badgeText = `${percentNum}%`;
+        const healthCheckProgressClass = `${styles.progress} ${styles.healthcheckProgress}`;
+        const healthCheckProgressStyle = { width: `${Math.min(percentNum, 100)}%` };
+
+        return (
+            <div className={classNames([styles.badge, className])} style={{ backgroundColor: "#333" }}>
+                <div className={healthCheckProgressClass} style={healthCheckProgressStyle} />
+                <div className={styles.badgeText}>{badgeText}</div>
+            </div>
+        );
+    }
 
     return (
-        <div {...className([styles.badge, props.className])} style={{ backgroundColor: props.color }}>
-            <div className={progressOneClass} style={progressOneStyle} />
-            <div className={progressTwoClass} style={progressTwoStyle} />
-            <div className={styles["badge-text"]}>{props.children}</div>
+        <div className={styles.container}>
+            <div className={styles.badge} style={{ backgroundColor: "grey" }}>
+                <div className={styles.badgeText}>{statusLower}</div>
+            </div>
         </div>
     );
 }

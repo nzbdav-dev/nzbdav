@@ -2,7 +2,7 @@ import { Table, Badge } from "react-bootstrap";
 import type { HealthCheckQueueItem } from "~/clients/backend-client.server";
 import styles from "./health-table.module.css";
 import { Truncate } from "~/routes/queue/components/truncate/truncate";
-import { ProgressBadge } from "~/routes/queue/components/status-badge/status-badge";
+import { StatusBadge } from "~/routes/queue/components/status-badge/status-badge";
 
 export type HealthTableProps = {
     isEnabled: boolean,
@@ -67,7 +67,7 @@ export function HealthTable({ isEnabled, healthCheckItems }: HealthTableProps) {
                                     </td>
                                     <td className={`${styles.dateCell} ${styles.desktop}`}>
                                         {item.progress > 0
-                                            ? <ProgressBadge className={styles.dateBadge} color={"#333"} percentNum={100 + item.progress}>{item.progress}%</ProgressBadge>
+                                            ? <StatusBadge status="health-checking" className={styles.dateBadge} percentage={item.progress.toString()} />
                                             : formatDateBadge(item.nextHealthCheck, 'ASAP', 'success')
                                         }
                                     </td>
@@ -100,7 +100,7 @@ function DateDetailsTable({ item }: { item: HealthCheckQueueItem }) {
                 <div className={styles.dateDetailsLabel}>Next Health Check</div>
                 <div className={styles.dateDetailsValue}>
                     {item.progress > 0
-                        ? <ProgressBadge className={styles.dateBadge} color={"#333"} percentNum={100 + item.progress}>{item.progress}%</ProgressBadge>
+                        ? <StatusBadge status="health-checking" className={styles.dateBadge} percentage={item.progress.toString()} />
                         : formatDateBadge(item.nextHealthCheck, 'ASAP', 'success')
                     }
                 </div>

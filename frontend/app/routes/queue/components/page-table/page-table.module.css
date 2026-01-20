@@ -89,7 +89,11 @@
     }
 
     .uploading {
-        background: rgba(128, 150, 255, 0.1);
+        background: rgba(0, 255, 255, 0.05);
+    }
+
+    .uploading + :not(.uploading) {
+        border-top: 3px solid hsl(192, 100%, 11%);
     }
 }
 
