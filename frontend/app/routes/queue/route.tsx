@@ -28,15 +28,30 @@ const topicSubscriptions = {
 
 const maxItems = 100;
 export async function loader({ request }: Route.LoaderArgs) {
-    var queuePromise = backendClient.getQueue(maxItems);
-    var historyPromise = backendClient.getHistory(maxItems);
-    var queue = await queuePromise;
-    var history = await historyPromise;
+    const queuePromise = backendClient.getQueue(maxItems);
+    const historyPromise = backendClient.getHistory(maxItems);
+    const configPromise = backendClient.getConfig(["api.categories", "api.manual-category"])
+    const queue = await queuePromise;
+    const history = await historyPromise;
+    const config = await configPromise;
+    const categoriesValue = config
+        .find(x => x.configName === "api.categories")
+        ?.configValue ?? "uncategorized,audio,software,tv,movies";
+    const manualCategory = config
+        .find(x => x.configName === "api.manual-category")
+        ?.configValue ?? "uncategorized";
+    let categories = categoriesValue.split(',').map(x => x.trim());
+    if (!categories.includes(manualCategory)) {
+        categories = [manualCategory, ...categories];
+    }
+
     return {
         queueSlots: queue?.slots || [],
         historySlots: history?.slots || [],
         totalQueueCount: queue?.noofslots || 0,
         totalHistoryCount: history?.noofslots || 0,
+        categories: categories,
+        manualCategory: manualCategory,
     }
 }
 
@@ -44,10 +59,18 @@ export default function Queue(props: Route.ComponentProps) {
     const [queueSlots, setQueueSlots] = useState<PresentationQueueSlot[]>(props.loaderData.queueSlots);
     const [historySlots, setHistorySlots] = useState<PresentationHistorySlot[]>(props.loaderData.historySlots);
     const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([]);
+    const [manualCategory, setManualCategory] = useState<string>(props.loaderData.manualCategory);
     const uploadQueueRef = useRef<UploadingFile[]>([]);
+    const manualCategoryRef = useRef<string>(manualCategory);
     const isUploadingRef = useRef(false);
     const disableLiveView = queueSlots.length == maxItems || historySlots.length == maxItems;
     const combinedQueueSlots = [...uploadingFiles.map(file => file.queueSlot), ...queueSlots];
+
+    // category events
+    const onManualCategoryChanged = useCallback((category: string) => {
+        setManualCategory(category);
+        manualCategoryRef.current = category;
+    }, []);
 
     // queue events
     const onAddQueueSlot = useCallback((queueSlot: QueueSlot) => {
@@ -57,7 +80,7 @@ export default function Queue(props: Route.ComponentProps) {
     }, [setQueueSlots]);
 
     const onSelectQueueSlots = useCallback((ids: Set<string>, isSelected: boolean) => {
-        setUploadingFiles(files => files.map(x => ids.has(x.queueSlot.nzo_id) ? { ...x, queueSlot: {...x.queueSlot, isSelected} } : x));
+        setUploadingFiles(files => files.map(x => ids.has(x.queueSlot.nzo_id) ? { ...x, queueSlot: { ...x.queueSlot, isSelected } } : x));
         setQueueSlots(slots => slots.map(x => ids.has(x.nzo_id) ? { ...x, isSelected } : x));
     }, [setQueueSlots]);
 
@@ -188,7 +211,7 @@ export default function Queue(props: Route.ComponentProps) {
                 xhr.addEventListener('error', () => reject(new Error('Upload failed')));
                 xhr.addEventListener('abort', () => reject(new Error('Upload aborted')));
 
-                xhr.open('POST', '/api?mode=addfile&cat=uncategorized&priority=0&pp=0');
+                xhr.open('POST', `/api?mode=addfile&cat=${manualCategoryRef.current}&priority=0&pp=0`);
                 xhr.send(formData);
             });
 
@@ -231,7 +254,7 @@ export default function Queue(props: Route.ComponentProps) {
                 nzo_id: `upload-${Date.now()}-${Math.random()}`,
                 priority: 'Normal',
                 filename: file.name,
-                cat: 'uncategorized',
+                cat: manualCategoryRef.current,
                 percentage: "0",
                 true_percentage: "0",
                 status: "pending",
@@ -283,9 +306,12 @@ export default function Queue(props: Route.ComponentProps) {
                 <QueueTable
                     queueSlots={combinedQueueSlots}
                     totalQueueCount={props.loaderData.totalQueueCount + uploadingFiles.length}
+                    categories={props.loaderData.categories}
+                    manualCategory={manualCategory}
                     onIsSelectedChanged={onSelectQueueSlots}
                     onIsRemovingChanged={onRemovingQueueSlots}
                     onRemoved={onRemoveQueueSlots}
+                    onManualCategoryChanged={onManualCategoryChanged}
                 />
             </div>
 

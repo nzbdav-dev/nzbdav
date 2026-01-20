@@ -14,14 +14,25 @@ import { ThinViewport } from "../thin-viewport/thin-viewport"
 export type QueueTableProps = {
     queueSlots: PresentationQueueSlot[],
     totalQueueCount: number,
+    categories: string[],
+    manualCategory: string,
     onIsSelectedChanged: (nzo_ids: Set<string>, isSelected: boolean) => void,
     onIsRemovingChanged: (nzo_ids: Set<string>, isRemoving: boolean) => void,
     onRemoved: (nzo_ids: Set<string>) => void,
+    onManualCategoryChanged: (category: string) => void,
 }
 
-export function QueueTable({ queueSlots, totalQueueCount, onIsSelectedChanged, onIsRemovingChanged, onRemoved }: QueueTableProps) {
+export function QueueTable({
+    queueSlots,
+    totalQueueCount,
+    categories,
+    manualCategory,
+    onIsSelectedChanged,
+    onIsRemovingChanged,
+    onRemoved,
+    onManualCategoryChanged,
+}: QueueTableProps) {
     const [isConfirmingRemoval, setIsConfirmingRemoval] = useState(false);
-    const [selectedCategory, setSelectedCategory] = useState("Uncategorized");
     var selectedCount = queueSlots.filter(x => !!x.isSelected).length;
     var headerCheckboxState: TriCheckboxState = selectedCount === 0 ? 'none' : selectedCount === queueSlots.length ? 'all' : 'some';
 
@@ -69,9 +80,9 @@ export function QueueTable({ queueSlots, totalQueueCount, onIsSelectedChanged, o
     const categoryDropdown = (
         <div title="Choose the category for manual nzb uploads.">
             <SimpleDropdown
-                options={["Uncategorized", "Movies", "Tv"]}
-                value={selectedCategory}
-                onChange={setSelectedCategory}
+                options={categories}
+                value={manualCategory}
+                onChange={onManualCategoryChanged}
             />
         </div>
     );
@@ -179,7 +190,7 @@ export function QueueRow({ slot, onIsSelectedChanged, onIsRemovingChanged, onRem
                 isRemoving={!!slot.isRemoving}
                 name={slot.filename}
                 category={slot.cat}
-                status={slot.status}
+                status={slot.status}q
                 percentage={slot.true_percentage}
                 fileSizeBytes={Number(slot.mb) * 1024 * 1024}
                 actions={<ActionButton type="delete" disabled={!!slot.isRemoving || isActivelyUploading} onClick={onRemove} />}
