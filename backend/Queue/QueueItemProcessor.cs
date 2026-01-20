@@ -7,6 +7,7 @@ using NzbWebDAV.Config;
 using NzbWebDAV.Database;
 using NzbWebDAV.Database.Models;
 using NzbWebDAV.Extensions;
+using NzbWebDAV.Models.Nzb;
 using NzbWebDAV.Queue.DeobfuscationSteps._1.FetchFirstSegment;
 using NzbWebDAV.Queue.DeobfuscationSteps._2.GetPar2FileDescriptors;
 using NzbWebDAV.Queue.DeobfuscationSteps._3.GetFileInfos;
@@ -17,7 +18,6 @@ using NzbWebDAV.Services;
 using NzbWebDAV.Utils;
 using NzbWebDAV.Websocket;
 using Serilog;
-using Usenet.Nzb;
 
 namespace NzbWebDAV.Queue;
 
@@ -115,11 +115,11 @@ public class QueueItemProcessor(
         // Look for a password in filename and nzb document
         // The file name's password takes priority, as an easy override
         var archivePassword = FilenameUtil.GetNzbPassword(queueItem.FileName) ??
-            nzb.MetaData.GetValueOrDefault("password")?.FirstOrDefault();
+            nzb.Metadata.GetValueOrDefault("password");
 
         // step 0 -- perform article existence pre-check against cache
         // https://github.com/nzbdav-dev/nzbdav/issues/101
-        var articlesToPrecheck = nzbFiles.SelectMany(x => x.Segments).Select(x => x.MessageId.Value);
+        var articlesToPrecheck = nzbFiles.SelectMany(x => x.Segments).Select(x => x.MessageId);
         HealthCheckService.CheckCachedMissingSegmentIds(articlesToPrecheck);
 
         // step 1 -- get name and size of each nzb file

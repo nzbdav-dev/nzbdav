@@ -1,9 +1,9 @@
 ﻿using NzbWebDAV.Clients.Usenet;
 using NzbWebDAV.Exceptions;
+using NzbWebDAV.Models.Nzb;
 using NzbWebDAV.Queue.DeobfuscationSteps._3.GetFileInfos;
 using NzbWebDAV.Utils;
 using Serilog;
-using Usenet.Nzb;
 
 namespace NzbWebDAV.Queue.FileProcessors;
 

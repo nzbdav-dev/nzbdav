@@ -2,11 +2,11 @@
 using NzbWebDAV.Clients.Usenet;
 using NzbWebDAV.Extensions;
 using NzbWebDAV.Models;
+using NzbWebDAV.Models.Nzb;
 using NzbWebDAV.Queue.DeobfuscationSteps._3.GetFileInfos;
 using NzbWebDAV.Streams;
 using NzbWebDAV.Utils;
 using SharpCompress.Common.Rar.Headers;
-using Usenet.Nzb;
 
 namespace NzbWebDAV.Queue.FileProcessors;
 

@@ -4,7 +4,7 @@ using NzbWebDAV.Clients.Usenet;
 using NzbWebDAV.Config;
 using NzbWebDAV.Exceptions;
 using NzbWebDAV.Extensions;
-using Usenet.Nzb;
+using NzbWebDAV.Models.Nzb;
 using UsenetSharp.Models;
 
 namespace NzbWebDAV.Queue.DeobfuscationSteps._1.FetchFirstSegment;
@@ -37,7 +37,7 @@ public static class FetchFirstSegmentsStep
         try
         {
             // get the first article stream
-            var firstSegment = nzbFile.Segments[0].MessageId.Value;
+            var firstSegment = nzbFile.Segments[0].MessageId;
             var article = await usenetClient.DecodedArticleAsync(firstSegment, cancellationToken).ConfigureAwait(false);
             await using var bodyStream = article.Stream!;
 

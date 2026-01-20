@@ -1,4 +1,4 @@
-﻿using Usenet.Nzb;
+﻿using NzbWebDAV.Models.Nzb;
 
 namespace NzbWebDAV.Models;
 

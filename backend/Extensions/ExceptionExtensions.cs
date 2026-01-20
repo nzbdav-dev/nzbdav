@@ -12,8 +12,7 @@ public static class ExceptionExtensions
     public static bool IsNonRetryableDownloadException(this Exception exception)
     {
         return exception is NonRetryableDownloadException
-            or SharpCompress.Common.InvalidFormatException
-            or Usenet.Exceptions.InvalidYencDataException;
+            or SharpCompress.Common.InvalidFormatException;
     }
 
     public static bool IsCancellationException(this Exception exception)

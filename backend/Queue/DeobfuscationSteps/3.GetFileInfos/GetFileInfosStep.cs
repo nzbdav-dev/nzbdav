@@ -1,10 +1,10 @@
 ﻿using System.Security.Cryptography;
 using NzbWebDAV.Extensions;
 using NzbWebDAV.Models;
+using NzbWebDAV.Models.Nzb;
 using NzbWebDAV.Par2Recovery.Packets;
 using NzbWebDAV.Queue.DeobfuscationSteps._1.FetchFirstSegment;
 using NzbWebDAV.Utils;
-using Usenet.Nzb;
 
 namespace NzbWebDAV.Queue.DeobfuscationSteps._3.GetFileInfos;
 
