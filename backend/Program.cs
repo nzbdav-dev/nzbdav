@@ -81,8 +81,8 @@ class Program
             .AddSingleton(websocketManager)
             .AddSingleton<UsenetStreamingClient>()
             .AddSingleton<QueueManager>()
-            .AddSingleton<ArrMonitoringService>()
-            .AddSingleton<HealthCheckService>()
+            .AddHostedService<HealthCheckService>()
+            .AddHostedService<ArrMonitoringService>()
             .AddScoped<DavDatabaseContext>()
             .AddScoped<DavDatabaseClient>()
             .AddScoped<DatabaseStore>()
@@ -98,12 +98,8 @@ class Program
                     .IsWebdavAuthDisabled();
             });
 
-        // force instantiation of services
-        var app = builder.Build();
-        app.Services.GetRequiredService<ArrMonitoringService>();
-        app.Services.GetRequiredService<HealthCheckService>();
-
         // run
+        var app = builder.Build();
         app.UseMiddleware<ExceptionMiddleware>();
         app.UseWebSockets();
         app.MapHealthChecks("/health");

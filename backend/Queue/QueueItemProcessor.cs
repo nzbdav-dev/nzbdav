@@ -28,7 +28,6 @@ public class QueueItemProcessor(
     INntpClient usenetClient,
     ConfigManager configManager,
     WebsocketManager websocketManager,
-    HealthCheckService healthCheckService,
     IProgress<int> progress,
     CancellationToken ct
 )
@@ -121,7 +120,7 @@ public class QueueItemProcessor(
         // step 0 -- perform article existence pre-check against cache
         // https://github.com/nzbdav-dev/nzbdav/issues/101
         var articlesToPrecheck = nzbFiles.SelectMany(x => x.Segments).Select(x => x.MessageId.Value);
-        healthCheckService.CheckCachedMissingSegmentIds(articlesToPrecheck);
+        HealthCheckService.CheckCachedMissingSegmentIds(articlesToPrecheck);
 
         // step 1 -- get name and size of each nzb file
         var part1Progress = progress

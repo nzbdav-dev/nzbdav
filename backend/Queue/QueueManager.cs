@@ -18,7 +18,6 @@ public class QueueManager : IDisposable
     private readonly SemaphoreSlim _semaphore = new(1, 1);
     private readonly ConfigManager _configManager;
     private readonly WebsocketManager _websocketManager;
-    private readonly HealthCheckService _healthCheckService;
 
     private CancellationTokenSource _sleepingQueueToken = new();
     private readonly Lock _sleepingQueueLock = new();
@@ -26,14 +25,12 @@ public class QueueManager : IDisposable
     public QueueManager(
         UsenetStreamingClient usenetClient,
         ConfigManager configManager,
-        WebsocketManager websocketManager,
-        HealthCheckService healthCheckService
+        WebsocketManager websocketManager
     )
     {
         _usenetClient = usenetClient;
         _configManager = configManager;
         _websocketManager = websocketManager;
-        _healthCheckService = healthCheckService;
         _cancellationTokenSource = CancellationTokenSource
             .CreateLinkedTokenSource(SigtermUtil.GetCancellationToken());
         _ = ProcessQueueAsync(_cancellationTokenSource.Token);
@@ -141,8 +138,7 @@ public class QueueManager : IDisposable
         var progressHook = new Progress<int>();
         var task = new QueueItemProcessor(
             queueItem, queueNzbContents, dbClient, usenetClient,
-            _configManager, _websocketManager, _healthCheckService,
-            progressHook, cts.Token
+            _configManager, _websocketManager, progressHook, cts.Token
         ).ProcessAsync();
         var inProgressQueueItem = new InProgressQueueItem()
         {

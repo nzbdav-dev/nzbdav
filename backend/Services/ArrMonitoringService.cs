@@ -1,7 +1,7 @@
-﻿using NzbWebDAV.Clients.RadarrSonarr;
+﻿using Microsoft.Extensions.Hosting;
+using NzbWebDAV.Clients.RadarrSonarr;
 using NzbWebDAV.Clients.RadarrSonarr.BaseModels;
 using NzbWebDAV.Config;
-using NzbWebDAV.Utils;
 using Serilog;
 
 namespace NzbWebDAV.Services;
@@ -13,23 +13,21 @@ namespace NzbWebDAV.Services;
 ///   optionally block these stuck items, and optionally trigger a new
 ///   search for these stuck items.
 /// </summary>
-public class ArrMonitoringService
+public class ArrMonitoringService : BackgroundService
 {
     private readonly ConfigManager _configManager;
-    private readonly CancellationToken _cancellationToken = SigtermUtil.GetCancellationToken();
 
     public ArrMonitoringService(ConfigManager configManager)
     {
         _configManager = configManager;
-        _ = StartMonitoringService();
     }
 
-    private async Task StartMonitoringService()
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        while (!_cancellationToken.IsCancellationRequested)
+        while (!stoppingToken.IsCancellationRequested)
         {
             // Ensure delay runs on each iteration
-            await Task.Delay(TimeSpan.FromSeconds(10), _cancellationToken).ConfigureAwait(false);
+            await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken).ConfigureAwait(false);
 
             // if all queue-actions are disabled, then do nothing
             var arrConfig = _configManager.GetArrConfig();

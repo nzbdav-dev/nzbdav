@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Hosting;
 using NzbWebDAV.Clients.Usenet;
 using NzbWebDAV.Config;
 using NzbWebDAV.Database;
@@ -14,14 +15,13 @@ namespace NzbWebDAV.Services;
 /// <summary>
 /// This service monitors for health checks
 /// </summary>
-public class HealthCheckService
+public class HealthCheckService : BackgroundService
 {
     private readonly ConfigManager _configManager;
     private readonly INntpClient _usenetClient;
     private readonly WebsocketManager _websocketManager;
-    private readonly CancellationToken _cancellationToken = SigtermUtil.GetCancellationToken();
 
-    private readonly HashSet<string> _missingSegmentIds = [];
+    private static readonly HashSet<string> _missingSegmentIds = [];
 
     public HealthCheckService
     (
@@ -40,26 +40,24 @@ public class HealthCheckService
             if (!configEventArgs.ChangedConfig.ContainsKey("usenet.host")) return;
             lock (_missingSegmentIds) _missingSegmentIds.Clear();
         };
-
-        _ = StartMonitoringService();
     }
 
-    private async Task StartMonitoringService()
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        while (!_cancellationToken.IsCancellationRequested)
+        while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
                 // if the repair-job is disabled, then don't do anything
                 if (!_configManager.IsRepairJobEnabled())
                 {
-                    await Task.Delay(TimeSpan.FromSeconds(5), _cancellationToken).ConfigureAwait(false);
+                    await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken).ConfigureAwait(false);
                     continue;
                 }
 
                 // get concurrency
                 var concurrency = _configManager.GetUsenetProviderConfig().TotalPooledConnections;
-                using var cts = CancellationTokenSource.CreateLinkedTokenSource(_cancellationToken);
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
 
                 // get the davItem to health-check
                 await using var dbContext = new DavDatabaseContext();
@@ -82,7 +80,7 @@ public class HealthCheckService
             catch (Exception e)
             {
                 Log.Error(e, $"Unexpected error performing background health checks: {e.Message}");
-                await Task.Delay(TimeSpan.FromSeconds(5), _cancellationToken).ConfigureAwait(false);
+                await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken).ConfigureAwait(false);
             }
         }
     }
@@ -339,7 +337,7 @@ public class HealthCheckService
         return result;
     }
 
-    public void CheckCachedMissingSegmentIds(IEnumerable<string> segmentIds)
+    public static void CheckCachedMissingSegmentIds(IEnumerable<string> segmentIds)
     {
         lock (_missingSegmentIds)
         {
