@@ -37,8 +37,8 @@ const queueStatusMessages = [
         searchTerm: "was not found in the grabbed release"
     },
     {
-        display: "Episode was unexpected considering the folder name",
-        searchTerm: "was unexpected considering the"
+        display: "Episode(s) was/were unexpected considering the folder name",
+        searchTerm: "unexpected considering the"
     },
     {
         display: "Not an upgrade for existing episode file(s)",
@@ -67,6 +67,10 @@ const queueStatusMessages = [
     {
         display: "Invalid season or episode",
         searchTerm: "Invalid season or episode"
+    },
+    {
+        display: "Single episode file contains all episodes in seasons",
+        searchTerm: "Single episode file contains all episodes in seasons"
     },
     {
         display: "Unable to determine if file is a sample",
