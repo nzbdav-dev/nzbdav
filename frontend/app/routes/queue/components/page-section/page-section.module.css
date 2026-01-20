@@ -1,0 +1,29 @@
+.container {
+    width: 100%;
+    background: hsl(196.8 80% 7%);
+    border-radius: 10px;
+    padding: var(--container-padding);
+    padding-bottom: 0;
+    border: 1px solid rgba(255, 255, 255, 0.03);
+    --container-padding: 24px;
+    margin-bottom: 50px;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.badgeText {
+    color: hsl(180, 7%, 55%);
+    font-size: 0.9em;
+    font-weight: 500;
+    background: hsl(196.8, 25%, 14.51%);
+    padding: 6px 12px;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}

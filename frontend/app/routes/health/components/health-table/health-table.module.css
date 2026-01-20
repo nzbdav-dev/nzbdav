@@ -1,10 +1,10 @@
 .container {
     width: 100%;
-    background: hsl(192, 90%, 6%);
+    background: hsl(196.8 80% 7%);
     border-radius: 10px;
     padding: var(--container-padding);
     padding-bottom: 0;
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.03);
     --container-padding: 24px;
 }
 

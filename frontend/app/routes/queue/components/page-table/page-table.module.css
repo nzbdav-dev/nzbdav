@@ -1,73 +1,96 @@
 .container {
-    container-type: inline-size;
+    width: 100%;
+    background: hsl(196.8 80% 7%);
+    border-radius: 10px;
+    padding: var(--container-padding);
+    padding-bottom: 0;
+    border: 1px solid rgba(255, 255, 255, 0.03);
+    --container-padding: 24px;
 }
 
-.page-table {
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 16px;
+}
 
-    /* header column */
-    th {
-        padding: 0;
-        padding-top: 8px;
-        padding-bottom: 8px;
+.footer {
+    text-align: center;
+    padding: 12px 0;
+}
+
+.title {
+    margin: 0;
+}
+
+.count {
+    color: hsl(180, 7%, 55%);
+    font-size: 0.9em;
+    font-weight: 500;
+    background: hsl(196.8, 25%, 14.51%);
+    padding: 6px 12px;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.tableContainer {
+    margin-left: calc(-1 * var(--container-padding));
+    margin-right: calc(-1 * var(--container-padding));
+}
+
+.table {
+    margin: 0;
+    color: hsl(180, 7%, 70%);
+
+    /* table headers */
+    thead th {
         background-color: hsl(192, 100%, 11%) !important;
+        color: hsl(180, 7%, 85%) !important;
+        border: none;
+        padding: 16px 0;
+        font-weight: 600;
+        font-size: 0.9em;
+        letter-spacing: 0.5px;
+        white-space: nowrap;
         text-align: center;
         width: 100px;
 
-        /* first header column */
         &:first-child {
-            border-radius: 10px 0 0 0;
             text-align: left;
+            padding-left: 0;
             width: 50%;
         }
-
-        /* last header column */
-        &:last-child {
-            border-radius: 0 10px 0 0;
-        }
     }
 
-    /* body column */
-    td {
-        padding: 0;
-        padding-top: 11px;
-        padding-bottom: 11px;
-        max-width: 200px;
-        color: hsl(180, 7%, 70%) !important;
-        --bs-table-bg: hsl(192, 90%, 6%);
-        text-align: center;
+    /* table body */
+    tbody td {
+        color: hsl(180, 7%, 70%);
+        border: none;
+        background-color: unset;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        padding: 12px 0;
         vertical-align: middle;
+        text-align: center;
+        max-width: 200px;
         white-space: nowrap;
-        border-bottom: 1px solid rgba(255, 255, 255, .05);
 
-        /* first body column */
         &:first-child {
             text-align: left;
+            padding-left: 0;
         }
     }
 
-    /* last row */
-    tr:last-child {
-
-        /* cell on the last row */
-        td {
-            border-bottom: none;
-
-            /* first cell on the last row */
-            &:first-child {
-                border-radius: 0 0 0 10px;
-            }
-
-            /* last cell on the last row */
-            &:last-child {
-                border-radius: 0 0 10px 0;
-            }
-        }
-    }
-
-    /* when a row is being removed, set opacity to 50% */
+    /* when a row is being removed, set opacity to 20% */
     .removing {
         opacity: 20%;
     }
+}
+
+.table:not(:has(+ .footer)) tbody tr:last-child td {
+    border-bottom: none;
 }
 
 .badges {
@@ -110,7 +133,7 @@
         display: block;
     }
 
-    .page-table thead tr th:first-child {
+    .table thead tr th:first-child {
         width: unset;
     }
 }

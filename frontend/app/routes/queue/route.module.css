@@ -1,7 +1,7 @@
 .container {
     min-width: 100%;
     min-height: 100%;
-    padding: 30px 35px 20px 35px;
+    padding: 35px 30px;
     color: #93a1a1;
     font-size: 14px;
 }
@@ -10,11 +10,13 @@
     margin-bottom: 50px;
 }
 
-.section-title {
-    margin-bottom: 30px;
+.sectionTitle {
     display: flex;
     gap: 10px;
     align-items: baseline;
+    h3 {
+        margin: 0;
+    }
 }
 
 .alert {

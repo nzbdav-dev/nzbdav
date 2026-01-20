@@ -1,21 +1,23 @@
-import pageStyles from "../../route.module.css"
 import { ActionButton } from "../action-button/action-button"
-import { PageRow, PageTable } from "../page-table/page-table"
 import { useCallback, useState } from "react"
 import { ConfirmModal } from "../confirm-modal/confirm-modal"
 import { Link } from "react-router"
 import { type TriCheckboxState } from "../tri-checkbox/tri-checkbox"
 import type { PresentationHistorySlot } from "../../route"
 import { getLeafDirectoryName } from "~/utils/path"
+import { PageRow, PageTable } from "../page-table/page-table"
+import styles from "../../route.module.css"
+import { PageSection } from "../page-section/page-section"
 
 export type HistoryTableProps = {
     historySlots: PresentationHistorySlot[],
+    totalHistoryCount: number,
     onIsSelectedChanged: (nzo_ids: Set<string>, isSelected: boolean) => void,
     onIsRemovingChanged: (nzo_ids: Set<string>, isRemoving: boolean) => void,
     onRemoved: (nzo_ids: Set<string>) => void,
 }
 
-export function HistoryTable({ historySlots, onIsSelectedChanged, onIsRemovingChanged, onRemoved }: HistoryTableProps) {
+export function HistoryTable({ historySlots, totalHistoryCount, onIsSelectedChanged, onIsRemovingChanged, onRemoved }: HistoryTableProps) {
     const [isConfirmingRemoval, setIsConfirmingRemoval] = useState(false);
     var selectedCount = historySlots.filter(x => !!x.isSelected).length;
     var headerCheckboxState: TriCheckboxState = selectedCount === 0 ? 'none' : selectedCount === historySlots.length ? 'all' : 'some';
@@ -56,14 +58,17 @@ export function HistoryTable({ historySlots, onIsSelectedChanged, onIsRemovingCh
         onIsRemovingChanged(nzo_ids, false);
     }, [historySlots, setIsConfirmingRemoval, onIsRemovingChanged, onRemoved]);
 
+    var sectionTitle = (
+        <div className={styles.sectionTitle}>
+            <h3>History</h3>
+            {headerCheckboxState !== 'none' &&
+                <ActionButton type="delete" onClick={onRemove} />
+            }
+        </div>
+    );
+
     return (
-        <>
-            <div className={pageStyles["section-title"]}>
-                <h3>History</h3>
-                {headerCheckboxState !== 'none' &&
-                    <ActionButton type="delete" onClick={onRemove} />
-                }
-            </div>
+        <PageSection title={sectionTitle} badgeText={`${historySlots.length} of ${totalHistoryCount}`}>
             <PageTable headerCheckboxState={headerCheckboxState} onHeaderCheckboxChange={onSelectAll}>
                 {historySlots.map(slot =>
                     <HistoryRow
@@ -83,7 +88,7 @@ export function HistoryTable({ historySlots, onIsSelectedChanged, onIsRemovingCh
                 checkboxMessage="Delete mounted files"
                 onConfirm={onConfirmRemoval}
                 onCancel={onCancelRemoval} />
-        </>
+        </PageSection>
     );
 }
 

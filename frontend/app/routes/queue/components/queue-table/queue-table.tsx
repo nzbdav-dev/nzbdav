@@ -1,19 +1,22 @@
-import pageStyles from "../../route.module.css"
 import { ActionButton } from "../action-button/action-button"
-import { PageRow, PageTable } from "../page-table/page-table"
 import { useCallback, useState } from "react"
 import { ConfirmModal } from "../confirm-modal/confirm-modal"
 import type { PresentationQueueSlot } from "../../route"
 import type { TriCheckboxState } from "../tri-checkbox/tri-checkbox"
+import { PageRow, PageTable } from "../page-table/page-table"
+import { PageSection } from "../page-section/page-section"
+import { EmptyQueue } from "../empty-queue/empty-queue"
+import styles from "../../route.module.css"
 
 export type QueueTableProps = {
     queueSlots: PresentationQueueSlot[],
+    totalQueueCount: number,
     onIsSelectedChanged: (nzo_ids: Set<string>, isSelected: boolean) => void,
     onIsRemovingChanged: (nzo_ids: Set<string>, isRemoving: boolean) => void,
     onRemoved: (nzo_ids: Set<string>) => void,
 }
 
-export function QueueTable({ queueSlots, onIsSelectedChanged, onIsRemovingChanged, onRemoved }: QueueTableProps) {
+export function QueueTable({ queueSlots, totalQueueCount, onIsSelectedChanged, onIsRemovingChanged, onRemoved }: QueueTableProps) {
     const [isConfirmingRemoval, setIsConfirmingRemoval] = useState(false);
     var selectedCount = queueSlots.filter(x => !!x.isSelected).length;
     var headerCheckboxState: TriCheckboxState = selectedCount === 0 ? 'none' : selectedCount === queueSlots.length ? 'all' : 'some';
@@ -54,16 +57,21 @@ export function QueueTable({ queueSlots, onIsSelectedChanged, onIsRemovingChange
         onIsRemovingChanged(nzo_ids, false);
     }, [queueSlots, setIsConfirmingRemoval, onIsRemovingChanged, onRemoved]);
 
+    var sectionTitle = (
+        <div className={styles.sectionTitle}>
+            <h3>Queue</h3>
+            {headerCheckboxState !== 'none' &&
+                <ActionButton type="delete" onClick={onRemove} />
+            }
+        </div>
+    );
+
     return (
-        <>
-            <div className={pageStyles["section-title"]}>
-                <h3>Queue</h3>
-                {headerCheckboxState !== 'none' &&
-                    <ActionButton type="delete" onClick={onRemove} />
-                }
-            </div>
-            <div style={{ minHeight: "300px" }}>
-                <PageTable headerCheckboxState={headerCheckboxState} onHeaderCheckboxChange={onSelectAll} striped>
+        <PageSection title={sectionTitle} badgeText={`${queueSlots.length} of ${totalQueueCount}`}>
+            {queueSlots?.length == 0 ? (
+                <EmptyQueue />
+            ) : (
+                <PageTable headerCheckboxState={headerCheckboxState} onHeaderCheckboxChange={onSelectAll}>
                     {queueSlots.map(slot =>
                         <QueueRow
                             key={slot.nzo_id}
@@ -74,7 +82,7 @@ export function QueueTable({ queueSlots, onIsSelectedChanged, onIsRemovingChange
                         />
                     )}
                 </PageTable>
-            </div>
+            )}
 
             <ConfirmModal
                 show={isConfirmingRemoval}
@@ -82,7 +90,7 @@ export function QueueTable({ queueSlots, onIsSelectedChanged, onIsRemovingChange
                 message={`${selectedCount} item(s) will be removed`}
                 onConfirm={onConfirmRemoval}
                 onCancel={onCancelRemoval} />
-        </>
+        </PageSection>
     );
 }
 

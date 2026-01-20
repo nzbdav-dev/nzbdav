@@ -3,12 +3,13 @@ import type { Route } from "./+types/route";
 import styles from "./route.module.css"
 import { Alert } from 'react-bootstrap';
 import { backendClient, type HistorySlot, type QueueSlot } from "~/clients/backend-client.server";
-import { EmptyQueue } from "./components/empty-queue/empty-queue";
 import { HistoryTable } from "./components/history-table/history-table";
 import { QueueTable } from "./components/queue-table/queue-table";
 import { useCallback, useEffect, useState } from "react";
 import { receiveMessage } from "~/utils/websocket-util";
 import { isAuthenticated } from "~/auth/authentication.server";
+import { PageSection } from "./components/page-section/page-section";
+import { EmptyQueue } from "./components/empty-queue/empty-queue";
 
 const topicNames = {
     queueItemStatus: 'qs',
@@ -163,28 +164,27 @@ export default function Queue(props: Route.ComponentProps) {
             }
 
             {/* queue */}
-            <div className={styles.section}>
-                {queueSlots.length > 0 ?
-                    <QueueTable queueSlots={queueSlots}
-                        onIsSelectedChanged={onSelectQueueSlots}
-                        onIsRemovingChanged={onRemovingQueueSlots}
-                        onRemoved={onRemoveQueueSlots}
-                    /> :
-                    <EmptyQueue />}
+            <div style={{ minHeight: '383.59px', marginBottom: '50px' }}>
+                <QueueTable
+                    queueSlots={queueSlots}
+                    totalQueueCount={props.loaderData.totalQueueCount}
+                    onIsSelectedChanged={onSelectQueueSlots}
+                    onIsRemovingChanged={onRemovingQueueSlots}
+                    onRemoved={onRemoveQueueSlots}
+                />
             </div>
 
             {/* history */}
             {historySlots.length > 0 &&
-                <div className={styles.section}>
-                    <HistoryTable
-                        historySlots={historySlots}
-                        onIsSelectedChanged={onSelectHistorySlots}
-                        onIsRemovingChanged={onRemovingHistorySlots}
-                        onRemoved={onRemoveHistorySlots}
-                    />
-                </div>
+                <HistoryTable
+                    historySlots={historySlots}
+                    totalHistoryCount={props.loaderData.totalHistoryCount}
+                    onIsSelectedChanged={onSelectHistorySlots}
+                    onIsRemovingChanged={onRemovingHistorySlots}
+                    onRemoved={onRemoveHistorySlots}
+                />
             }
-        </div>
+        </div >
     );
 }
 

@@ -7,20 +7,20 @@ import { StatusBadge } from "../status-badge/status-badge";
 import { formatFileSize } from "~/utils/file-size";
 
 export type PageTableProps = {
-    striped?: boolean,
     children?: ReactNode,
     headerCheckboxState: TriCheckboxState,
-    onHeaderCheckboxChange: (isChecked: boolean) => void
+    onHeaderCheckboxChange: (isChecked: boolean) => void,
+    footer?: string,
 }
 
-export function PageTable({ striped, children, headerCheckboxState, onHeaderCheckboxChange: onTitleCheckboxChange }: PageTableProps) {
+export function PageTable({ children, headerCheckboxState, onHeaderCheckboxChange, footer }: PageTableProps) {
     return (
-        <div className={styles.container}>
-            <Table className={styles["page-table"]} responsive striped={striped}>
+        <div className={styles.tableContainer}>
+            <Table className={styles.table} responsive>
                 <thead>
                     <tr>
                         <th>
-                            <TriCheckbox state={headerCheckboxState} onChange={onTitleCheckboxChange}>
+                            <TriCheckbox state={headerCheckboxState} onChange={onHeaderCheckboxChange}>
                                 Name
                             </TriCheckbox>
                         </th>
@@ -34,8 +34,11 @@ export function PageTable({ striped, children, headerCheckboxState, onHeaderChec
                     {children}
                 </tbody>
             </Table>
+            {footer &&
+                <div className={styles.footer}>{footer}</div>
+            }
         </div>
-    )
+    );
 }
 
 export type PageRowProps = {
