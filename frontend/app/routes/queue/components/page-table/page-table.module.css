@@ -97,7 +97,7 @@
     }
 }
 
-.table:not(:has(+ .footer)) tbody tr:last-child td {
+.tableContainer:not(:has(.footer)) .table tbody tr:last-child td {
     border-bottom: none;
 }
 
