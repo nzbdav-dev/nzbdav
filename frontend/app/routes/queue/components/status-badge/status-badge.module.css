@@ -51,6 +51,20 @@
     }
 }
 
+.uploadIcon::before {
+    content: "";
+    display: inline-block;
+    width: 0;
+    height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-bottom: 6px solid currentColor;
+    margin-right: 4px;
+    vertical-align: middle;
+    position: relative;
+    top: -1px;
+}
+
 @media not (pointer: coarse),
 (min-width: 900px) {
     .failureBadge:hover {

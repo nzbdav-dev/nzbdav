@@ -24,7 +24,10 @@ export function StatusBadge({ className, status, percentage, error }: StatusBadg
     }
 
     if (statusLower === "failed" || statusLower == "upload failed") {
-        const badgeText = statusLower == "upload failed" ? "🡅 failed" : "failed";
+        const badgeTextClass = statusLower == "upload failed"
+            ? classNames([styles.badgeText, styles.uploadIcon])
+            : styles.badgeText;
+
         if (error?.startsWith("Article with message-id"))
             error = "Missing articles";
 
@@ -32,7 +35,7 @@ export function StatusBadge({ className, status, percentage, error }: StatusBadg
             <OverlayTrigger placement="top" overlay={<Tooltip>{error}</Tooltip>} trigger="click">
                 <div className={classNames([styles.container, styles.failureBadge])}>
                     <div className={styles.badge} style={{ backgroundColor: "rgba(var(--bs-danger-rgb)" }}>
-                        <div className={styles.badgeText}>{badgeText}</div>
+                        <div className={badgeTextClass}>{'failed'}</div>
                     </div>
                 </div>
             </OverlayTrigger >
@@ -71,7 +74,7 @@ export function StatusBadge({ className, status, percentage, error }: StatusBadg
 
     if (statusLower === "uploading") {
         const percentNum = Number(percentage);
-        const badgeText = `🡅 ${percentNum}%`;
+        const badgeText = `${percentNum}%`;
         const uploadProgressClass = `${styles.progress} ${styles.uploadProgress}`;
         const uploadProgressStyle = { width: `${Math.min(percentNum, 100)}%` };
 
@@ -79,7 +82,7 @@ export function StatusBadge({ className, status, percentage, error }: StatusBadg
             <div className={styles.container}>
                 <div className={styles.badge} style={{ backgroundColor: "#333" }}>
                     <div className={uploadProgressClass} style={uploadProgressStyle} />
-                    <div className={styles.badgeText}>{badgeText}</div>
+                    <div className={classNames([styles.badgeText, styles.uploadIcon])}>{badgeText}</div>
                 </div>
             </div>
         );
@@ -89,7 +92,7 @@ export function StatusBadge({ className, status, percentage, error }: StatusBadg
         return (
             <div className={styles.container}>
                 <div className={styles.badge} style={{ backgroundColor: "#333" }}>
-                    <div className={styles.badgeText}>{'🡅 pending'}</div>
+                    <div className={classNames([styles.badgeText, styles.uploadIcon])}>pending</div>
                 </div>
             </div>
         );

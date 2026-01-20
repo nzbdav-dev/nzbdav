@@ -7,6 +7,7 @@ declare const styles: {
   readonly "uploadProgress": string;
   readonly "failureBadge": string;
   readonly "gray": string;
+  readonly "uploadIcon": string;
 };
 export = styles;
 
