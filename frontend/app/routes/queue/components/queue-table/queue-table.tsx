@@ -1,5 +1,5 @@
 import { ActionButton } from "../action-button/action-button"
-import { useCallback, useState } from "react"
+import { memo, useCallback, useState } from "react"
 import { ConfirmModal } from "../confirm-modal/confirm-modal"
 import type { PresentationQueueSlot } from "../../route"
 import type { TriCheckboxState } from "../tri-checkbox/tri-checkbox"
@@ -36,6 +36,20 @@ export function QueueTable({
     var selectedCount = queueSlots.filter(x => !!x.isSelected).length;
     var headerCheckboxState: TriCheckboxState = selectedCount === 0 ? 'none' : selectedCount === queueSlots.length ? 'all' : 'some';
 
+    // row events
+    const onRowIsSelectedChanged = useCallback((id: string, isSelected: boolean) => {
+        onIsSelectedChanged(new Set<string>([id]), isSelected);
+    }, [onIsSelectedChanged]);
+
+    const onRowIsRemovingChanged = useCallback((id: string, isRemoving: boolean) => {
+        onIsRemovingChanged(new Set<string>([id]), isRemoving);
+    }, [onIsSelectedChanged]);
+
+    const onRowRemoved = useCallback((id: string) => {
+        onRemoved(new Set([id]));
+    }, [onRemoved]);
+
+    // table events
     const onSelectAll = useCallback((isSelected: boolean) => {
         onIsSelectedChanged(new Set<string>(queueSlots.map(x => x.nzo_id)), isSelected);
     }, [queueSlots, onIsSelectedChanged]);
@@ -77,6 +91,7 @@ export function QueueTable({
         onIsRemovingChanged(queued_nzo_ids, false);
     }, [queueSlots, setIsConfirmingRemoval, onIsRemovingChanged, onRemoved]);
 
+    // view
     const categoryDropdown = (
         <div title="Choose the category for manual nzb uploads.">
             <SimpleDropdown
@@ -117,9 +132,9 @@ export function QueueTable({
                         <QueueRow
                             key={slot.nzo_id}
                             slot={slot}
-                            onIsSelectedChanged={(id, isSelected) => onIsSelectedChanged(new Set<string>([id]), isSelected)}
-                            onIsRemovingChanged={(id, isRemoving) => onIsRemovingChanged(new Set<string>([id]), isRemoving)}
-                            onRemoved={(id) => onRemoved(new Set([id]))}
+                            onIsSelectedChanged={onRowIsSelectedChanged}
+                            onIsRemovingChanged={onRowIsRemovingChanged}
+                            onRemoved={onRowRemoved}
                         />
                     )}
                 </PageTable>
@@ -142,7 +157,7 @@ type QueueRowProps = {
     onRemoved: (nzo_id: string) => void
 }
 
-export function QueueRow({ slot, onIsSelectedChanged, onIsRemovingChanged, onRemoved }: QueueRowProps) {
+export const QueueRow = memo(({ slot, onIsSelectedChanged, onIsRemovingChanged, onRemoved }: QueueRowProps) => {
     // state
     const [isConfirmingRemoval, setIsConfirmingRemoval] = useState(false);
     const isActivelyUploading = slot.isUploading && slot.status == "uploading";
@@ -205,4 +220,4 @@ export function QueueRow({ slot, onIsSelectedChanged, onIsRemovingChanged, onRem
                 onCancel={onCancelRemoval} />
         </>
     )
-}
+});
