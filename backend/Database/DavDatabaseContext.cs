@@ -30,6 +30,7 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
     public DbSet<HealthCheckResult> HealthCheckResults => Set<HealthCheckResult>();
     public DbSet<HealthCheckStat> HealthCheckStats => Set<HealthCheckStat>();
     public DbSet<ConfigItem> ConfigItems => Set<ConfigItem>();
+    public DbSet<BlobCleanupItem> BlobCleanupItems => Set<BlobCleanupItem>();
 
     // tables
     protected override void OnModelCreating(ModelBuilder b)
@@ -404,6 +405,16 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
             e.HasKey(i => i.ConfigName);
             e.Property(i => i.ConfigValue)
                 .IsRequired();
+        });
+
+        // BlobCleanupItem
+        b.Entity<BlobCleanupItem>(e =>
+        {
+            e.ToTable("BlobCleanupItems");
+            e.HasKey(i => i.Id);
+
+            e.Property(i => i.Id)
+                .ValueGeneratedNever();
         });
     }
 }
