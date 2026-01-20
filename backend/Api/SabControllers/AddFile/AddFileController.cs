@@ -1,4 +1,4 @@
-﻿using System.Text;
+﻿using System.Xml;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NzbWebDAV.Api.SabControllers.GetQueue;
@@ -9,7 +9,6 @@ using NzbWebDAV.Extensions;
 using NzbWebDAV.Queue;
 using NzbWebDAV.Utils;
 using NzbWebDAV.Websocket;
-using Usenet.Nzb;
 
 namespace NzbWebDAV.Api.SabControllers.AddFile;
 
@@ -21,36 +20,66 @@ public class AddFileController(
     WebsocketManager websocketManager
 ) : SabApiController.BaseController(httpContext, configManager)
 {
+    private static readonly XmlReaderSettings XmlSettings = new()
+    {
+        Async = true,
+        DtdProcessing = DtdProcessing.Ignore
+    };
+
     public async Task<AddFileResponse> AddFileAsync(AddFileRequest request)
     {
-        // load the document
-        var nzbFileContents = NormalizeNzbContents(request.NzbFileContents);
-        var documentBytes = Encoding.UTF8.GetBytes(nzbFileContents);
-        using var memoryStream = new MemoryStream(documentBytes);
-        var document = await NzbDocument.LoadAsync(memoryStream).ConfigureAwait(false);
+        var id = Guid.NewGuid();
 
-        // add the queueItem to the database
-        var queueItem = new QueueItem
+        // write the file to the blob-store
+        await using var stream = request.NzbFileStream;
+        await BlobStore.WriteBlob(id, stream);
+
+        // save the queue item to the database
+        QueueItem? queueItem;
+        try
         {
-            Id = Guid.NewGuid(),
-            CreatedAt = DateTime.Now,
-            FileName = request.FileName,
-            JobName = FilenameUtil.GetJobName(request.FileName),
-            NzbFileSize = documentBytes.Length,
-            TotalSegmentBytes = document.Files.SelectMany(x => x.Segments).Select(x => x.Size).Sum(),
-            Category = request.Category,
-            Priority = request.Priority,
-            PostProcessing = request.PostProcessing,
-            PauseUntil = request.PauseUntil
-        };
-        var queueNzbContents = new QueueNzbContents()
+            // compute the total segment bytes
+            await using var nzbFileStream = BlobStore.ReadBlob(id);
+            var totalSegmentBytes = ComputeTotalSegmentBytes(nzbFileStream);
+
+            // create the queue item record
+            queueItem = new QueueItem
+            {
+                Id = id,
+                CreatedAt = DateTime.Now,
+                FileName = request.FileName,
+                JobName = FilenameUtil.GetJobName(request.FileName),
+                NzbFileSize = stream.Length,
+                TotalSegmentBytes = totalSegmentBytes,
+                Category = request.Category,
+                Priority = request.Priority,
+                PostProcessing = request.PostProcessing,
+                PauseUntil = request.PauseUntil
+            };
+
+            // create the nzb-content record
+            nzbFileStream.Seek(0, SeekOrigin.Begin);
+            using var streamReader = new StreamReader(nzbFileStream);
+            var queueNzbContents = new QueueNzbContents()
+            {
+                Id = queueItem.Id,
+                NzbContents = await streamReader.ReadToEndAsync(),
+            };
+
+            // save
+            dbClient.Ctx.QueueItems.Add(queueItem);
+            dbClient.Ctx.QueueNzbContents.Add(queueNzbContents);
+            await dbClient.Ctx.SaveChangesAsync(request.CancellationToken).ConfigureAwait(false);
+        }
+        catch
         {
-            Id = queueItem.Id,
-            NzbContents = nzbFileContents,
-        };
-        dbClient.Ctx.QueueItems.Add(queueItem);
-        dbClient.Ctx.QueueNzbContents.Add(queueNzbContents);
-        await dbClient.Ctx.SaveChangesAsync(request.CancellationToken).ConfigureAwait(false);
+            // in case of any errors writing to the database
+            // delete the nzb file blob
+            BlobStore.Delete(id);
+            throw;
+        }
+
+        // inform the frontend that a new item was added to the queue
         var message = GetQueueResponse.QueueSlot.FromQueueItem(queueItem).ToJson();
         _ = websocketManager.SendMessage(WebsocketTopic.QueueItemAdded, message);
 
@@ -71,10 +100,20 @@ public class AddFileController(
         return Ok(await AddFileAsync(request).ConfigureAwait(false));
     }
 
-    private static string NormalizeNzbContents(string nzbContents)
+    private static long ComputeTotalSegmentBytes(Stream stream)
     {
-        return nzbContents
-            .Replace("https://www.newzbin.com/DTD/2003/nzb", "http://www.newzbin.com/DTD/2003/nzb")
-            .Replace("date=\"\"", "date=\"0\"");
+        long totalBytes = 0;
+        using var reader = XmlReader.Create(stream, XmlSettings);
+        while (reader.Read())
+        {
+            if (reader.NodeType != XmlNodeType.Element || reader.LocalName != "segment") continue;
+            var bytesAttr = reader.GetAttribute("bytes");
+            if (bytesAttr != null && long.TryParse(bytesAttr, out var bytes))
+            {
+                totalBytes += bytes;
+            }
+        }
+
+        return totalBytes;
     }
 }

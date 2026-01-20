@@ -9,7 +9,7 @@ public class AddFileRequest()
 {
     public string FileName { get; init; }
     public string? MimeType { get; init; }
-    public string NzbFileContents { get; init; }
+    public Stream NzbFileStream { get; init; }
     public string Category { get; init; }
     public QueueItem.PriorityOption Priority { get; init; }
     public QueueItem.PostProcessingOption PostProcessing { get; init; }
@@ -23,13 +23,11 @@ public class AddFileRequest()
             context.Request.Form.Files["name"] ??
             throw new BadHttpRequestException("Invalid nzbFile/name param");
 
-        using var streamReader = new StreamReader(file.OpenReadStream());
-
         return new AddFileRequest()
         {
             FileName = file.FileName,
             MimeType = file.ContentType,
-            NzbFileContents = await streamReader.ReadToEndAsync(context.RequestAborted).ConfigureAwait(false),
+            NzbFileStream = file.OpenReadStream(),
             Category = context.GetQueryParam("cat") ?? configManager.GetManualUploadCategory(),
             Priority = MapPriorityOption(context.GetQueryParam("priority")),
             PostProcessing = MapPostProcessingOption(context.GetQueryParam("pp")),

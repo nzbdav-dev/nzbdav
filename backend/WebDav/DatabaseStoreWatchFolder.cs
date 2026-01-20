@@ -52,8 +52,6 @@ public class DatabaseStoreWatchFolder(
     protected override async Task<StoreItemResult> CreateItemAsync(CreateItemRequest request)
     {
         var controller = new AddFileController(null!, dbClient, queueManager, configManager, websocketManager);
-        using var streamReader = new StreamReader(request.Stream);
-        var nzbFileContents = await streamReader.ReadToEndAsync(request.CancellationToken).ConfigureAwait(false);
         var addFileRequest = new AddFileRequest()
         {
             FileName = request.Name,
@@ -62,7 +60,7 @@ public class DatabaseStoreWatchFolder(
             Priority = QueueItem.PriorityOption.Normal,
             PostProcessing = QueueItem.PostProcessingOption.RepairUnpackDelete,
             PauseUntil = DateTime.Now.AddSeconds(3),
-            NzbFileContents = nzbFileContents,
+            NzbFileStream = request.Stream,
             CancellationToken = request.CancellationToken
         };
         var response = await controller.AddFileAsync(addFileRequest).ConfigureAwait(false);

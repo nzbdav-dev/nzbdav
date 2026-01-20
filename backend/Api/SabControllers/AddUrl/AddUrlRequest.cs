@@ -24,7 +24,7 @@ public class AddUrlRequest() : AddFileRequest
         {
             FileName = nzbFile.FileName,
             MimeType = nzbFile.ContentType,
-            NzbFileContents = nzbFile.FileContents,
+            NzbFileStream = nzbFile.FileStream,
             Category = context.GetQueryParam("cat") ?? configManager.GetManualUploadCategory(),
             Priority = MapPriorityOption(context.GetQueryParam("priority")),
             PostProcessing = MapPostProcessingOption(context.GetQueryParam("pp")),
@@ -59,16 +59,14 @@ public class AddUrlRequest() : AddFileRequest
             }
 
             // read the file contents
-            var fileContents = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-            if (string.IsNullOrWhiteSpace(fileContents))
-                throw new Exception("NZB file contents are empty.");
+            var fileStream = await response.Content.ReadAsStreamAsync();
 
             // return response
             return new NzbFileResponse
             {
                 FileName = fileName,
                 ContentType = contentType,
-                FileContents = fileContents
+                FileStream = fileStream
             };
         }
         catch (Exception ex)
@@ -129,6 +127,6 @@ public class AddUrlRequest() : AddFileRequest
     {
         public required string FileName { get; init; }
         public required string? ContentType { get; init; }
-        public required string FileContents { get; init; }
+        public required Stream FileStream { get; init; }
     }
 }
