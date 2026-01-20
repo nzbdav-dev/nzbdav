@@ -81,7 +81,7 @@ public class QueueManager : IDisposable
                 await using var dbContext = new DavDatabaseContext();
                 var dbClient = new DavDatabaseClient(dbContext);
                 var topItem = await LockAsync(() => dbClient.GetTopQueueItem(ct)).ConfigureAwait(false);
-                if (topItem.queueItem is null || topItem.queueNzbContents is null)
+                if (topItem.queueItem is null || topItem.queueNzbStream is null)
                 {
                     try
                     {
@@ -106,12 +106,13 @@ public class QueueManager : IDisposable
                 using var cachingUsenetClient = new ArticleCachingNntpClient(_usenetClient);
 
                 // process the queue-item
+                await using var queueNzbStream = topItem.queueNzbStream;
                 using var queueItemCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 await LockAsync(() =>
                 {
                     // ReSharper disable twice AccessToDisposedClosure
                     _inProgressQueueItem = BeginProcessingQueueItem(dbClient, cachingUsenetClient,
-                        topItem.queueItem, topItem.queueNzbContents, queueItemCancellationTokenSource);
+                        topItem.queueItem, queueNzbStream, queueItemCancellationTokenSource);
                 }).ConfigureAwait(false);
                 await (_inProgressQueueItem?.ProcessingTask ?? Task.CompletedTask).ConfigureAwait(false);
             }
@@ -131,13 +132,13 @@ public class QueueManager : IDisposable
         DavDatabaseClient dbClient,
         INntpClient usenetClient,
         QueueItem queueItem,
-        QueueNzbContents queueNzbContents,
+        Stream queueNzbStream,
         CancellationTokenSource cts
     )
     {
         var progressHook = new Progress<int>();
         var task = new QueueItemProcessor(
-            queueItem, queueNzbContents, dbClient, usenetClient,
+            queueItem, queueNzbStream, dbClient, usenetClient,
             _configManager, _websocketManager, progressHook, cts.Token
         ).ProcessAsync();
         var inProgressQueueItem = new InProgressQueueItem()

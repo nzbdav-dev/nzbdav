@@ -23,7 +23,7 @@ namespace NzbWebDAV.Queue;
 
 public class QueueItemProcessor(
     QueueItem queueItem,
-    QueueNzbContents queueNzbContents,
+    Stream queueNzbStream,
     DavDatabaseClient dbClient,
     INntpClient usenetClient,
     ConfigManager configManager,
@@ -107,9 +107,7 @@ public class QueueItemProcessor(
         }
 
         // read the nzb document
-        var documentBytes = Encoding.UTF8.GetBytes(queueNzbContents.NzbContents);
-        using var stream = new MemoryStream(documentBytes);
-        var nzb = await NzbDocument.LoadAsync(stream).ConfigureAwait(false);
+        var nzb = await NzbDocument.LoadAsync(queueNzbStream).ConfigureAwait(false);
         var nzbFiles = nzb.Files.Where(x => x.Segments.Count > 0).ToList();
 
         // Look for a password in filename and nzb document

@@ -1,3 +1,4 @@
+using System.Text;
 using Microsoft.EntityFrameworkCore;
 using NzbWebDAV.Database.Models;
 
@@ -76,11 +77,12 @@ public sealed class DavDatabaseClient(DavDatabaseContext ctx)
     }
 
     // queue
-    public async Task<(QueueItem? queueItem, QueueNzbContents? queueNzbContents)> GetTopQueueItem
+    public async Task<(QueueItem? queueItem, Stream? queueNzbStream)> GetTopQueueItem
     (
         CancellationToken ct = default
     )
     {
+        // read queue item from database
         var nowTime = DateTime.Now;
         var queueItem = await Ctx.QueueItems
             .OrderByDescending(q => q.Priority)
@@ -89,10 +91,26 @@ public sealed class DavDatabaseClient(DavDatabaseContext ctx)
             .Skip(0)
             .Take(1)
             .FirstOrDefaultAsync(ct).ConfigureAwait(false);
-        var queueNzbContents = queueItem != null
-            ? await Ctx.QueueNzbContents.FirstOrDefaultAsync(q => q.Id == queueItem.Id, ct).ConfigureAwait(false)
+
+        // attempt to read nzb contents from blob-store.
+        var queueNzbStream = queueItem != null
+            ? BlobStore.ReadBlob(queueItem.Id)
             : null;
-        return (queueItem, queueNzbContents);
+
+        // otherwise, read nzb contents from database.
+        if (queueItem != null && queueNzbStream == null)
+        {
+            var queueNzbContents = await Ctx.QueueNzbContents
+                .FirstOrDefaultAsync(q => q.Id == queueItem.Id, ct)
+                .ConfigureAwait(false);
+
+            queueNzbStream = queueNzbContents != null
+                ? new MemoryStream(Encoding.UTF8.GetBytes(queueNzbContents.NzbContents))
+                : null;
+        }
+
+        // return
+        return (queueItem, queueNzbStream);
     }
 
     public Task<QueueItem[]> GetQueueItems

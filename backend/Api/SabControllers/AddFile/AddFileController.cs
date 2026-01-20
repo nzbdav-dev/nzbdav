@@ -57,18 +57,8 @@ public class AddFileController(
                 PauseUntil = request.PauseUntil
             };
 
-            // create the nzb-content record
-            nzbFileStream.Seek(0, SeekOrigin.Begin);
-            using var streamReader = new StreamReader(nzbFileStream);
-            var queueNzbContents = new QueueNzbContents()
-            {
-                Id = queueItem.Id,
-                NzbContents = await streamReader.ReadToEndAsync(),
-            };
-
             // save
             dbClient.Ctx.QueueItems.Add(queueItem);
-            dbClient.Ctx.QueueNzbContents.Add(queueNzbContents);
             await dbClient.Ctx.SaveChangesAsync(request.CancellationToken).ConfigureAwait(false);
         }
         catch
