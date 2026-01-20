@@ -18,6 +18,15 @@ export const initializeWebsocketServer = websocketServer.initialize;
 const forwardToBackend = createProxyMiddleware({
   target: process.env.BACKEND_URL,
   changeOrigin: true,
+  on: {
+    proxyRes: (proxyRes, req, res) => {
+      proxyRes.on('close', () => {
+        if (!res.writableEnded) {
+          res.end();
+        }
+      });
+    },
+  },
 });
 
 const setApiKeyForAuthenticatedRequests = async (req: express.Request) => {
