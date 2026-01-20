@@ -23,13 +23,14 @@ public class GetQueueController(
         var totalCount = await dbClient.GetQueueItemsCount(request.Category, ct).ConfigureAwait(false);
 
         // get queued items
-        var queueItems = (await dbClient.GetQueueItems(request.Category, request.Start, request.Limit, ct).ConfigureAwait(false))
+        var getQueueItemsTask = dbClient.GetQueueItems(request.Category, request.Start, request.Limit, ct);
+        var queueItems = (await getQueueItemsTask.ConfigureAwait(false))
             .Where(x => x.Id != inProgressQueueItem?.Id)
             .ToArray();
 
         // get slots
         var slots = queueItems
-            .Prepend(inProgressQueueItem)
+            .Prepend(request is { Start: 0, Limit: > 0 } ? inProgressQueueItem : null)
             .Where(queueItem => queueItem != null)
             .Select((queueItem, index) =>
             {
