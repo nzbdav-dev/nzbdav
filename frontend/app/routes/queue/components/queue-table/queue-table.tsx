@@ -34,9 +34,14 @@ export function QueueTable({ queueSlots, totalQueueCount, onIsSelectedChanged, o
     }, [setIsConfirmingRemoval]);
 
     const onConfirmRemoval = useCallback(async () => {
-        var nzo_ids = new Set<string>(queueSlots.filter(x => !!x.isSelected).map(x => x.nzo_id));
+        // immediately remove uploading items
+        const uploading_nzo_ids = new Set<string>(queueSlots.filter(x => x.isUploading && !!x.isSelected).map(x => x.nzo_id));
+        onRemoved(uploading_nzo_ids);
+
+        // call backend to remove queued items
+        const queued_nzo_ids = new Set<string>(queueSlots.filter(x => !x.isUploading && !!x.isSelected).map(x => x.nzo_id));
         setIsConfirmingRemoval(false);
-        onIsRemovingChanged(nzo_ids, true);
+        onIsRemovingChanged(queued_nzo_ids, true);
         try {
             const url = `/api?mode=queue&name=delete`;
             const response = await fetch(url, {
@@ -44,17 +49,17 @@ export function QueueTable({ queueSlots, totalQueueCount, onIsSelectedChanged, o
                 headers: {
                     'Content-Type': 'application/json;charset=UTF-8',
                 },
-                body: JSON.stringify({ nzo_ids: Array.from(nzo_ids) }),
+                body: JSON.stringify({ nzo_ids: Array.from(queued_nzo_ids) }),
             });
             if (response.ok) {
                 const data = await response.json();
                 if (data.status === true) {
-                    onRemoved(nzo_ids);
+                    onRemoved(queued_nzo_ids);
                     return;
                 }
             }
         } catch { }
-        onIsRemovingChanged(nzo_ids, false);
+        onIsRemovingChanged(queued_nzo_ids, false);
     }, [queueSlots, setIsConfirmingRemoval, onIsRemovingChanged, onRemoved]);
 
     var sectionTitle = (
@@ -104,9 +109,16 @@ type QueueRowProps = {
 export function QueueRow({ slot, onIsSelectedChanged, onIsRemovingChanged, onRemoved }: QueueRowProps) {
     // state
     const [isConfirmingRemoval, setIsConfirmingRemoval] = useState(false);
+    const isActivelyUploading = slot.isUploading && slot.status == "uploading";
 
     // events
     const onRemove = useCallback(() => {
+        // immediately remove uploading items, without need of confirmation.
+        if (slot.isUploading) {
+            onRemoved(slot.nzo_id);
+            return;
+        }
+
         setIsConfirmingRemoval(true);
     }, [setIsConfirmingRemoval]);
 
@@ -115,6 +127,7 @@ export function QueueRow({ slot, onIsSelectedChanged, onIsRemovingChanged, onRem
     }, [setIsConfirmingRemoval]);
 
     const onConfirmRemoval = useCallback(async () => {
+        if (slot.isUploading) return;
         setIsConfirmingRemoval(false);
         onIsRemovingChanged(slot.nzo_id, true);
         try {
@@ -144,7 +157,7 @@ export function QueueRow({ slot, onIsSelectedChanged, onIsRemovingChanged, onRem
                 status={slot.status}
                 percentage={slot.true_percentage}
                 fileSizeBytes={Number(slot.mb) * 1024 * 1024}
-                actions={<ActionButton type="delete" disabled={!!slot.isRemoving} onClick={onRemove} />}
+                actions={<ActionButton type="delete" disabled={!!slot.isRemoving || isActivelyUploading} onClick={onRemove} />}
                 onRowSelectionChanged={isSelected => onIsSelectedChanged(slot.nzo_id, isSelected)}
                 error={slot.error}
             />

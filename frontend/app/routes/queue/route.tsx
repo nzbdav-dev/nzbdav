@@ -51,11 +51,13 @@ export default function Queue(props: Route.ComponentProps) {
 
     // queue events
     const onAddQueueSlot = useCallback((queueSlot: QueueSlot) => {
+        uploadQueueRef.current = uploadQueueRef.current.filter(x => x.queueSlot.status === "uploading" || x.queueSlot.filename !== queueSlot.filename);
         setUploadingFiles(files => files.filter(f => f.queueSlot.filename !== queueSlot.filename));
         setQueueSlots(slots => [...slots, queueSlot]);
     }, [setQueueSlots]);
 
     const onSelectQueueSlots = useCallback((ids: Set<string>, isSelected: boolean) => {
+        setUploadingFiles(files => files.map(x => ids.has(x.queueSlot.nzo_id) ? { ...x, queueSlot: {...x.queueSlot, isSelected} } : x));
         setQueueSlots(slots => slots.map(x => ids.has(x.nzo_id) ? { ...x, isSelected } : x));
     }, [setQueueSlots]);
 
@@ -64,6 +66,8 @@ export default function Queue(props: Route.ComponentProps) {
     }, [setQueueSlots]);
 
     const onRemoveQueueSlots = useCallback((ids: Set<string>) => {
+        uploadQueueRef.current = uploadQueueRef.current.filter(x => x.queueSlot.status === "uploading" || !ids.has(x.queueSlot.nzo_id));
+        setUploadingFiles(files => files.filter(x => x.queueSlot.status === "uploading" || !ids.has(x.queueSlot.nzo_id)));
         setQueueSlots(slots => slots.filter(x => !ids.has(x.nzo_id)));
     }, [setQueueSlots]);
 
