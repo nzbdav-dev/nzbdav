@@ -117,7 +117,7 @@ export function QueueTable({
     );
 
     return (
-        <PageSection title={sectionTitle} subTitle={sectionSubTitle} badgeText={`${queueSlots.length} of ${totalQueueCount}`}>
+        <PageSection title={sectionTitle} subTitle={sectionSubTitle}>
             {queueSlots?.length == 0 ? (
                 <EmptyQueue />
             ) : (

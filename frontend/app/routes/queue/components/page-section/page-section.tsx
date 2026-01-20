@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 export type PageTableProps = {
     title: ReactNode,
     subTitle?: ReactNode,
-    badgeText: string,
+    badgeText?: string,
     children?: ReactNode,
 }
 
@@ -14,9 +14,11 @@ export function PageSection({ title, subTitle, badgeText, children }: PageTableP
             <div className={styles.header}>
                 <div className={styles.titleRow}>
                     {title}
-                    <div className={styles.badgeText}>
-                        {badgeText}
-                    </div>
+                    {badgeText &&
+                        <div className={styles.badgeText}>
+                            {badgeText}
+                        </div>
+                    }
                 </div>
                 {subTitle}
             </div>

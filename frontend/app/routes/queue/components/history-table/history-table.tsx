@@ -68,7 +68,7 @@ export function HistoryTable({ historySlots, totalHistoryCount, onIsSelectedChan
     );
 
     return (
-        <PageSection title={sectionTitle} badgeText={`${historySlots.length} of ${totalHistoryCount}`}>
+        <PageSection title={sectionTitle}>
             <PageTable headerCheckboxState={headerCheckboxState} onHeaderCheckboxChange={onSelectAll}>
                 {historySlots.map(slot =>
                     <HistoryRow
