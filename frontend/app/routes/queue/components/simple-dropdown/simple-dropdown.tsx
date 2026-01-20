@@ -5,19 +5,31 @@ import { classNames } from "~/utils/styling";
 export type SimpleDropdownProps = {
     type?: "plain" | "bordered"
     options: string[],
-    value: string,
-    onChange: (value: string) => void,
+    value?: string,
+    onChange?: (value: string) => void,
+    valueRef?: React.RefObject<string>,
 }
 
-export const SimpleDropdown = memo(({ type, options, value, onChange }: SimpleDropdownProps) => {
+export const SimpleDropdown = memo(({ type, options, value, onChange, valueRef }: SimpleDropdownProps) => {
+    // validation
+    if (!valueRef && (!value || !onChange)) {
+        throw new Error("SimpleDropdown requires either the valueRef prop or both the value and onChange props.")
+    }
+
+    // state variables
+    const [internalValue, setInternalValue] = useState(options.length > 0 ? options[0] : "");
     const [isOpen, setIsOpen] = useState(false);
     const [openAbove, setOpenAbove] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
+
+    // derived variables
+    const renderedValue = value || internalValue;
     const containerClassNames = classNames([
         styles.container,
         type === "bordered" && styles.bordered
     ]);
 
+    // events
     const toggleDropdown = useCallback(() => {
         if (!isOpen && dropdownRef.current) {
             const rect = dropdownRef.current.getBoundingClientRect();
@@ -27,16 +39,26 @@ export const SimpleDropdown = memo(({ type, options, value, onChange }: SimpleDr
         setIsOpen(prev => !prev);
     }, [isOpen]);
 
+    const handleSelectedOptionChange = useCallback((option: string) => {
+        if (!!valueRef) {
+            setInternalValue(option);
+            valueRef.current = option;
+        }
+        else if (!!onChange) {
+            onChange(option);
+        }
+    }, [valueRef, setInternalValue, onChange]);
+
     const handleOptionClick = useCallback((option: string) => {
-        onChange(option);
+        handleSelectedOptionChange(option);
         setIsOpen(false);
     }, [onChange]);
 
     const handleNativeChange = useCallback((e: ChangeEvent<HTMLSelectElement>) => {
-        onChange(e.target.value);
-    }, [onChange]);
+        handleSelectedOptionChange(e.target.value);
+    }, [handleSelectedOptionChange]);
 
-    // Close dropdown when clicking outside
+    // close dropdown when clicking outside
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -53,10 +75,11 @@ export const SimpleDropdown = memo(({ type, options, value, onChange }: SimpleDr
         };
     }, [isOpen]);
 
+    // view
     return (
         <div className={containerClassNames} ref={dropdownRef}>
             {/* hidden native select for mobile devices */}
-            <select className={styles.nativeSelect} value={value} onChange={handleNativeChange}>
+            <select className={styles.nativeSelect} value={renderedValue} onChange={handleNativeChange}>
                 {options.map(option => (
                     <option key={option} value={option}>{option}</option>
                 ))}
@@ -64,7 +87,7 @@ export const SimpleDropdown = memo(({ type, options, value, onChange }: SimpleDr
 
             {/* styled visible dropdown box */}
             <div className={styles.selected} onClick={toggleDropdown}>
-                {value}
+                {renderedValue}
                 <span className={styles.arrow}></span>
             </div>
 

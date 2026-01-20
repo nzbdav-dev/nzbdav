@@ -5,7 +5,7 @@ import { Alert } from 'react-bootstrap';
 import { backendClient, type HistorySlot, type QueueSlot } from "~/clients/backend-client.server";
 import { HistoryTable } from "./components/history-table/history-table";
 import { QueueTable } from "./components/queue-table/queue-table";
-import { useCallback, useState, useRef } from "react";
+import { useState, useRef } from "react";
 import { useHistoryEvents, useQueueEvents } from "./controllers/events-controller";
 import { initializeQueueHistoryWebsocket } from "./controllers/websocket-controller";
 import { initializeUploadController } from "./controllers/nzb-upload-controller";
@@ -44,18 +44,11 @@ export default function Queue(props: Route.ComponentProps) {
     const [queueSlots, setQueueSlots] = useState<PresentationQueueSlot[]>(props.loaderData.queueSlots);
     const [historySlots, setHistorySlots] = useState<PresentationHistorySlot[]>(props.loaderData.historySlots);
     const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([]);
-    const [manualCategory, setManualCategory] = useState<string>(props.loaderData.manualCategory);
     const uploadQueueRef = useRef<UploadingFile[]>([]);
-    const manualCategoryRef = useRef<string>(manualCategory);
+    const manualCategoryRef = useRef<string>(props.loaderData.manualCategory);
     const isUploadingRef = useRef(false);
     const disableLiveView = queueSlots.length == maxItems || historySlots.length == maxItems;
     const combinedQueueSlots = [...uploadingFiles.map(file => file.queueSlot), ...queueSlots];
-
-    // category events
-    const onManualCategoryChanged = useCallback((category: string) => {
-        setManualCategory(category);
-        manualCategoryRef.current = category;
-    }, []);
 
     // queue/history events
     const queueEvents = useQueueEvents(setUploadingFiles, setQueueSlots, uploadQueueRef);
@@ -102,11 +95,10 @@ export default function Queue(props: Route.ComponentProps) {
                         queueSlots={combinedQueueSlots}
                         totalQueueCount={props.loaderData.totalQueueCount + uploadingFiles.length}
                         categories={props.loaderData.categories}
-                        manualCategory={manualCategory}
+                        manualCategoryRef={manualCategoryRef}
                         onIsSelectedChanged={queueEvents.onSelectQueueSlots}
                         onIsRemovingChanged={queueEvents.onRemovingQueueSlots}
                         onRemoved={queueEvents.onRemoveQueueSlots}
-                        onManualCategoryChanged={onManualCategoryChanged}
                     />
                 </div>
             </div>

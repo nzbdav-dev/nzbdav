@@ -15,22 +15,20 @@ export type QueueTableProps = {
     queueSlots: PresentationQueueSlot[],
     totalQueueCount: number,
     categories: string[],
-    manualCategory: string,
+    manualCategoryRef: React.RefObject<string>,
     onIsSelectedChanged: (nzo_ids: Set<string>, isSelected: boolean) => void,
     onIsRemovingChanged: (nzo_ids: Set<string>, isRemoving: boolean) => void,
     onRemoved: (nzo_ids: Set<string>) => void,
-    onManualCategoryChanged: (category: string) => void,
 }
 
 export function QueueTable({
     queueSlots,
     totalQueueCount,
     categories,
-    manualCategory,
+    manualCategoryRef,
     onIsSelectedChanged,
     onIsRemovingChanged,
     onRemoved,
-    onManualCategoryChanged,
 }: QueueTableProps) {
     const [isConfirmingRemoval, setIsConfirmingRemoval] = useState(false);
     var selectedCount = queueSlots.filter(x => !!x.isSelected).length;
@@ -94,13 +92,9 @@ export function QueueTable({
     // view
     const categoryDropdown = useMemo(() => (
         <div title="Choose the category for manual nzb uploads.">
-            <SimpleDropdown
-                options={categories}
-                value={manualCategory}
-                onChange={onManualCategoryChanged}
-            />
+            <SimpleDropdown options={categories} valueRef={manualCategoryRef}/>
         </div>
-    ), [categories, manualCategory, onManualCategoryChanged]);
+    ), [categories]);
 
     const sectionTitle = (
         <div className={styles.sectionTitle}>
