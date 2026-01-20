@@ -14,6 +14,7 @@
     display: flex;
     gap: 10px;
     align-items: baseline;
+
     h3 {
         margin: 0;
     }
@@ -29,4 +30,23 @@
     .listItem {
         margin-top: 5px
     }
+}
+
+.dropzone {
+    position: relative;
+}
+
+.activeDropzone {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 123, 255, 0.1);
+    outline: 2px dashed #007bff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    border-radius: 4px;
 }

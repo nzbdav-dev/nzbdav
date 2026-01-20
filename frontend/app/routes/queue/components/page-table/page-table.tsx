@@ -5,6 +5,7 @@ import { TriCheckbox, type TriCheckboxState } from "../tri-checkbox/tri-checkbox
 import { Truncate } from "../truncate/truncate";
 import { StatusBadge } from "../status-badge/status-badge";
 import { formatFileSize } from "~/utils/file-size";
+import { classNames } from "~/utils/styling";
 
 export type PageTableProps = {
     children?: ReactNode,
@@ -42,6 +43,7 @@ export function PageTable({ children, headerCheckboxState, onHeaderCheckboxChang
 }
 
 export type PageRowProps = {
+    isUploading?: boolean,
     isSelected: boolean,
     isRemoving: boolean,
     name: string,
@@ -54,8 +56,13 @@ export type PageRowProps = {
     onRowSelectionChanged: (isSelected: boolean) => void
 }
 export function PageRow(props: PageRowProps) {
+    const rowStyles = [
+        props.isRemoving && styles.removing,
+        props.isUploading && styles.uploading
+    ];
+
     return (
-        <tr className={props.isRemoving ? styles.removing : undefined}>
+        <tr className={classNames(rowStyles)}>
             <td>
                 <TriCheckbox state={props.isSelected} onChange={props.onRowSelectionChanged}>
                     <Truncate>{props.name}</Truncate>

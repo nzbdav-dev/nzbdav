@@ -1,15 +1,13 @@
-import { Link, redirect } from "react-router";
+import { Link } from "react-router";
 import type { Route } from "./+types/route";
 import styles from "./route.module.css"
 import { Alert } from 'react-bootstrap';
 import { backendClient, type HistorySlot, type QueueSlot } from "~/clients/backend-client.server";
 import { HistoryTable } from "./components/history-table/history-table";
 import { QueueTable } from "./components/queue-table/queue-table";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { receiveMessage } from "~/utils/websocket-util";
-import { isAuthenticated } from "~/auth/authentication.server";
-import { PageSection } from "./components/page-section/page-section";
-import { EmptyQueue } from "./components/empty-queue/empty-queue";
+import { useDropzone } from 'react-dropzone';
 
 const topicNames = {
     queueItemStatus: 'qs',
@@ -45,11 +43,15 @@ export async function loader({ request }: Route.LoaderArgs) {
 export default function Queue(props: Route.ComponentProps) {
     const [queueSlots, setQueueSlots] = useState<PresentationQueueSlot[]>(props.loaderData.queueSlots);
     const [historySlots, setHistorySlots] = useState<PresentationHistorySlot[]>(props.loaderData.historySlots);
+    const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([]);
+    const uploadQueueRef = useRef<UploadingFile[]>([]);
+    const isUploadingRef = useRef(false);
     const disableLiveView = queueSlots.length == maxItems || historySlots.length == maxItems;
-    const error = props.actionData?.error;
+    const combinedQueueSlots = [...uploadingFiles.map(file => file.queueSlot), ...queueSlots];
 
     // queue events
     const onAddQueueSlot = useCallback((queueSlot: QueueSlot) => {
+        setUploadingFiles(files => files.filter(f => f.queueSlot.filename !== queueSlot.filename));
         setQueueSlots(slots => [...slots, queueSlot]);
     }, [setQueueSlots]);
 
@@ -133,14 +135,121 @@ export default function Queue(props: Route.ComponentProps) {
         return connect();
     }, [onWebsocketMessage, disableLiveView]);
 
+    // upload processing
+    const processUploadQueue = useCallback(async () => {
+        if (isUploadingRef.current || uploadQueueRef.current.length === 0) return;
+
+        isUploadingRef.current = true;
+        const fileToUpload = uploadQueueRef.current[0];
+
+        setUploadingFiles(files => files.map(f =>
+            f.queueSlot.nzo_id === fileToUpload.queueSlot.nzo_id
+                ? { ...f, queueSlot: { ...f.queueSlot, status: 'uploading' } }
+                : f
+        ));
+
+        try {
+            const xhr = new XMLHttpRequest();
+            const formData = new FormData();
+            formData.append('nzbFile', fileToUpload.file, fileToUpload.file.name);
+
+            xhr.responseType = 'json';
+            xhr.upload.addEventListener('progress', (e) => {
+                if (e.lengthComputable) {
+                    const progress = Math.round((e.loaded / e.total) * 100);
+                    setUploadingFiles(files => files.map(f =>
+                        f.queueSlot.nzo_id === fileToUpload.queueSlot.nzo_id
+                            ? {
+                                ...f,
+                                queueSlot: {
+                                    ...f.queueSlot,
+                                    percentage: progress.toString(),
+                                    true_percentage: progress.toString()
+                                }
+                            }
+                            : f
+                    ));
+                }
+            });
+
+            var response: any = await new Promise<void>((resolve, reject) => {
+                xhr.addEventListener('load', () => {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        resolve(xhr.response);
+                    } else {
+                        const errorMessage = xhr.response.error || `Upload failed with status ${xhr.status}`;
+                        reject(new Error(errorMessage));
+                    }
+                });
+                xhr.addEventListener('error', () => reject(new Error('Upload failed')));
+                xhr.addEventListener('abort', () => reject(new Error('Upload aborted')));
+
+                xhr.open('POST', '/api?mode=addfile&cat=uncategorized&priority=0&pp=0');
+                xhr.send(formData);
+            });
+
+            if (response.status == false) {
+                throw new Error(response.error);
+            }
+
+        } catch (error) {
+            setUploadingFiles(files => files.map(f =>
+                f.queueSlot.nzo_id === fileToUpload.queueSlot.nzo_id ? {
+                    ...f,
+                    queueSlot: {
+                        ...f.queueSlot,
+                        status: 'upload failed',
+                        error: error instanceof Error ? error.message : 'Upload failed'
+                    }
+                } : f
+            ));
+        }
+
+        uploadQueueRef.current = uploadQueueRef.current.filter(x => x !== fileToUpload);
+        isUploadingRef.current = false;
+
+        if (uploadQueueRef.current.length > 0) {
+            processUploadQueue();
+        }
+    }, []);
+
+    // trigger upload processing when files are added
+    useEffect(() => {
+        processUploadQueue();
+    }, [uploadingFiles, processUploadQueue]);
+
+    // dropzone
+    const onDrop = useCallback((acceptedFiles: File[]) => {
+        const newFiles: UploadingFile[] = acceptedFiles.map(file => ({
+            file,
+            queueSlot: {
+                isUploading: true,
+                nzo_id: `upload-${Date.now()}-${Math.random()}`,
+                priority: 'Normal',
+                filename: file.name,
+                cat: 'uncategorized',
+                percentage: "0",
+                true_percentage: "0",
+                status: "pending",
+                mb: (file.size / (1024 * 1024)).toFixed(2),
+                mbleft: (file.size / (1024 * 1024)).toFixed(2),
+            }
+        }));
+
+        setUploadingFiles(files => [...files, ...newFiles]);
+        uploadQueueRef.current = [...uploadQueueRef.current, ...newFiles];
+    }, []);
+
+    const dropzone = useDropzone({
+        accept: { 'application/x-nzb': ['.nzb'] },
+        onDrop,
+        noClick: true,
+        noKeyboard: true,
+    });
+
+    // view
     return (
         <div className={styles.container}>
-            {/* error message */}
-            {error &&
-                <Alert variant="danger">
-                    {error}
-                </Alert>
-            }
 
             {/* warning */}
             {disableLiveView &&
@@ -164,10 +273,12 @@ export default function Queue(props: Route.ComponentProps) {
             }
 
             {/* queue */}
-            <div style={{ minHeight: '383.59px', marginBottom: '50px' }}>
+            <div className={styles.dropzone} {...dropzone.getRootProps()}>
+                {dropzone.isDragActive && <div className={styles.activeDropzone} />}
+                <input {...dropzone.getInputProps()} />
                 <QueueTable
-                    queueSlots={queueSlots}
-                    totalQueueCount={props.loaderData.totalQueueCount}
+                    queueSlots={combinedQueueSlots}
+                    totalQueueCount={props.loaderData.totalQueueCount + uploadingFiles.length}
                     onIsSelectedChanged={onSelectQueueSlots}
                     onIsRemovingChanged={onRemovingQueueSlots}
                     onRemoved={onRemoveQueueSlots}
@@ -188,32 +299,19 @@ export default function Queue(props: Route.ComponentProps) {
     );
 }
 
-export async function action({ request }: Route.ActionArgs) {
-    // ensure user is logged in
-    if (!await isAuthenticated(request)) return redirect("/login");
-
-    try {
-        const formData = await request.formData();
-        const nzbFile = formData.get("nzbFile");
-        if (nzbFile instanceof File) {
-            await backendClient.addNzb(nzbFile);
-        } else {
-            return { error: "Error uploading nzb." }
-        }
-    } catch (error) {
-        if (error instanceof Error) {
-            return { error: error.message };
-        }
-        throw error;
-    }
-}
-
 export type PresentationHistorySlot = HistorySlot & {
     isSelected?: boolean,
     isRemoving?: boolean,
 }
 
 export type PresentationQueueSlot = QueueSlot & {
+    isUploading?: boolean,
     isSelected?: boolean,
     isRemoving?: boolean,
+    error?: string,
+}
+
+export type UploadingFile = {
+    file: File,
+    queueSlot: PresentationQueueSlot,
 }

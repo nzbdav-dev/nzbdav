@@ -5,6 +5,8 @@ declare const styles: {
   readonly "alert": string;
   readonly "list": string;
   readonly "listItem": string;
+  readonly "dropzone": string;
+  readonly "activeDropzone": string;
 };
 export = styles;
 

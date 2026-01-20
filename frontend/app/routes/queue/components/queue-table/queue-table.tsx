@@ -136,6 +136,7 @@ export function QueueRow({ slot, onIsSelectedChanged, onIsRemovingChanged, onRem
     return (
         <>
             <PageRow
+                isUploading={!!slot.isUploading}
                 isSelected={!!slot.isSelected}
                 isRemoving={!!slot.isRemoving}
                 name={slot.filename}

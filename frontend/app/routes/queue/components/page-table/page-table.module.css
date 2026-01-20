@@ -87,6 +87,10 @@
     .removing {
         opacity: 20%;
     }
+
+    .uploading {
+        background: rgba(128, 150, 255, 0.1);
+    }
 }
 
 .table:not(:has(+ .footer)) tbody tr:last-child td {
