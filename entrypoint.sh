@@ -42,14 +42,26 @@ trap terminate TERM INT
 PUID=${PUID:-1000}
 PGID=${PGID:-1000}
 
-# Create group if it doesn't exist
-if ! getent group appgroup >/dev/null; then
+# Create or reuse group based on PGID
+if getent group "$PGID" >/dev/null; then
+    EXISTING_GROUP=$(getent group "$PGID" | cut -d: -f1)
+    echo "GID $PGID already exists, using group $EXISTING_GROUP"
+    GROUP_NAME="$EXISTING_GROUP"
+else
     addgroup -g "$PGID" appgroup
+    GROUP_NAME=appgroup
 fi
 
-# Create user if it doesn't exist
-if ! id appuser >/dev/null 2>&1; then
-    adduser -D -H -u "$PUID" -G appgroup appuser
+# Create or reuse user based on PUID
+if getent passwd "$PUID" >/dev/null; then
+    EXISTING_USER=$(getent passwd "$PUID" | cut -d: -f1)
+    echo "UID $PUID already exists, using user $EXISTING_USER"
+    USER_NAME="$EXISTING_USER"
+else
+    if ! id appuser >/dev/null 2>&1; then
+        adduser -D -H -u "$PUID" -G "$GROUP_NAME" appuser
+    fi
+    USER_NAME=appuser
 fi
 
 # Set environment variables
@@ -61,21 +73,35 @@ if [ -z "${FRONTEND_BACKEND_API_KEY}" ]; then
     export FRONTEND_BACKEND_API_KEY=$(head -c 32 /dev/urandom | hexdump -ve '1/1 "%.2x"')
 fi
 
-# Change permissions on /config directory to the given PUID and PGID
-chown $PUID:$PGID /config
+if [ -z "${CONFIG_PATH}" ]; then
+    export CONFIG_PATH="/config"
+fi
+
+# Recursively update permissions to all $CONFIG_PATH files if needed
+chown "$PUID:$PGID" "$CONFIG_PATH"
+if [ -f "$CONFIG_PATH/db.sqlite" ]; then
+    DB_UID=$(stat -c '%u' "$CONFIG_PATH/db.sqlite")
+    DB_GID=$(stat -c '%g' "$CONFIG_PATH/db.sqlite")
+
+    if [ "$DB_UID" -ne "$PUID" ] || [ "$DB_GID" -ne "$PGID" ]; then
+        echo "$CONFIG_PATH/db.sqlite ownership mismatch: (uid:$DB_UID gid:$DB_GID) vs expected (uid:$PUID gid:$PGID)"
+        echo "Updating ownership of $CONFIG_PATH/* to (uid:$PUID gid:$PGID)"
+        chown -R "$PUID:$PGID" "$CONFIG_PATH"
+    fi
+fi
 
 # Run backend database migration
 cd /app/backend
 echo "Running database maintenance."
-su-exec appuser ./NzbWebDAV --db-migration
+su-exec "$USER_NAME" ./NzbWebDAV --db-migration
 if [ $? -ne 0 ]; then
     echo "Database migration failed. Exiting with error code $?."
     exit $?
 fi
 echo "Done with database maintenance."
 
-# Run backend as appuser in background
-su-exec appuser ./NzbWebDAV &
+# Run backend as "$USER_NAME" in background
+su-exec "$USER_NAME" ./NzbWebDAV &
 BACKEND_PID=$!
 
 # Wait for backend health check
@@ -101,9 +127,9 @@ while true; do
     sleep "$MAX_BACKEND_HEALTH_RETRY_DELAY"
 done
 
-# Run frontend as appuser in background
+# Run frontend as "$USER_NAME" in background
 cd /app/frontend
-su-exec appuser npm run start &
+su-exec "$USER_NAME" npm run start &
 FRONTEND_PID=$!
 
 # Wait for either to exit
