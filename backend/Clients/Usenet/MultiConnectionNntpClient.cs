@@ -150,12 +150,11 @@ public class MultiConnectionNntpClient(ConnectionPool<INntpClient> connectionPoo
             }
             catch (Exception e) when (e.IsCancellationException())
             {
-                LogException(() => connectionLock?.Replace());
                 LogException(() => connectionLock?.Dispose());
                 LogException(() => onConnectionReadyAgain?.Invoke(ArticleBodyResult.NotRetrieved));
                 throw;
             }
-            catch (Exception e) when (!e.IsCancellationException())
+            catch (Exception e)
             {
                 LogException(() => connectionLock?.Replace());
                 LogException(() => connectionLock?.Dispose());
@@ -188,7 +187,7 @@ public class MultiConnectionNntpClient(ConnectionPool<INntpClient> connectionPoo
                 LogException(() => onConnectionReadyAgain?.Invoke(ArticleBodyResult.NotRetrieved));
                 throw;
             }
-            catch (Exception e) when (!e.TryGetCausingException(out UsenetArticleNotFoundException _))
+            catch (Exception e)
             {
                 LogException(() => connectionLock?.Replace());
                 LogException(() => connectionLock?.Dispose());
