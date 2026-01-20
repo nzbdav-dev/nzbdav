@@ -8,12 +8,9 @@ namespace NzbWebDAV.Api.SabControllers.AddUrl;
 
 public class AddUrlRequest() : AddFileRequest
 {
+    private static readonly string DefaultUserAgent = $"nzbdav/{ConfigManager.AppVersion}";
     private static readonly HttpClient HttpClient = GetHttpClient();
-
     private const int MaxAutomaticRedirections = 10;
-    private const string UserAgentHeader =
-        "Mozilla/5.0 (Windows NT 11.0; Win64; x64) AppleWebKit/537.36 " +
-        "(KHTML, like Gecko) Chrome/134.0.6998.166 Safari/537.36";
 
     public static async Task<AddUrlRequest> New(HttpContext context, ConfigManager configManager)
     {
@@ -107,15 +104,8 @@ public class AddUrlRequest() : AddFileRequest
             MaxAutomaticRedirections = MaxAutomaticRedirections,
         };
         var httpClient = new HttpClient(handler);
-        var userAgentEnv = Environment.GetEnvironmentVariable("NZB_GRAB_USER_AGENT");
-        
-        var addedCustom = !string.IsNullOrWhiteSpace(userAgentEnv) && 
-                          httpClient.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", userAgentEnv);
-
-        if (!addedCustom)
-        {
-            httpClient.DefaultRequestHeaders.Add("User-Agent", UserAgentHeader);
-        }
+        var userAgent = EnvironmentUtil.GetEnvironmentVariable("NZB_GRAB_USER_AGENT") ?? DefaultUserAgent;
+        httpClient.DefaultRequestHeaders.Add("User-Agent", userAgent);
         return httpClient;
     }
 
