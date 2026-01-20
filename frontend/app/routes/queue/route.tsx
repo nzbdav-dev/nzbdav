@@ -300,19 +300,21 @@ export default function Queue(props: Route.ComponentProps) {
             }
 
             {/* queue */}
-            <div className={styles.dropzone} {...dropzone.getRootProps()}>
-                {dropzone.isDragActive && <div className={styles.activeDropzone} />}
-                <input {...dropzone.getInputProps()} />
-                <QueueTable
-                    queueSlots={combinedQueueSlots}
-                    totalQueueCount={props.loaderData.totalQueueCount + uploadingFiles.length}
-                    categories={props.loaderData.categories}
-                    manualCategory={manualCategory}
-                    onIsSelectedChanged={onSelectQueueSlots}
-                    onIsRemovingChanged={onRemovingQueueSlots}
-                    onRemoved={onRemoveQueueSlots}
-                    onManualCategoryChanged={onManualCategoryChanged}
-                />
+            <div className={styles.queueContainer}>
+                <div className={styles.dropzone} {...dropzone.getRootProps()}>
+                    {dropzone.isDragActive && <div className={styles.activeDropzone} />}
+                    <input {...dropzone.getInputProps()} />
+                    <QueueTable
+                        queueSlots={combinedQueueSlots}
+                        totalQueueCount={props.loaderData.totalQueueCount + uploadingFiles.length}
+                        categories={props.loaderData.categories}
+                        manualCategory={manualCategory}
+                        onIsSelectedChanged={onSelectQueueSlots}
+                        onIsRemovingChanged={onRemovingQueueSlots}
+                        onRemoved={onRemoveQueueSlots}
+                        onManualCategoryChanged={onManualCategoryChanged}
+                    />
+                </div>
             </div>
 
             {/* history */}

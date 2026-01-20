@@ -6,6 +6,17 @@
     font-size: 14px;
 }
 
+.queueContainer {
+    min-height: 382.9px;
+    margin-bottom: 50px;
+}
+
+@media not (min-width: 450px) {
+    .queueContainer {
+        min-height: 413.9px;
+    }
+}
+
 .section {
     margin-bottom: 50px;
 }

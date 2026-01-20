@@ -1,5 +1,6 @@
 declare const styles: {
   readonly "container": string;
+  readonly "queueContainer": string;
   readonly "section": string;
   readonly "sectionTitle": string;
   readonly "alert": string;

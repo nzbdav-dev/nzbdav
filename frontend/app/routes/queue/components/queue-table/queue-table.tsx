@@ -190,7 +190,7 @@ export function QueueRow({ slot, onIsSelectedChanged, onIsRemovingChanged, onRem
                 isRemoving={!!slot.isRemoving}
                 name={slot.filename}
                 category={slot.cat}
-                status={slot.status}q
+                status={slot.status}
                 percentage={slot.true_percentage}
                 fileSizeBytes={Number(slot.mb) * 1024 * 1024}
                 actions={<ActionButton type="delete" disabled={!!slot.isRemoving || isActivelyUploading} onClick={onRemove} />}
