@@ -43,8 +43,10 @@ public class MultiConnectionNntpClient(ConnectionPool<INntpClient> connectionPoo
     public override Task<UsenetStatResponse> StatAsync(SegmentId segmentId, CancellationToken ct)
     {
         return RunWithConnection(
+            "STAT",
             SemaphorePriority.Low,
-            connection => connection.StatAsync(segmentId, ct),
+            (connection, _) => connection.StatAsync(segmentId, ct),
+            onConnectionReadyAgain: null,
             ct
         );
     }
@@ -52,8 +54,10 @@ public class MultiConnectionNntpClient(ConnectionPool<INntpClient> connectionPoo
     public override Task<UsenetHeadResponse> HeadAsync(SegmentId segmentId, CancellationToken ct)
     {
         return RunWithConnection(
+            "HEAD",
             SemaphorePriority.Low,
-            connection => connection.HeadAsync(segmentId, ct),
+            (connection, _) => connection.HeadAsync(segmentId, ct),
+            onConnectionReadyAgain: null,
             ct
         );
     }
@@ -61,6 +65,7 @@ public class MultiConnectionNntpClient(ConnectionPool<INntpClient> connectionPoo
     public override Task<UsenetDecodedBodyResponse> DecodedBodyAsync(SegmentId segmentId, CancellationToken ct)
     {
         return RunWithConnection(
+            "BODY",
             SemaphorePriority.High,
             (connection, onDone) => connection.DecodedBodyAsync(segmentId, onDone, ct),
             onConnectionReadyAgain: null,
@@ -75,6 +80,7 @@ public class MultiConnectionNntpClient(ConnectionPool<INntpClient> connectionPoo
     )
     {
         return RunWithConnection(
+            "ARTICLE",
             SemaphorePriority.High,
             (connection, onDone) => connection.DecodedArticleAsync(segmentId, onDone, ct),
             onConnectionReadyAgain: null,
@@ -85,8 +91,10 @@ public class MultiConnectionNntpClient(ConnectionPool<INntpClient> connectionPoo
     public override Task<UsenetDateResponse> DateAsync(CancellationToken ct)
     {
         return RunWithConnection(
+            "DATE",
             SemaphorePriority.Low,
-            connection => connection.DateAsync(ct),
+            (connection, _) => connection.DateAsync(ct),
+            onConnectionReadyAgain: null,
             ct
         );
     }
@@ -99,6 +107,7 @@ public class MultiConnectionNntpClient(ConnectionPool<INntpClient> connectionPoo
     )
     {
         return RunWithConnection(
+            "BODY",
             SemaphorePriority.High,
             (connection, onDone) => connection.DecodedBodyAsync(segmentId, onDone, ct),
             onConnectionReadyAgain,
@@ -114,6 +123,7 @@ public class MultiConnectionNntpClient(ConnectionPool<INntpClient> connectionPoo
     )
     {
         return RunWithConnection(
+            "ARTICLE",
             SemaphorePriority.High,
             (connection, onDone) => connection.DecodedArticleAsync(segmentId, onDone, ct),
             onConnectionReadyAgain,
@@ -123,42 +133,7 @@ public class MultiConnectionNntpClient(ConnectionPool<INntpClient> connectionPoo
 
     private async Task<T> RunWithConnection<T>
     (
-        SemaphorePriority priority,
-        Func<INntpClient, Task<T>> command,
-        CancellationToken ct,
-        int retryCount = 1
-    )
-    {
-        while (retryCount >= 0)
-        {
-            ConnectionLock<INntpClient>? connectionLock = null;
-            try
-            {
-                connectionLock = await connectionPool.GetConnectionLockAsync(priority, ct).ConfigureAwait(false);
-                var result = await command(connectionLock.Connection).ConfigureAwait(false);
-                return result;
-            }
-            catch (Exception e)
-            {
-                connectionLock?.Replace();
-                var message = "Error executing nntp command.";
-                if (retryCount > 0) message += " Retrying with a new connection.";
-                Log.Warning(e, message);
-                if (retryCount <= 0) throw;
-                else retryCount--;
-            }
-            finally
-            {
-                connectionLock?.Dispose();
-            }
-        }
-
-        Log.Error("Unreachable code reached");
-        throw new InvalidOperationException("Unreachable code ");
-    }
-
-    private async Task<T> RunWithConnection<T>
-    (
+        string name,
         SemaphorePriority priority,
         Func<INntpClient, Action<ArticleBodyResult>, Task<T>> command,
         Action<ArticleBodyResult>? onConnectionReadyAgain,
@@ -173,7 +148,14 @@ public class MultiConnectionNntpClient(ConnectionPool<INntpClient> connectionPoo
             {
                 connectionLock = await connectionPool.GetConnectionLockAsync(priority, ct).ConfigureAwait(false);
             }
-            catch (Exception e)
+            catch (Exception e) when (e.IsCancellationException())
+            {
+                LogException(() => connectionLock?.Replace());
+                LogException(() => connectionLock?.Dispose());
+                LogException(() => onConnectionReadyAgain?.Invoke(ArticleBodyResult.NotRetrieved));
+                throw;
+            }
+            catch (Exception e) when (!e.IsCancellationException())
             {
                 LogException(() => connectionLock?.Replace());
                 LogException(() => connectionLock?.Dispose());
@@ -194,6 +176,12 @@ public class MultiConnectionNntpClient(ConnectionPool<INntpClient> connectionPoo
             {
                 result = await command(connectionLock.Connection, OnConnectionReadyAgain).ConfigureAwait(false);
             }
+            catch (Exception e) when (e.IsCancellationException())
+            {
+                LogException(() => connectionLock?.Dispose());
+                LogException(() => onConnectionReadyAgain?.Invoke(ArticleBodyResult.NotRetrieved));
+                throw;
+            }
             catch (Exception e) when (e.TryGetCausingException(out UsenetArticleNotFoundException _))
             {
                 LogException(() => connectionLock?.Dispose());
@@ -206,17 +194,24 @@ public class MultiConnectionNntpClient(ConnectionPool<INntpClient> connectionPoo
                 LogException(() => connectionLock?.Dispose());
                 if (retryCount > 0)
                 {
-                    Log.Warning(e, "Error executing nntp command. Retrying with a new connection.");
+                    Log.Warning(e, $"Error executing nntp {name} command. Retrying with a new connection.");
                     retryCount--;
                     continue;
                 }
 
-                Log.Warning(e, "Error executing nntp command.");
+                Log.Warning(e, $"Error executing nntp {name} command.");
                 LogException(() => onConnectionReadyAgain?.Invoke(ArticleBodyResult.NotRetrieved));
                 throw;
             }
 
-            if ((result?.Success ?? false) == false)
+            // stat, head, and date
+            if (name is "STAT" or "HEAD" or "DATE")
+            {
+                LogException(() => connectionLock?.Dispose());
+            }
+            
+            // body and article
+            else if ((result?.Success ?? false) == false)
             {
                 LogException(() => connectionLock?.Dispose());
                 LogException(() => onConnectionReadyAgain?.Invoke(ArticleBodyResult.NotRetrieved));
