@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using NzbWebDAV.Database;
+using NzbWebDAV.Utils;
 
 namespace NzbWebDAV.Api.Controllers.GetDatabaseBackup;
 
@@ -11,7 +12,7 @@ public class GetDatabaseBackupController() : BaseApiController
     {
         // This endpoint allows downloading a backup of the database.
         // It is disabled by default and can only be enabled by the env variable below.
-        if (Environment.GetEnvironmentVariable("DANGEROUS_ENABLE_DATABASE_DOWNLOAD_ENDPOINT") != "true")
+        if (!EnvironmentUtil.IsVariableTrue("DANGEROUS_ENABLE_DATABASE_DOWNLOAD_ENDPOINT"))
             return Forbid("This endpoint is not enabled.");
 
         var filepath = DavDatabaseContext.DatabaseFilePath;

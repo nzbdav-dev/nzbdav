@@ -3,12 +3,13 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NzbWebDAV.Database.Interceptors;
 using NzbWebDAV.Database.Models;
+using NzbWebDAV.Utils;
 
 namespace NzbWebDAV.Database;
 
 public sealed class DavDatabaseContext() : DbContext(Options.Value)
 {
-    public static string ConfigPath => Environment.GetEnvironmentVariable("CONFIG_PATH") ?? "/config";
+    public static string ConfigPath => EnvironmentUtil.GetEnvironmentVariable("CONFIG_PATH") ?? "/config";
     public static string DatabaseFilePath => Path.Join(ConfigPath, "db.sqlite");
 
     private static readonly Lazy<DbContextOptions<DavDatabaseContext>> Options = new(

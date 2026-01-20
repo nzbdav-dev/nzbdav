@@ -2,6 +2,11 @@
 
 public static class EnvironmentUtil
 {
+    public static string? GetEnvironmentVariable(string envVariable)
+    {
+        return StringUtil.EmptyToNull(Environment.GetEnvironmentVariable(envVariable));
+    }
+
     public static string GetRequiredVariable(string envVariable)
     {
         return Environment.GetEnvironmentVariable(envVariable) ??

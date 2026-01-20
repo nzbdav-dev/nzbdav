@@ -36,7 +36,7 @@ class Program
 
         // Initialize logger
         var defaultLevel = LogEventLevel.Information;
-        var envLevel = Environment.GetEnvironmentVariable("LOG_LEVEL");
+        var envLevel = EnvironmentUtil.GetEnvironmentVariable("LOG_LEVEL");
         var level = Enum.TryParse<LogEventLevel>(envLevel, true, out var parsed) ? parsed : defaultLevel;
         Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Is(level)
@@ -57,7 +57,9 @@ class Program
         {
             var argIndex = args.ToList().IndexOf("--db-migration");
             var targetMigration = args.Length > argIndex + 1 ? args[argIndex + 1] : null;
-            await databaseContext.Database.MigrateAsync(targetMigration, SigtermUtil.GetCancellationToken()).ConfigureAwait(false);
+            await databaseContext.Database
+                .MigrateAsync(targetMigration, SigtermUtil.GetCancellationToken())
+                .ConfigureAwait(false);
             return;
         }
 
