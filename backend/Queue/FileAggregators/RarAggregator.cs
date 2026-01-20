@@ -36,6 +36,10 @@ public class RarAggregator(DavDatabaseClient dbClient, DavItem mountDirectory, b
 
         foreach (var archiveFile in archiveFiles)
         {
+            // Ensure we have all volumes necessary for this file.
+            ValidateVolumes(archiveFile.Value);
+
+            // Initialize dav-item fields
             var pathWithinArchive = archiveFile.Key;
             var fileParts = SortByPartNumber(archiveFile.Value);
             var aesParams = fileParts.Select(x => x.AesParams).FirstOrDefault(x => x != null);
@@ -99,13 +103,25 @@ public class RarAggregator(DavDatabaseClient dbClient, DavItem mountDirectory, b
             .ToArray();
     }
 
+    private static void ValidateVolumes(List<RarProcessor.StoredFileSegment> storedFileSegments)
+    {
+        if (storedFileSegments.Count == 0) return;
+        var distinctUncompressedSizes = storedFileSegments.Select(x => x.FileUncompressedSize).Distinct().ToList();
+        if (distinctUncompressedSizes.Count != 1)
+            throw new InvalidDataException("Inconsistent rar file size detected.");
+        var expected = distinctUncompressedSizes[0];
+        var actual = storedFileSegments.Sum(x => x.ByteRangeWithinPart.Count);
+        if (Math.Abs(actual - expected) > 16)
+            throw new InvalidDataException("Missing rar volumes detected.");
+    }
+
     [SuppressMessage("ReSharper", "PossibleMultipleEnumeration")]
     private static void ValidatePartNumbers(IEnumerable<int> partNumbers)
     {
         var count = partNumbers.Count();
         var uniqueCount = partNumbers.Distinct().Count();
         if (count != uniqueCount)
-            throw new InvalidFormatException("Rar archive has duplicate volume numbers.");
+            throw new InvalidDataException("Rar archive has duplicate volume numbers.");
     }
 
     private static int GetNormalizedPartNumber(RarProcessor.PartNumber partNumber, int? delta)
