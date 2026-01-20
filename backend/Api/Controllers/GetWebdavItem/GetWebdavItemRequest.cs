@@ -46,7 +46,7 @@ public class GetWebdavItemRequest
                 return true;
         }
 
-        var apiKey = EnvironmentUtil.GetVariable("FRONTEND_BACKEND_API_KEY");
+        var apiKey = EnvironmentUtil.GetRequiredVariable("FRONTEND_BACKEND_API_KEY");
         return downloadKey == GenerateDownloadKey(apiKey, path);
     }
 

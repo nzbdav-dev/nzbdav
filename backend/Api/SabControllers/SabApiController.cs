@@ -110,7 +110,7 @@ public class SabApiController(
                 var apiKey = httpContext.GetRequestApiKey();
                 var isValidKey = apiKey?.IsAny(
                     configManager.GetApiKey(),
-                    EnvironmentUtil.GetVariable("FRONTEND_BACKEND_API_KEY")
+                    EnvironmentUtil.GetRequiredVariable("FRONTEND_BACKEND_API_KEY")
                 );
                 if (!isValidKey.HasValue)
                     throw new UnauthorizedAccessException("API Key Required");

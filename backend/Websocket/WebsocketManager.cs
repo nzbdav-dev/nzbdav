@@ -69,7 +69,7 @@ public class WebsocketManager
     private static async Task<bool> Authenticate(WebSocket socket)
     {
         var apiKey = await ReceiveAuthToken(socket).ConfigureAwait(false);
-        return apiKey == EnvironmentUtil.GetVariable("FRONTEND_BACKEND_API_KEY");
+        return apiKey == EnvironmentUtil.GetRequiredVariable("FRONTEND_BACKEND_API_KEY");
     }
 
     /// <summary>

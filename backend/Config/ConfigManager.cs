@@ -66,7 +66,7 @@ public class ConfigManager
     public string GetApiKey()
     {
         return StringUtil.EmptyToNull(GetConfigValue("api.key"))
-               ?? EnvironmentUtil.GetVariable("FRONTEND_BACKEND_API_KEY");
+               ?? EnvironmentUtil.GetRequiredVariable("FRONTEND_BACKEND_API_KEY");
     }
 
     public string GetStrmKey()
