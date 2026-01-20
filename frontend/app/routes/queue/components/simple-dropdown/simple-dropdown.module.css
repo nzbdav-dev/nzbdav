@@ -3,6 +3,31 @@
     display: inline-block;
 }
 
+.nativeSelect {
+    display: none;
+}
+
+@media not (min-width: 900px) {
+    .nativeSelect {
+        display: block;
+        position: absolute;
+        min-width: 70px;
+        opacity: 0;
+        cursor: pointer;
+        z-index: 10;
+    }
+
+    .dropdown {
+        display: none;
+    }
+}
+
+.bordered {
+    border: 1px solid;
+    border-radius: 5px;
+    padding: 0 5px;
+}
+
 .selected {
     color: hsl(180, 7%, 55%);
     font-size: 0.9em;
@@ -39,8 +64,17 @@
     background: hsl(196.8 80% 7%);
     border: 1px solid rgba(255, 255, 255, 0.1);
     margin-top: 4px;
-    z-index: 1000;
-    min-width: 100%;
+    z-index: 900;
+    min-width: 75px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.dropdown.openAbove {
+    top: auto;
+    bottom: 100%;
+    margin-top: 0;
+    margin-bottom: 4px;
 }
 
 .option {
