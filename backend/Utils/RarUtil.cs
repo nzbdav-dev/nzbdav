@@ -67,7 +67,7 @@ public static class RarUtil
 
             return headers;
         }
-        catch (Exception e) when (e.TryGetInnerException(out UsenetArticleNotFoundException missingArticleException))
+        catch (Exception e) when (e.TryGetCausingException(out UsenetArticleNotFoundException missingArticleException))
         {
             throw missingArticleException;
         }

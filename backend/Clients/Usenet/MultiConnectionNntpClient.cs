@@ -194,13 +194,13 @@ public class MultiConnectionNntpClient(ConnectionPool<INntpClient> connectionPoo
             {
                 result = await command(connectionLock.Connection, OnConnectionReadyAgain).ConfigureAwait(false);
             }
-            catch (Exception e) when (e.TryGetInnerException(out UsenetArticleNotFoundException _))
+            catch (Exception e) when (e.TryGetCausingException(out UsenetArticleNotFoundException _))
             {
                 LogException(() => connectionLock?.Dispose());
                 LogException(() => onConnectionReadyAgain?.Invoke(ArticleBodyResult.NotRetrieved));
                 throw;
             }
-            catch (Exception e) when (!e.TryGetInnerException(out UsenetArticleNotFoundException _))
+            catch (Exception e) when (!e.TryGetCausingException(out UsenetArticleNotFoundException _))
             {
                 LogException(() => connectionLock?.Replace());
                 LogException(() => connectionLock?.Dispose());
