@@ -14,7 +14,7 @@ export function HealthTable({ isEnabled, healthCheckItems }: HealthTableProps) {
     return (
         <div className={styles.container}>
             <div className={styles.header}>
-                <h3 className={styles.title}>Health Check Queue</h3>
+                <h3 className={styles.title}>Schedule</h3>
                 <div className={styles.count}>
                     Only {healthCheckItems.length} shown
                 </div>

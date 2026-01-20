@@ -16,10 +16,7 @@
 }
 
 .title {
-    color: hsl(180, 30%, 70%);
-    margin: 0;
-    font-size: 1.5em;
-    font-weight: 600;
+    margin-bottom: 0;
 }
 
 .statusIndicator {
@@ -44,15 +41,14 @@
 .statsGrid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 20px;
+    background-color: rgba(255, 255, 255, 0.05);
+    gap: 5px;
 }
 
 .statCard {
-    background: hsl(196.8, 25%, 14.51%);
-    border-radius: 8px;
+    background-color: hsl(196.8 80% 7%);
     padding: 20px;
     text-align: center;
-    border: 1px solid rgba(255, 255, 255, 0.05);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -74,7 +70,7 @@
 @media (max-width: 600px) {
     .statsGrid {
         grid-template-columns: repeat(2, 1fr);
-        gap: 16px;
+        gap: 1px;
     }
 
     .statCard {

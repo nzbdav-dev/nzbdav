@@ -5,6 +5,7 @@
     flex-direction: column;
     justify-content: center;
     color: hsl(180, 7%, 55%);
+    transform: translateY(-20px);
 }
 
 .emptyIcon {
