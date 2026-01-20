@@ -1,4 +1,5 @@
-﻿using NzbWebDAV.Database;
+﻿using System.Diagnostics.CodeAnalysis;
+using NzbWebDAV.Database;
 using NzbWebDAV.Database.Models;
 using NzbWebDAV.Extensions;
 using NzbWebDAV.Models;
@@ -17,7 +18,6 @@ public class RarAggregator(DavDatabaseClient dbClient, DavItem mountDirectory, b
         var fileSegments = processorResults
             .OfType<RarProcessor.Result>()
             .SelectMany(x => x.StoredFileSegments)
-            .OrderBy(x => x.PartNumber)
             .ToList();
 
         ProcessArchive(fileSegments);
@@ -37,7 +37,7 @@ public class RarAggregator(DavDatabaseClient dbClient, DavItem mountDirectory, b
         foreach (var archiveFile in archiveFiles)
         {
             var pathWithinArchive = archiveFile.Key;
-            var fileParts = archiveFile.Value.ToArray();
+            var fileParts = SortByPartNumber(archiveFile.Value);
             var aesParams = fileParts.Select(x => x.AesParams).FirstOrDefault(x => x != null);
             var fileSize = aesParams?.DecodedSize ?? fileParts.Sum(x => x.ByteRangeWithinPart.Count);
             var parentDirectory = EnsureExtractPath(pathWithinArchive);
@@ -76,5 +76,42 @@ public class RarAggregator(DavDatabaseClient dbClient, DavItem mountDirectory, b
             dbClient.Ctx.Items.Add(davItem);
             dbClient.Ctx.MultipartFiles.Add(davMultipartFile);
         }
+    }
+
+    private static RarProcessor.StoredFileSegment[] SortByPartNumber(
+        List<RarProcessor.StoredFileSegment> storedFileSegments)
+    {
+        // Find delta between part number from headers and filenames.
+        var delta = storedFileSegments
+            .Select(x => x.PartNumber)
+            .Where(x => x is { PartNumberFromHeader: >= 0, PartNumberFromFilename: >= 0 })
+            .Select(x => x.PartNumberFromHeader - x.PartNumberFromFilename)
+            .GroupBy(x => x)
+            .MaxBy(x => x.Count())?.Key;
+
+        // Ensure there are no duplicate part numbers.
+        var allPartNumbers = storedFileSegments.Select(x => GetNormalizedPartNumber(x.PartNumber, delta));
+        ValidatePartNumbers(allPartNumbers);
+
+        // Sort by part numbers and return.
+        return storedFileSegments
+            .OrderBy(x => GetNormalizedPartNumber(x.PartNumber, delta))
+            .ToArray();
+    }
+
+    [SuppressMessage("ReSharper", "PossibleMultipleEnumeration")]
+    private static void ValidatePartNumbers(IEnumerable<int> partNumbers)
+    {
+        var count = partNumbers.Count();
+        var uniqueCount = partNumbers.Distinct().Count();
+        if (count != uniqueCount)
+            throw new InvalidFormatException("Rar archive has duplicate volume numbers.");
+    }
+
+    private static int GetNormalizedPartNumber(RarProcessor.PartNumber partNumber, int? delta)
+    {
+        if (partNumber.PartNumberFromHeader >= 0) return partNumber.PartNumberFromHeader!.Value;
+        if (partNumber.PartNumberFromFilename >= 0) return partNumber.PartNumberFromFilename!.Value + (delta ?? 0);
+        return -1;
     }
 }

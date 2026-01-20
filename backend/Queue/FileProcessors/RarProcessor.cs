@@ -52,25 +52,18 @@ public class RarProcessor(
         return sansExtension;
     }
 
-    private int GetPartNumber(List<IRarHeader> rarHeaders)
+    private PartNumber GetPartNumber(List<IRarHeader> rarHeaders)
     {
-        // read from archive-header if possible
-        var partNumberFromHeaders = GetPartNumberFromHeaders(rarHeaders);
-        if (partNumberFromHeaders != null) return partNumberFromHeaders!.Value;
+        var partNumber = new PartNumber()
+        {
+            PartNumberFromHeader = GetPartNumberFromHeaders(rarHeaders),
+            PartNumberFromFilename = GetPartNumberFromFilename(fileInfo.FileName),
+        };
 
-        // handle the `.partXXX.rar` format
-        var partMatch = Regex.Match(fileInfo.FileName, @"\.part(\d+)\.rar$", RegexOptions.IgnoreCase);
-        if (partMatch.Success) return int.Parse(partMatch.Groups[1].Value);
+        if (partNumber.PartNumberFromHeader == null && partNumber.PartNumberFromFilename == null)
+            throw new Exception("Could not determine part number for RAR file.");
 
-        // handle the `.rXXX` format
-        var rMatch = Regex.Match(fileInfo.FileName, @"\.r(\d+)$", RegexOptions.IgnoreCase);
-        if (rMatch.Success) return int.Parse(rMatch.Groups[1].Value);
-
-        // handle the `.rar` format.
-        if (fileInfo.FileName.EndsWith(".rar", StringComparison.OrdinalIgnoreCase)) return -1;
-
-        // we were unable to determine the part number.
-        throw new Exception("Could not determine part number for RAR file.");
+        return partNumber;
     }
 
     private static int? GetPartNumberFromHeaders(List<IRarHeader> headers)
@@ -80,12 +73,32 @@ public class RarProcessor(
         var archiveHeader = headers.FirstOrDefault(x => x.HeaderType is HeaderType.Archive);
         var archiveVolumeNumber = archiveHeader?.GetVolumeNumber();
         if (archiveVolumeNumber != null) return archiveVolumeNumber!.Value;
-        if (archiveHeader?.GetIsFirstVolume() == true) return -1;
 
         var endHeader = headers.FirstOrDefault(x => x.HeaderType == HeaderType.EndArchive);
         var endVolumeNumber = endHeader?.GetVolumeNumber();
         if (endVolumeNumber != null) return endVolumeNumber!.Value;
 
+        if (archiveHeader?.GetIsFirstVolume() == true) return -1;
+        return null;
+    }
+
+    private static int? GetPartNumberFromFilename(string filename)
+    {
+        // handle the `.partXXX.rar` format
+        var partMatch = Regex.Match(filename, @"\.part(\d+)\.rar$", RegexOptions.IgnoreCase);
+        if (partMatch.Success)
+            return int.Parse(partMatch.Groups[1].Value);
+
+        // handle the `.rXXX` format
+        var rMatch = Regex.Match(filename, @"\.r(\d+)$", RegexOptions.IgnoreCase);
+        if (rMatch.Success)
+            return int.Parse(rMatch.Groups[1].Value);
+
+        // handle the `.rar` format.
+        if (filename.EndsWith(".rar", StringComparison.OrdinalIgnoreCase))
+            return -1;
+
+        //  could not determine from filename
         return null;
     }
 
@@ -106,11 +119,17 @@ public class RarProcessor(
         public required NzbFile NzbFile { get; init; }
         public required long PartSize { get; init; }
         public required string ArchiveName { get; init; }
-        public required int PartNumber { get; init; }
+        public required PartNumber PartNumber { get; init; }
         public required DateTimeOffset ReleaseDate { get; init; }
 
         public required string PathWithinArchive { get; init; }
         public required LongRange ByteRangeWithinPart { get; init; }
         public required AesParams? AesParams { get; init; }
+    }
+
+    public record PartNumber
+    {
+        public int? PartNumberFromHeader { get; init; }
+        public int? PartNumberFromFilename { get; init; }
     }
 }
