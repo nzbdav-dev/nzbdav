@@ -36,7 +36,7 @@ class Program
 
         // Initialize logger
         var defaultLevel = LogEventLevel.Information;
-        var envLevel = EnvironmentUtil.GetEnvironmentVariable("LOG_LEVEL");
+        var envLevel = EnvironmentUtil.GetVariable("LOG_LEVEL");
         var level = Enum.TryParse<LogEventLevel>(envLevel, true, out var parsed) ? parsed : defaultLevel;
         Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Is(level)

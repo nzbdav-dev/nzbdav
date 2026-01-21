@@ -11,4 +11,9 @@ public static class StringExtensions
     {
         return value.StartsWith(prefix) ? value[prefix.Length..] : value;
     }
+
+    extension(string? str)
+    {
+        public string? ToNullIfEmpty() => str == "" ? null : str;
+    }
 }

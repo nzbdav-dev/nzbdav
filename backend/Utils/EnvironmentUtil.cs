@@ -1,15 +1,17 @@
-﻿namespace NzbWebDAV.Utils;
+﻿using NzbWebDAV.Extensions;
+
+namespace NzbWebDAV.Utils;
 
 public static class EnvironmentUtil
 {
-    public static string? GetEnvironmentVariable(string envVariable)
+    public static string? GetVariable(string envVariable)
     {
-        return StringUtil.EmptyToNull(Environment.GetEnvironmentVariable(envVariable));
+        return Environment.GetEnvironmentVariable(envVariable).ToNullIfEmpty();
     }
 
     public static string GetRequiredVariable(string envVariable)
     {
-        return Environment.GetEnvironmentVariable(envVariable) ??
+        return GetVariable(envVariable) ??
                throw new Exception($"The environment variable `{envVariable}` must be set.");
     }
 
