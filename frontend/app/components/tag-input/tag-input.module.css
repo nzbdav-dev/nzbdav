@@ -1,0 +1,76 @@
+.container {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--bs-border-radius);
+    background-color: var(--bs-body-bg);
+    cursor: text;
+    min-height: 38px;
+}
+
+.container:focus-within {
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    background-color: var(--bs-secondary-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 16px;
+    font-size: 0.875rem;
+    line-height: 1.4;
+    color: var(--bs-body-color);
+}
+
+.removeButton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--bs-secondary-color);
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+    border-radius: 50%;
+}
+
+.removeButton:hover {
+    background-color: var(--bs-danger);
+    color: white;
+}
+
+.input {
+    flex: 1 1 auto;
+    min-width: 50px;
+    max-width: 100%;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 1rem;
+    color: var(--bs-body-color);
+    padding: 2px 0;
+}
+
+.input::placeholder {
+    color: rgba(255, 255, 255, 0.25);
+}
+
+.measure {
+    position: absolute;
+    visibility: hidden;
+    white-space: pre;
+    font-size: 1rem;
+    padding: 2px 0;
+}
