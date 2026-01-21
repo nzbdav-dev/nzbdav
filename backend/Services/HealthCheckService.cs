@@ -6,6 +6,7 @@ using NzbWebDAV.Database;
 using NzbWebDAV.Database.Models;
 using NzbWebDAV.Exceptions;
 using NzbWebDAV.Extensions;
+using NzbWebDAV.Queue.PostProcessors;
 using NzbWebDAV.Utils;
 using NzbWebDAV.Websocket;
 using Serilog;
@@ -199,10 +200,10 @@ public class HealthCheckService : BackgroundService
     {
         try
         {
-            // if the file extension has been marked as ignored,
+            // if the file pattern has been marked as ignored,
             // then don't bother trying to repair it. We can simply delete it.
-            var blacklistedExtensions = _configManager.GetBlacklistedExtensions();
-            if (blacklistedExtensions.Contains(Path.GetExtension(davItem.Name).ToLower()))
+            var blocklistedFiles = _configManager.GetBlocklistedFiles();
+            if (BlocklistedFilePostProcessor.MatchesAnyPattern(davItem.Name, blocklistedFiles))
             {
                 dbClient.Ctx.Items.Remove(davItem);
                 dbClient.Ctx.HealthCheckResults.Add(SendStatus(new HealthCheckResult()
@@ -215,7 +216,7 @@ public class HealthCheckService : BackgroundService
                     RepairStatus = HealthCheckResult.RepairAction.Deleted,
                     Message = string.Join(" ", [
                         "File had missing articles.",
-                        "File extension is marked in settings as ignored (unwanted) file type.",
+                        "Filename pattern is marked in settings as an ignored (unwanted) file.",
                         "Deleted file."
                     ])
                 }));

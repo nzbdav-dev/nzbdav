@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+using System.Text.RegularExpressions;
+using Microsoft.EntityFrameworkCore;
 using NzbWebDAV.Config;
 using NzbWebDAV.Database;
 using NzbWebDAV.Database.Models;
@@ -6,22 +7,37 @@ using Serilog;
 
 namespace NzbWebDAV.Queue.PostProcessors;
 
-public class BlacklistedExtensionPostProcessor(ConfigManager configManager, DavDatabaseClient dbClient)
+public class BlocklistedFilePostProcessor(ConfigManager configManager, DavDatabaseClient dbClient)
 {
-    public void RemoveBlacklistedExtensions()
+    public void RemoveBlocklistedFiles()
     {
-        var blacklistedExtensions = configManager.GetBlacklistedExtensions();
-        var blacklistedFiles = dbClient.Ctx.ChangeTracker.Entries<DavItem>()
+        var blocklistPatterns = configManager.GetBlocklistedFiles();
+        var blocklistedFiles = dbClient.Ctx.ChangeTracker.Entries<DavItem>()
             .Where(x => x.State == EntityState.Added)
             .Select(x => x.Entity)
             .Where(x => x.Type != DavItem.ItemType.Directory)
-            .Where(x => blacklistedExtensions.Contains(Path.GetExtension(x.Name).ToLower()));
+            .Where(x => MatchesAnyPattern(x.Name, blocklistPatterns));
 
-        foreach (var blacklistedFile in blacklistedFiles)
-            RemoveBlacklistedFile(blacklistedFile);
+        foreach (var blocklistedFile in blocklistedFiles)
+            RemoveBlocklistedFile(blocklistedFile);
     }
 
-    private void RemoveBlacklistedFile(DavItem davItem)
+    public static bool MatchesAnyPattern(string fileName, HashSet<string> patterns)
+    {
+        var lowerFileName = fileName.ToLower();
+        return patterns.Any(pattern => MatchesPattern(lowerFileName, pattern));
+    }
+
+    private static bool MatchesPattern(string fileName, string pattern)
+    {
+        // Convert pattern to regex:
+        // 1. Escape all regex special characters (this escapes * to \*)
+        // 2. Replace \* with .* to support greedy wildcard matching
+        var regexPattern = Regex.Escape(pattern).Replace("\\*", ".*");
+        return Regex.IsMatch(fileName, $"^{regexPattern}$");
+    }
+
+    private void RemoveBlocklistedFile(DavItem davItem)
     {
         if (davItem.Type == DavItem.ItemType.NzbFile)
         {
@@ -52,7 +68,7 @@ public class BlacklistedExtensionPostProcessor(ConfigManager configManager, DavD
 
         else
         {
-            Log.Error("Error filtering blacklisted extensions from downloading.");
+            Log.Error("Error filtering blocklisted files.");
             return;
         }
 

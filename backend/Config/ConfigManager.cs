@@ -204,10 +204,10 @@ public class ConfigManager
         return GetConfigValue("api.duplicate-nzb-behavior") ?? defaultValue;
     }
 
-    public HashSet<string> GetBlacklistedExtensions()
+    public HashSet<string> GetBlocklistedFiles()
     {
-        var defaultValue = ".nfo, .par2, .sfv";
-        return (GetConfigValue("api.download-extension-blacklist") ?? defaultValue)
+        var defaultValue = "*.nfo, *.par2, *.sfv, *sample.mkv";
+        return (GetConfigValue("api.download-file-blocklist") ?? defaultValue)
             .Split(',', StringSplitOptions.RemoveEmptyEntries)
             .Select(x => x.Trim())
             .Where(x => !string.IsNullOrWhiteSpace(x))
