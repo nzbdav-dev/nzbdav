@@ -389,7 +389,7 @@ function ProviderModal({ show, provider, onClose, onSave }: ProviderModalProps) 
         && pass.trim() !== ""
         && isPositiveInteger(maxConnections);
 
-    const canSave = isFormValid && connectionTested;
+    const canSave = isFormValid && (connectionTested || type == ProviderType.Disabled);
 
     if (!show) return null;
 
@@ -543,7 +543,7 @@ function ProviderModal({ show, provider, onClose, onSave }: ProviderModalProps) 
                         <Button variant="secondary" onClick={onClose}>
                             Cancel
                         </Button>
-                        {!connectionTested ? (
+                        {!canSave ? (
                             <Button
                                 variant="primary"
                                 onClick={handleTestConnection}
