@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using NzbWebDAV.Api.SabControllers.AddFile;
 using NzbWebDAV.Api.SabControllers.AddUrl;
+using NzbWebDAV.Api.SabControllers.GetCategories;
 using NzbWebDAV.Api.SabControllers.GetConfig;
 using NzbWebDAV.Api.SabControllers.GetFullStatus;
 using NzbWebDAV.Api.SabControllers.GetHistory;
@@ -68,6 +69,9 @@ public class SabApiController(
         {
             case "version":
                 return new GetVersionController(
+                    HttpContext, configManager);
+            case "get_cats":
+                return new GetCategoriesController(
                     HttpContext, configManager);
             case "get_config":
                 return new GetConfigController(
