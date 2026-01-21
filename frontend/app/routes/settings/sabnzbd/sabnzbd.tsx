@@ -1,7 +1,6 @@
 import { Button, Form, InputGroup } from "react-bootstrap";
 import styles from "./sabnzbd.module.css"
 import { useCallback, type Dispatch, type SetStateAction } from "react";
-import { className } from "~/utils/styling";
 import { TagInput } from "~/components/tag-input/tag-input";
 
 type SabnzbdSettingsProps = {
@@ -37,16 +36,15 @@ export function SabnzbdSettings({ config, setNewConfig }: SabnzbdSettingsProps) 
             <hr />
             <Form.Group>
                 <Form.Label htmlFor="categories-input">Categories</Form.Label>
-                <Form.Control
-                    {...className([styles.input, !isValidCategories(config["api.categories"]) && styles.error])}
-                    type="text"
+                <TagInput
+                    className={!isValidCategories(config["api.categories"]) ? `${styles.error} ${styles.input}` : styles.input}
                     id="categories-input"
                     aria-describedby="categories-help"
                     value={config["api.categories"]}
                     placeholder="tv, movies, audio, software"
-                    onChange={e => setNewConfig({ ...config, "api.categories": e.target.value })} />
+                    onChange={value => setNewConfig({ ...config, "api.categories": value })} />
                 <Form.Text id="categories-help" muted>
-                    Comma-separated categories. Only letters, numbers, and dashes are allowed.
+                    The complete list of categories for organizing imported nzbs. Only letters, numbers, and dashes are allowed.
                 </Form.Text>
             </Form.Group>
             <hr />
