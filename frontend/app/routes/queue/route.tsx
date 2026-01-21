@@ -99,6 +99,7 @@ export default function Queue(props: Route.ComponentProps) {
                         onIsSelectedChanged={queueEvents.onSelectQueueSlots}
                         onIsRemovingChanged={queueEvents.onRemovingQueueSlots}
                         onRemoved={queueEvents.onRemoveQueueSlots}
+                        onUploadClicked={dropzone.open}
                     />
                 </div>
             </div>

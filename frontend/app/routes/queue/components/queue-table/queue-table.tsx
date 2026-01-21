@@ -19,6 +19,7 @@ export type QueueTableProps = {
     onIsSelectedChanged: (nzo_ids: Set<string>, isSelected: boolean) => void,
     onIsRemovingChanged: (nzo_ids: Set<string>, isRemoving: boolean) => void,
     onRemoved: (nzo_ids: Set<string>) => void,
+    onUploadClicked?: () => void;
 }
 
 export function QueueTable({
@@ -29,6 +30,7 @@ export function QueueTable({
     onIsSelectedChanged,
     onIsRemovingChanged,
     onRemoved,
+    onUploadClicked,
 }: QueueTableProps) {
     const [isConfirmingRemoval, setIsConfirmingRemoval] = useState(false);
     var selectedCount = queueSlots.filter(x => !!x.isSelected).length;
@@ -89,16 +91,19 @@ export function QueueTable({
         onIsRemovingChanged(queued_nzo_ids, false);
     }, [queueSlots, setIsConfirmingRemoval, onIsRemovingChanged, onRemoved]);
 
+
     // view
     const categoryDropdown = useMemo(() => (
         <div title="Choose the category for manual nzb uploads.">
-            <SimpleDropdown options={categories} valueRef={manualCategoryRef}/>
+            <SimpleDropdown options={categories} valueRef={manualCategoryRef} />
         </div>
     ), [categories]);
 
     const sectionTitle = (
         <div className={styles.sectionTitle}>
-            <h3>Queue</h3>
+            <h3 onClick={onUploadClicked} style={{ cursor: 'pointer' }}>
+                Queue
+            </h3>
             {headerCheckboxState !== 'none' &&
                 <ActionButton type="delete" onClick={onRemove} />
             }
@@ -119,7 +124,7 @@ export function QueueTable({
     return (
         <PageSection title={sectionTitle} subTitle={sectionSubTitle}>
             {queueSlots?.length == 0 ? (
-                <EmptyQueue />
+                <EmptyQueue onUploadClicked={onUploadClicked} />
             ) : (
                 <PageTable headerCheckboxState={headerCheckboxState} onHeaderCheckboxChange={onSelectAll}>
                     {queueSlots.map(slot =>
