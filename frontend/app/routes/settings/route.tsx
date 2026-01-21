@@ -18,7 +18,7 @@ const defaultConfig = {
     "api.ensure-importable-video": "true",
     "api.ensure-article-existence": "false",
     "api.ignore-history-limit": "true",
-    "api.download-extension-blacklist": ".nfo, .par2, .sfv",
+    "api.download-file-blocklist": "*.nfo, *.par2, *.sfv, *sample.mkv",
     "api.duplicate-nzb-behavior": "increment",
     "api.import-strategy": "symlinks",
     "api.completed-downloads-dir": "",

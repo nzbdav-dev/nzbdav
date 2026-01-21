@@ -2,7 +2,7 @@ import { Button, Form, InputGroup } from "react-bootstrap";
 import styles from "./sabnzbd.module.css"
 import { useCallback, type Dispatch, type SetStateAction } from "react";
 import { className } from "~/utils/styling";
-import { isPositiveInteger } from "../usenet/usenet";
+import { TagInput } from "~/components/tag-input/tag-input";
 
 type SabnzbdSettingsProps = {
     config: Record<string, string>
@@ -97,7 +97,7 @@ export function SabnzbdSettings({ config, setNewConfig }: SabnzbdSettingsProps) 
                 </Form.Group>
             }
             {config["api.import-strategy"] === 'strm' && <>
-                <Form.Group  className={styles.subGroup}>
+                <Form.Group className={styles.subGroup}>
                     <Form.Label htmlFor="completed-downloads-dir-input">Completed Downloads Dir</Form.Label>
                     <Form.Control
                         className={styles.input}
@@ -111,7 +111,7 @@ export function SabnzbdSettings({ config, setNewConfig }: SabnzbdSettingsProps) 
                         This is used to tell Radarr / Sonarr where to look for completed "downloads." Make sure this path is also visible to your Radarr / Sonarr containers. The "downloads" placed in this folder will all be *.strm files that point to nzbdav for streaming.
                     </Form.Text>
                 </Form.Group>
-                <Form.Group  className={styles.subGroup}>
+                <Form.Group className={styles.subGroup}>
                     <Form.Label htmlFor="base-url-input">Base URL</Form.Label>
                     <Form.Control
                         className={styles.input}
@@ -128,17 +128,16 @@ export function SabnzbdSettings({ config, setNewConfig }: SabnzbdSettingsProps) 
             </>}
             <hr />
             <Form.Group>
-                <Form.Label htmlFor="ignored-file-extensions-input">Ignored File Extensions</Form.Label>
-                <Form.Control
+                <Form.Label htmlFor="ignored-files-input">Ignored Files</Form.Label>
+                <TagInput
                     className={styles.input}
-                    type="text"
-                    id="ignored-file-extensions-input"
-                    aria-describedby="ignored-file-extensions-help"
-                    placeholder=".nfo, .par2, .sfv"
-                    value={config["api.download-extension-blacklist"]}
-                    onChange={e => setNewConfig({ ...config, "api.download-extension-blacklist": e.target.value })} />
-                <Form.Text id="ignored-file-extensions-help" muted>
-                    Files with these extensions will be ignored and not mounted onto the webdav when processing an nzb.
+                    id="ignored-files-input"
+                    aria-describedby="ignored-files-help"
+                    placeholder="*.nfo, *.par2, *.sfv, *sample.mkv"
+                    value={config["api.download-file-blocklist"]}
+                    onChange={value => setNewConfig({ ...config, "api.download-file-blocklist": value })} />
+                <Form.Text id="ignored-files-help" muted>
+                    Files that match these patterns will be ignored and not mounted onto the webdav when processing an nzb. Wildcards (*) are supported.
                 </Form.Text>
             </Form.Group>
             <hr />
@@ -213,7 +212,7 @@ export function isSabnzbdSettingsUpdated(config: Record<string, string>, newConf
         || config["api.ensure-article-existence"] !== newConfig["api.ensure-article-existence"]
         || config["api.ignore-history-limit"] !== newConfig["api.ignore-history-limit"]
         || config["api.duplicate-nzb-behavior"] !== newConfig["api.duplicate-nzb-behavior"]
-        || config["api.download-extension-blacklist"] !== newConfig["api.download-extension-blacklist"]
+        || config["api.download-file-blocklist"] !== newConfig["api.download-file-blocklist"]
         || config["api.import-strategy"] !== newConfig["api.import-strategy"]
         || config["api.completed-downloads-dir"] !== newConfig["api.completed-downloads-dir"]
         || config["general.base-url"] !== newConfig["general.base-url"]
