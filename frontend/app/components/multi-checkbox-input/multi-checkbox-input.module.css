@@ -1,0 +1,19 @@
+.container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    padding: 10px;
+    background-color: var(--bs-body-bg);
+    border-radius: var(--bs-border-radius);
+    margin-top: 10px;
+    border: 1px solid var(--bs-border-color);
+}
+
+.container :global(.form-check-input:not(:checked)) {
+    background-color: var(--bs-secondary-bg);
+}
+
+.container :global(.form-check label) {
+    color: var(--bs-body-color);
+    font-size: 0.875rem;
+}
