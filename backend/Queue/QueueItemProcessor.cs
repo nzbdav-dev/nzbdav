@@ -148,7 +148,8 @@ public class QueueItemProcessor(
 
         // step 3 -- Optionally check full article existence
         var checkedFullHealth = false;
-        if (configManager.IsEnsureArticleExistenceEnabled())
+        var healthCheckCategories = configManager.GetEnsureArticleExistenceCategories();
+        if (healthCheckCategories.Contains(queueItem.Category.ToLower()))
         {
             var articlesToCheck = fileInfos
                 .Where(x => x.IsRar || FilenameUtil.IsImportantFileType(x.FileName))

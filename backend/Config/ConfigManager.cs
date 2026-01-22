@@ -155,11 +155,14 @@ public class ConfigManager
         return (configValue != null ? bool.Parse(configValue) : defaultValue);
     }
 
-    public bool IsEnsureArticleExistenceEnabled()
+    public HashSet<string> GetEnsureArticleExistenceCategories()
     {
-        var defaultValue = false;
-        var configValue = StringUtil.EmptyToNull(GetConfigValue("api.ensure-article-existence"));
-        return (configValue != null ? bool.Parse(configValue) : defaultValue);
+        var configValue = GetConfigValue("api.ensure-article-existence-categories");
+        return (configValue ?? "").Split(',')
+            .Select(x => x.Trim())
+            .Select(x => x.ToLower())
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .ToHashSet();
     }
 
     public bool IsPreviewPar2FilesEnabled()
