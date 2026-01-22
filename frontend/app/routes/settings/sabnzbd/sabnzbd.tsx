@@ -1,7 +1,8 @@
 import { Button, Form, InputGroup } from "react-bootstrap";
-import styles from "./sabnzbd.module.css"
-import { useCallback, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useEffect, useMemo, useRef, type Dispatch, type SetStateAction } from "react";
 import { TagInput } from "~/components/tag-input/tag-input";
+import { MultiCheckboxInput } from "~/components/multi-checkbox-input/multi-checkbox-input";
+import styles from "./sabnzbd.module.css"
 
 type SabnzbdSettingsProps = {
     config: Record<string, string>
@@ -13,6 +14,9 @@ export function SabnzbdSettings({ config, setNewConfig }: SabnzbdSettingsProps) 
     const onRefreshApiKey = useCallback(() => {
         setNewConfig({ ...config, "api.key": generateNewApiKey() })
     }, [setNewConfig, config]);
+
+    const ensureArticleExistanceSetting =
+        useEnsureArticleExistanceSetting(config, setNewConfig);
 
     return (
         <div className={styles.container}>
@@ -176,11 +180,17 @@ export function SabnzbdSettings({ config, setNewConfig }: SabnzbdSettingsProps) 
                     id="ensure-article-existence-checkbox"
                     aria-describedby="ensure-article-existence-help"
                     label={`Perform article health check during downloads`}
-                    checked={config["api.ensure-article-existence"] === "true"}
-                    onChange={e => setNewConfig({ ...config, "api.ensure-article-existence": "" + e.target.checked })} />
+                    ref={ensureArticleExistanceSetting.masterCheckboxRef}
+                    checked={!ensureArticleExistanceSetting.areNoneSelected}
+                    onChange={e => ensureArticleExistanceSetting.onMasterCheckboxChange(e.target.checked)} />
                 <Form.Text id="ensure-article-existence-help" muted>
                     Whether to check for the existence of all articles within an NZB during queue processing. This process may be slow.
                 </Form.Text>
+                <MultiCheckboxInput
+                    options={ensureArticleExistanceSetting.categories}
+                    value={config["api.ensure-article-existence-categories"] ?? ""}
+                    onChange={value => setNewConfig({ ...config, "api.ensure-article-existence-categories": value })}
+                />
             </Form.Group>
             <hr />
             <Form.Group>
@@ -201,13 +211,69 @@ export function SabnzbdSettings({ config, setNewConfig }: SabnzbdSettingsProps) 
     );
 }
 
+function useEnsureArticleExistanceSetting(
+    config: Record<string, string>,
+    setNewConfig: Dispatch<SetStateAction<Record<string, string>>>
+) {
+    const manualCategoryValue = config["api.manual-category"];
+    const categoriesValue = config["api.categories"];
+    const healthCheckCategoriesValue = config["api.ensure-article-existence-categories"];
+
+    const manualCategory = useMemo(() => {
+        return !!(manualCategoryValue?.trim())
+            ? manualCategoryValue.trim()
+            : "uncategorized";
+    }, [manualCategoryValue]);
+
+    const categories = useMemo(() => {
+        var list = !!(categoriesValue?.trim())
+            ? categoriesValue.split(",").map(c => c.trim()).filter(c => c.length > 0)
+            : ["audio", "software", "tv", "movies"];
+        return [manualCategory, ...list];
+    }, [categoriesValue]);
+
+    const healthCheckCategories = useMemo(() => {
+        const cats = healthCheckCategoriesValue;
+        if (!cats || cats.trim() === "") return [];
+        return cats.split(",").map(c => c.trim()).filter(c => c.length > 0);
+    }, [healthCheckCategoriesValue]);
+
+    const masterCheckboxRef = useRef<HTMLInputElement>(null);
+    const areAllSelected = categories.length > 0 && categories.every(c => healthCheckCategories.includes(c));
+    const areNoneSelected = healthCheckCategories.length === 0 || categories.every(c => !healthCheckCategories.includes(c));
+    const areSomeSelected = !areAllSelected && !areNoneSelected;
+
+    useEffect(() => {
+        if (masterCheckboxRef.current) {
+            masterCheckboxRef.current.indeterminate = areSomeSelected;
+        }
+    }, [areSomeSelected]);
+
+    const onMasterCheckboxChange = useCallback((checked: boolean) => {
+        if (checked) {
+            setNewConfig(prev => ({ ...prev, "api.ensure-article-existence-categories": categories.join(", ") }));
+        } else {
+            setNewConfig(prev => ({ ...prev, "api.ensure-article-existence-categories": "" }));
+        }
+    }, [setNewConfig, categories]);
+
+    return {
+        categories,
+        masterCheckboxRef,
+        areAllSelected,
+        areNoneSelected,
+        areSomeSelected,
+        onMasterCheckboxChange
+    }
+}
+
 export function isSabnzbdSettingsUpdated(config: Record<string, string>, newConfig: Record<string, string>) {
     return config["api.key"] !== newConfig["api.key"]
         || config["api.categories"] !== newConfig["api.categories"]
         || config["api.manual-category"] !== newConfig["api.manual-category"]
         || config["rclone.mount-dir"] !== newConfig["rclone.mount-dir"]
         || config["api.ensure-importable-video"] !== newConfig["api.ensure-importable-video"]
-        || config["api.ensure-article-existence"] !== newConfig["api.ensure-article-existence"]
+        || config["api.ensure-article-existence-categories"] !== newConfig["api.ensure-article-existence-categories"]
         || config["api.ignore-history-limit"] !== newConfig["api.ignore-history-limit"]
         || config["api.duplicate-nzb-behavior"] !== newConfig["api.duplicate-nzb-behavior"]
         || config["api.download-file-blocklist"] !== newConfig["api.download-file-blocklist"]

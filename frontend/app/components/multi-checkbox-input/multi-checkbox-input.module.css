@@ -9,6 +9,15 @@
     border: 1px solid var(--bs-border-color);
 }
 
+.container :global(.form-check) {
+    min-width: calc(50% - 16px);
+}
+
+.container:not(:has(> :nth-child(4))) {
+    /* when there are 1–3 children */
+    flex-direction: column;
+}
+
 .container :global(.form-check-input:not(:checked)) {
     background-color: var(--bs-secondary-bg);
 }
