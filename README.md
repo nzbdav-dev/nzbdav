@@ -8,7 +8,7 @@ NzbDav is a WebDAV server that allows you to mount and browse NZB documents as a
 
 Check the video below for a demo:
 
-https://github.com/user-attachments/assets/be3e59bc-99df-440d-8144-43b030a4eaa4
+https://github.com/user-attachments/assets/f14a0cf7-b19c-4b36-a909-59ca2a3771ef
 
 > **Attribution**: The video above contains clips of [Sintel (2010)](https://studio.blender.org/projects/sintel/), by Blender Studios, used under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
 
@@ -48,7 +48,7 @@ docker run --rm -it \
 After starting the container, be sure to navigate to the Settings page on the UI to finish setting up your usenet connection settings.
 
 <p align="center">
-    <img width="600" alt="settings-page" src="https://github.com/user-attachments/assets/ca0a7fa7-be43-412d-9fec-eda24eb25fdb" />
+    <img width="600" alt="settings-page" src="https://github.com/user-attachments/assets/91175920-5a7b-4a93-906d-b8432f35c809" />
 </p>
 
 You'll also want to set up a username and password for logging in to the webdav server
@@ -67,7 +67,12 @@ If you'd like to get the most out of NzbDav, check out the [comprehensive guide]
 
 # More screenshots
 <img width="300" alt="onboarding" src="https://github.com/user-attachments/assets/4ca1bfed-3b98-4ff2-8108-59ed07a25591" />
-<img width="300" alt="queue and history" src="https://github.com/user-attachments/assets/4f69f8dd-0dba-47b4-b02f-3e83ead293db" />
+<img width="300" alt="queue and history" src="https://github.com/user-attachments/assets/912c0f02-e44e-49ea-b4c7-8a1a106e8a01" />
 <img width="300" alt="dav-explorer" src="https://github.com/user-attachments/assets/54a1d49b-8a8d-4306-bcda-9740bd5c9f52" />
-<img width="300" alt="health-page" src="https://github.com/user-attachments/assets/709b81c2-550b-47d0-ad50-65dc184cd3fa" />
+<img width="300" alt="health-page" src="https://github.com/user-attachments/assets/7815acb9-6696-49c3-88d6-ea673b52da1c" />
+
+-------
+
+**NOTE:**
+**NZBDAV is intended for use with legally obtained content only. The project maintainers do not condone piracy and will not provide support for users suspected of engaging in copyright infringement.**
 
