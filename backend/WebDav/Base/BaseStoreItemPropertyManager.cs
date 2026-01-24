@@ -5,12 +5,6 @@ using NWebDav.Server.Props;
 
 namespace NzbWebDAV.WebDav.Base;
 
-internal class DavIsCollectionItem : DavString<BaseStoreItem>
-{
-    public static readonly XName PropertyName = WebDavNamespaces.DavNs + "iscollection";
-    public override XName Name => PropertyName;
-}
-
 public class BaseStoreItemPropertyManager() : PropertyManager<BaseStoreItem>(DavProperties)
 {
     private static readonly FileExtensionContentTypeProvider MimeTypeProvider = new();
@@ -44,7 +38,7 @@ public class BaseStoreItemPropertyManager() : PropertyManager<BaseStoreItem>(Dav
         {
             Getter = _ => [DavResourceType]
         },
-        new DavIsCollectionItem
+        new DavIsCollection<BaseStoreItem>
         {
             Getter = _ => "0"
         }

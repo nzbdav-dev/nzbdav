@@ -1,10 +1,11 @@
 using System.Xml.Linq;
 using NWebDav.Server;
 using NWebDav.Server.Props;
+using NWebDav.Server.Stores;
 
 namespace NzbWebDAV.WebDav.Base;
 
-internal class DavIsCollection : DavString<BaseStoreCollection>
+internal class DavIsCollection<T> : DavString<T> where T : IStoreItem
 {
     public static readonly XName PropertyName = WebDavNamespaces.DavNs + "iscollection";
     public override XName Name => PropertyName;
@@ -44,7 +45,7 @@ public class BaseStoreCollectionPropertyManager() : PropertyManager<BaseStoreCol
         {
             Getter = _ => 0
         },
-        new DavIsCollection
+        new DavIsCollection<BaseStoreCollection>
         {
             Getter = _ => "1"
         }
