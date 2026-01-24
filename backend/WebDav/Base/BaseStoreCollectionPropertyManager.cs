@@ -1,8 +1,15 @@
 using System.Xml.Linq;
 using NWebDav.Server;
 using NWebDav.Server.Props;
+using NWebDav.Server.Stores;
 
 namespace NzbWebDAV.WebDav.Base;
+
+internal class DavIsCollection<T> : DavString<T> where T : IStoreItem
+{
+    public static readonly XName PropertyName = WebDavNamespaces.DavNs + "iscollection";
+    public override XName Name => PropertyName;
+}
 
 public class BaseStoreCollectionPropertyManager() : PropertyManager<BaseStoreCollection>(DavProperties)
 {
@@ -33,6 +40,14 @@ public class BaseStoreCollectionPropertyManager() : PropertyManager<BaseStoreCol
         new DavQuotaUsedBytes<BaseStoreCollection>()
         {
             Getter = _ => 0
+        },
+        new DavGetContentLength<BaseStoreCollection>
+        {
+            Getter = _ => 0
+        },
+        new DavIsCollection<BaseStoreCollection>
+        {
+            Getter = _ => "1"
         }
     ];
 

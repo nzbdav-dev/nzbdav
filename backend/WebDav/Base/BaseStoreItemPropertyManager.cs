@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.StaticFiles;
+﻿using System.Xml.Linq;
+using Microsoft.AspNetCore.StaticFiles;
+using NWebDav.Server;
 using NWebDav.Server.Props;
 
 namespace NzbWebDAV.WebDav.Base;
@@ -6,6 +8,7 @@ namespace NzbWebDAV.WebDav.Base;
 public class BaseStoreItemPropertyManager() : PropertyManager<BaseStoreItem>(DavProperties)
 {
     private static readonly FileExtensionContentTypeProvider MimeTypeProvider = new();
+    private static readonly XElement DavResourceType = new(WebDavNamespaces.DavNs + "item");
 
     private static readonly DavProperty<BaseStoreItem>[] DavProperties =
     [
@@ -30,6 +33,14 @@ public class BaseStoreItemPropertyManager() : PropertyManager<BaseStoreItem>(Dav
         new Win32FileAttributes<BaseStoreItem>
         {
             Getter = _ => FileAttributes.Normal
+        },
+        new DavGetResourceType<BaseStoreItem>
+        {
+            Getter = _ => [DavResourceType]
+        },
+        new DavIsCollection<BaseStoreItem>
+        {
+            Getter = _ => "0"
         }
     ];
 
