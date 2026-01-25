@@ -162,7 +162,7 @@ public class HealthCheckService : BackgroundService
 
     private async Task UpdateReleaseDate(DavItem davItem, List<string> segments, CancellationToken ct)
     {
-        var firstSegmentId = StringUtil.EmptyToNull(segments.FirstOrDefault());
+        var firstSegmentId = segments.FirstOrDefault().ToNullIfEmpty();
         if (firstSegmentId == null) return;
         var articleHeadersResponse = await _usenetClient.HeadAsync(firstSegmentId, ct).ConfigureAwait(false);
         var articleHeaders = articleHeadersResponse.ArticleHeaders!;
