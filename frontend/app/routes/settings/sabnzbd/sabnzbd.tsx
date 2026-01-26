@@ -2,14 +2,16 @@ import { Button, Form, InputGroup } from "react-bootstrap";
 import { useCallback, useEffect, useMemo, useRef, type Dispatch, type SetStateAction } from "react";
 import { TagInput } from "~/components/tag-input/tag-input";
 import { MultiCheckboxInput } from "~/components/multi-checkbox-input/multi-checkbox-input";
+import { ExpandingTextInput } from "~/components/expanding-text-input/expanding-text-input";
 import styles from "./sabnzbd.module.css"
 
 type SabnzbdSettingsProps = {
     config: Record<string, string>
     setNewConfig: Dispatch<SetStateAction<Record<string, string>>>
+    appVersion: string,
 };
 
-export function SabnzbdSettings({ config, setNewConfig }: SabnzbdSettingsProps) {
+export function SabnzbdSettings({ config, setNewConfig, appVersion }: SabnzbdSettingsProps) {
 
     const onRefreshApiKey = useCallback(() => {
         setNewConfig({ ...config, "api.key": generateNewApiKey() })
@@ -160,6 +162,22 @@ export function SabnzbdSettings({ config, setNewConfig }: SabnzbdSettingsProps) 
             </Form.Group>
             <hr />
             <Form.Group>
+                <Form.Label htmlFor="user-agent-input">User Agent</Form.Label>
+                <ExpandingTextInput
+                    className={styles.input}
+                    id="user-agent-input"
+                    aria-describedby="user-agent-help"
+                    value={config["api.user-agent"]}
+                    placeholder={`nzbdav/${appVersion}`}
+                    onChange={value => setNewConfig({ ...config, "api.user-agent": value })} />
+                <Form.Text id="user-agent-help" muted>
+                    The user-agent used by the&nbsp;
+                    <a href="https://sabnzbd.org/wiki/configuration/4.5/api#addurl">addurl</a> api
+                    for fetching nzb files.
+                </Form.Text>
+            </Form.Group>
+            <hr />
+            <Form.Group>
                 <Form.Check
                     className={styles.input}
                     type="checkbox"
@@ -280,6 +298,7 @@ export function isSabnzbdSettingsUpdated(config: Record<string, string>, newConf
         || config["api.import-strategy"] !== newConfig["api.import-strategy"]
         || config["api.completed-downloads-dir"] !== newConfig["api.completed-downloads-dir"]
         || config["general.base-url"] !== newConfig["general.base-url"]
+        || config["api.user-agent"] !== newConfig["api.user-agent"]
 }
 
 export function isSabnzbdSettingsValid(newConfig: Record<string, string>) {

@@ -233,6 +233,14 @@ public class ConfigManager
         return GetConfigValue("general.base-url") ?? "http://localhost:3000";
     }
 
+    public string GetUserAgent()
+    {
+        var defaultValue = $"nzbdav/{AppVersion}";
+        return StringUtil.EmptyToNull(GetConfigValue("api.user-agent"))
+               ?? EnvironmentUtil.GetEnvironmentVariable("NZB_GRAB_USER_AGENT")
+               ?? defaultValue;
+    }
+
     public class ConfigEventArgs : EventArgs
     {
         public required Dictionary<string, string> ChangedConfig { get; init; }

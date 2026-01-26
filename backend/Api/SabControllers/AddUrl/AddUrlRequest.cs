@@ -8,15 +8,15 @@ namespace NzbWebDAV.Api.SabControllers.AddUrl;
 
 public class AddUrlRequest() : AddFileRequest
 {
-    private static readonly string DefaultUserAgent = $"nzbdav/{ConfigManager.AppVersion}";
-    private static readonly HttpClient HttpClient = GetHttpClient();
+    private static readonly HttpClient HttpClientInstance = InitializeHttpClient();
     private const int MaxAutomaticRedirections = 10;
 
     public static async Task<AddUrlRequest> New(HttpContext context, ConfigManager configManager)
     {
         var nzbUrl = context.GetQueryParam("name");
         var nzbName = context.GetQueryParam("nzbname");
-        var nzbFile = await GetNzbFile(nzbUrl, nzbName).ConfigureAwait(false);
+        var userAgent = configManager.GetUserAgent();
+        var nzbFile = await GetNzbFile(nzbUrl, nzbName, userAgent).ConfigureAwait(false);
         return new AddUrlRequest()
         {
             FileName = nzbFile.FileName,
@@ -29,7 +29,7 @@ public class AddUrlRequest() : AddFileRequest
         };
     }
 
-    private static async Task<NzbFileResponse> GetNzbFile(string? url, string? nzbName)
+    private static async Task<NzbFileResponse> GetNzbFile(string? url, string? nzbName, string userAgent)
     {
         try
         {
@@ -38,7 +38,7 @@ public class AddUrlRequest() : AddFileRequest
                 throw new Exception($"The url is invalid.");
 
             // fetch url
-            var response = await GetAsync(url).ConfigureAwait(false);
+            var response = await GetAsync(url, userAgent).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
                 throw new Exception($"Received status code {response.StatusCode}.");
 
@@ -75,9 +75,12 @@ public class AddUrlRequest() : AddFileRequest
             : $"{nzbName}.nzb";
     }
 
-    private static async Task<HttpResponseMessage> GetAsync(string url)
+    private static async Task<HttpResponseMessage> GetAsync(string url, string userAgent)
     {
-        var response = await HttpClient.GetAsync(url);
+        var httpClient = HttpClientInstance;
+        httpClient.DefaultRequestHeaders.Remove("User-Agent");
+        httpClient.DefaultRequestHeaders.Add("User-Agent", userAgent);
+        var response = await httpClient.GetAsync(url);
         var remainingRedirects = MaxAutomaticRedirections;
         while
         (
@@ -89,24 +92,21 @@ public class AddUrlRequest() : AddFileRequest
         {
             var redirect = response.Headers.Location;
             var redirectUri = redirect.IsAbsoluteUri ? redirect : new Uri(new Uri(url), redirect);
-            response = await HttpClient.GetAsync(redirectUri);
+            response = await httpClient.GetAsync(redirectUri);
             remainingRedirects--;
         }
 
         return response;
     }
 
-    private static HttpClient GetHttpClient()
+    private static HttpClient InitializeHttpClient()
     {
         var handler = new HttpClientHandler
         {
             AllowAutoRedirect = true,
             MaxAutomaticRedirections = MaxAutomaticRedirections,
         };
-        var httpClient = new HttpClient(handler);
-        var userAgent = EnvironmentUtil.GetEnvironmentVariable("NZB_GRAB_USER_AGENT") ?? DefaultUserAgent;
-        httpClient.DefaultRequestHeaders.Add("User-Agent", userAgent);
-        return httpClient;
+        return new HttpClient(handler);
     }
 
     private static string? GetFilenameFromResponseHeader(HttpResponseMessage response)

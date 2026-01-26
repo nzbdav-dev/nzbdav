@@ -1,6 +1,6 @@
 import type { Route } from "./+types/route";
 import styles from "./route.module.css"
-import { Tabs, Tab, Button, Form } from "react-bootstrap"
+import { Tabs, Tab, Button } from "react-bootstrap"
 import { backendClient } from "~/clients/backend-client.server";
 import { isUsenetSettingsUpdated, UsenetSettings } from "./usenet/usenet";
 import { isSabnzbdSettingsUpdated, isSabnzbdSettingsValid, SabnzbdSettings } from "./sabnzbd/sabnzbd";
@@ -22,6 +22,7 @@ const defaultConfig = {
     "api.duplicate-nzb-behavior": "increment",
     "api.import-strategy": "symlinks",
     "api.completed-downloads-dir": "",
+    "api.user-agent": "",
     "usenet.providers": "",
     "usenet.max-download-connections": "15",
     "usenet.streaming-priority": "80",
@@ -46,17 +47,22 @@ export async function loader({ request }: Route.LoaderArgs) {
     for (const item of configItems) {
         config[item.configName] = item.configValue;
     }
-    return { config: config }
+
+    return {
+        config: config,
+        appVersion: process.env.NZBDAV_VERSION ?? "unknown",
+    }
 }
 
 export default function Settings(props: Route.ComponentProps) {
     return (
-        <Body config={props.loaderData.config} />
+        <Body {...props.loaderData} />
     );
 }
 
 type BodyProps = {
-    config: Record<string, string>
+    config: Record<string, string>,
+    appVersion: string,
 };
 
 function Body(props: BodyProps) {
@@ -129,7 +135,7 @@ function Body(props: BodyProps) {
                     <UsenetSettings config={newConfig} setNewConfig={setNewConfig} />
                 </Tab>
                 <Tab eventKey="sabnzbd" title={sabnzbdTitle}>
-                    <SabnzbdSettings config={newConfig} setNewConfig={setNewConfig} />
+                    <SabnzbdSettings config={newConfig} setNewConfig={setNewConfig} appVersion={props.appVersion} />
                 </Tab>
                 <Tab eventKey="webdav" title={webdavTitle}>
                     <WebdavSettings config={newConfig} setNewConfig={setNewConfig} />
