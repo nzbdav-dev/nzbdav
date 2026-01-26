@@ -41,11 +41,15 @@ public class QueueManager : IDisposable
         return (_inProgressQueueItem?.QueueItem, _inProgressQueueItem?.ProgressPercentage);
     }
 
-    public void AwakenQueue()
+    public void AwakenQueue(DateTime? dateTime = null)
     {
+        TimeSpan? cancelAfter = dateTime.HasValue ? (dateTime.Value - DateTime.Now) : null;
         lock (_sleepingQueueLock)
         {
-            _sleepingQueueToken.Cancel();
+            if (cancelAfter.HasValue && cancelAfter.Value > TimeSpan.Zero)
+                _sleepingQueueToken.CancelAfter(cancelAfter.Value);
+            else
+                _sleepingQueueToken.Cancel();
         }
     }
 
@@ -93,8 +97,11 @@ public class QueueManager : IDisposable
                     {
                         lock (_sleepingQueueLock)
                         {
-                            _sleepingQueueToken.Dispose();
-                            _sleepingQueueToken = new CancellationTokenSource();
+                            if (!_sleepingQueueToken.TryReset())
+                            {
+                                _sleepingQueueToken.Dispose();
+                                _sleepingQueueToken = new CancellationTokenSource();
+                            }
                         }
                     }
 

@@ -49,7 +49,7 @@ public class AddFileController(
                 CreatedAt = DateTime.Now,
                 FileName = request.FileName,
                 JobName = FilenameUtil.GetJobName(request.FileName),
-                NzbFileSize = stream.Length,
+                NzbFileSize = nzbFileStream.Length,
                 TotalSegmentBytes = totalSegmentBytes,
                 Category = request.Category,
                 Priority = request.Priority,
@@ -74,7 +74,7 @@ public class AddFileController(
         _ = websocketManager.SendMessage(WebsocketTopic.QueueItemAdded, message);
 
         // awaken the queue if it is sleeping
-        queueManager.AwakenQueue();
+        queueManager.AwakenQueue(request.PauseUntil);
 
         // return response
         return new AddFileResponse()
