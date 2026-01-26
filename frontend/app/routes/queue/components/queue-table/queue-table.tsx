@@ -1,6 +1,6 @@
 import { ActionButton } from "../action-button/action-button"
 import { memo, useCallback, useMemo, useState } from "react"
-import { ConfirmModal } from "../confirm-modal/confirm-modal"
+import { ConfirmModal } from "~/components/confirm-modal/confirm-modal"
 import type { PresentationQueueSlot } from "../../route"
 import type { TriCheckboxState } from "../tri-checkbox/tri-checkbox"
 import { PageRow, PageTable } from "../page-table/page-table"

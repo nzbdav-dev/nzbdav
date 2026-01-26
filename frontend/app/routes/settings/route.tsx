@@ -9,6 +9,8 @@ import { isArrsSettingsUpdated, isArrsSettingsValid, ArrsSettings } from "./arrs
 import { Maintenance } from "./maintenance/maintenance";
 import { isRepairsSettingsUpdated, RepairsSettings } from "./repairs/repairs";
 import { useCallback, useState } from "react";
+import { useBlocker } from "react-router";
+import { ConfirmModal } from "~/components/confirm-modal/confirm-modal";
 
 const defaultConfig = {
     "general.base-url": "",
@@ -80,6 +82,7 @@ function Body(props: BodyProps) {
     const isArrsUpdated = isArrsSettingsUpdated(config, newConfig);
     const isRepairsUpdated = isRepairsSettingsUpdated(config, newConfig);
     const isUpdated = iseUsenetUpdated || isSabnzbdUpdated || isWebdavUpdated || isArrsUpdated || isRepairsUpdated;
+    const navigationBlocker = useNavigationBlocker(isUpdated);
 
     const usenetTitle = iseUsenetUpdated ? "✏️ Usenet" : "Usenet";
     const sabnzbdTitle = isSabnzbdUpdated ? "✏️ SABnzbd " : "SABnzbd";
@@ -165,6 +168,15 @@ function Body(props: BodyProps) {
                 onClick={onSave}>
                 {saveButtonLabel}
             </Button>
+            <ConfirmModal
+                show={navigationBlocker.showConfirmation}
+                title="Unsaved Changes"
+                message={<>You have unsaved changes.<br/>Are you sure you want to leave this page?</>}
+                cancelText="Stay"
+                confirmText="Leave"
+                onCancel={navigationBlocker.onCancelNavigation}
+                onConfirm={navigationBlocker.onConfirmNavigation}
+            />
         </div>
     );
 }
@@ -181,4 +193,26 @@ function getChangedConfig(
         }
     }
     return changedConfig;
+}
+
+function useNavigationBlocker(isConfigUpdated: boolean) {
+    const blocker = useBlocker(isConfigUpdated);
+
+    const onConfirmNavigation = useCallback(() => {
+        if (blocker.state === "blocked") {
+            blocker.proceed();
+        }
+    }, [blocker]);
+
+    const onCancelNavigation = useCallback(() => {
+        if (blocker.state === "blocked") {
+            blocker.reset();
+        }
+    }, [blocker]);
+
+    return {
+        showConfirmation: blocker.state === "blocked",
+        onConfirmNavigation,
+        onCancelNavigation
+    }
 }

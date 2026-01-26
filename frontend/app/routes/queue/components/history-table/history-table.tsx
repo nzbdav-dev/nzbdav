@@ -1,6 +1,6 @@
 import { ActionButton } from "../action-button/action-button"
 import { useCallback, useState } from "react"
-import { ConfirmModal } from "../confirm-modal/confirm-modal"
+import { ConfirmModal } from "~/components/confirm-modal/confirm-modal"
 import { Link } from "react-router"
 import { type TriCheckboxState } from "../tri-checkbox/tri-checkbox"
 import type { PresentationHistorySlot } from "../../route"

@@ -1,11 +1,11 @@
 import { Button, Form, Modal } from "react-bootstrap";
 import { WordWrap } from "../word-wrap/word-wrap";
-import { useCallback, useState } from "react";
+import { useCallback, useState, type ReactNode } from "react";
 
 export type ConfirmModalProps = {
     show: boolean,
     title: string,
-    message: string,
+    message: ReactNode,
     checkboxMessage?: string,
     cancelText?: string,
     confirmText?: string,

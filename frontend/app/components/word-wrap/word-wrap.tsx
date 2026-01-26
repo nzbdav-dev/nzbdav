@@ -6,5 +6,5 @@ export type WordWrapProps = {
 }
 
 export function WordWrap({ children }: WordWrapProps) {
-    return <div className={styles["word-wrap"]}>{children}</div>;
+    return <div className={styles.wordWrap}>{children}</div>;
 }
