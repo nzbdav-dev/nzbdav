@@ -60,9 +60,11 @@ function Body(props: ExplorePageData) {
     }, [location.pathname]);
 
     const getFilePath = useCallback((file: ExploreFile) => {
-        var pathname = getWebdavPath(location.pathname);
-        var relativePath = getRelativePath(pathname, encodeURIComponent(file.name));
-        return `/view/${relativePath}?downloadKey=${file.downloadKey}`;
+        const pathname = getWebdavPath(location.pathname);
+        const relativePath = getRelativePath(pathname, encodeURIComponent(file.name));
+        const extension = getExtension(file.name);
+        const extensionQueryParam = extension ? `&extension=${extension}` : '';
+        return `/view/${relativePath}?downloadKey=${file.downloadKey}${extensionQueryParam}`;
     }, [location.pathname]);
 
     return (
@@ -90,6 +92,12 @@ function Body(props: ExplorePageData) {
             {isNavigating && <Loading className={styles.loading} />}
         </div >
     );
+}
+
+function getExtension(filename: string): string | undefined {
+    const lastDotIndex = filename.lastIndexOf('.');
+    if (lastDotIndex === -1 || lastDotIndex === 0) return undefined;
+    return filename.slice(lastDotIndex);
 }
 
 function getIcon(file: ExploreFile) {
