@@ -104,7 +104,7 @@ class Program
         // run
         var app = builder.Build();
         app.UseMiddleware<ExceptionMiddleware>();
-        app.UseWebSockets();
+        app.UseWebSockets(new WebSocketOptions { KeepAliveInterval = TimeSpan.FromSeconds(30) });
         app.MapHealthChecks("/health");
         app.Map("/ws", websocketManager.HandleRoute);
         app.MapControllers();
