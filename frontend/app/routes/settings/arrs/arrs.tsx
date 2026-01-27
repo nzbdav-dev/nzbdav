@@ -80,6 +80,10 @@ const queueStatusMessages = [
         display: "Sample",
         searchTerm: "Sample"
     },
+    {
+        display: "Found archive file, might need to be extracted",
+        searchTerm: "Found archive file, might need to be extracted"
+    },
 ];
 
 export function ArrsSettings({ config, setNewConfig }: ArrsSettingsProps) {
