@@ -77,11 +77,17 @@ public class ConfigManager
                ?? throw new InvalidOperationException("The `api.strm-key` config does not exist.");
     }
 
-    public string GetApiCategories()
+    public List<string> GetApiCategories()
     {
-        return StringUtil.EmptyToNull(GetConfigValue("api.categories"))
-               ?? EnvironmentUtil.GetEnvironmentVariable("CATEGORIES")
-               ?? "audio,software,tv,movies";
+        var value = StringUtil.EmptyToNull(GetConfigValue("api.categories"))
+                    ?? EnvironmentUtil.GetEnvironmentVariable("CATEGORIES")
+                    ?? "audio,software,tv,movies";
+
+        return value.Split(',')
+            .Prepend(GetManualUploadCategory())
+            .Select(x => x.Trim())
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .ToList();
     }
 
     public string GetManualUploadCategory()

@@ -25,12 +25,30 @@ public class DatabaseStoreSymlinkCollection(
 
     protected override async Task<IStoreItem?> GetItemAsync(GetItemRequest request)
     {
-        if (DeletedFiles.IsDeleted(request.Name)) return null;
+        // return deleted file
+        if (DeletedFiles.IsDeleted(request.Name))
+            return null;
+
+        // return database item
         var name = Regex.Replace(request.Name, @"\.rclonelink$", "");
-        var child = await dbClient.GetDirectoryChildAsync(TargetId, name, request.CancellationToken)
+        var child = await dbClient
+            .GetDirectoryChildAsync(TargetId, name, request.CancellationToken)
             .ConfigureAwait(false);
-        if (child is null) return null;
-        return GetItem(child);
+        if (child is not null) return GetItem(child);
+
+        // return empty category folder
+        var isSymlinkFolder = davDirectory.Id == DavItem.SymlinkFolder.Id;
+        if (isSymlinkFolder)
+        {
+            var categories = configManager.GetApiCategories();
+            if (categories.Contains(request.Name))
+            {
+                return new BaseStoreEmptyCollection(request.Name);
+            }
+        }
+
+        // the item does not exist
+        return null;
     }
 
     protected override async Task<IStoreItem[]> GetAllItemsAsync(CancellationToken cancellationToken)
@@ -44,8 +62,18 @@ public class DatabaseStoreSymlinkCollection(
             : await dbClient.GetDirectoryChildrenAsync(TargetId, cancellationToken).ConfigureAwait(false);
 
         // map DavItems to IStoreItems
-        return children
-            .Select(GetItem)
+        var result = children.Select(GetItem);
+
+        // include any missing category folders
+        var isSymlinkFolder = davDirectory.Id == DavItem.SymlinkFolder.Id;
+        if (isSymlinkFolder)
+        {
+            result = result.Concat(configManager.GetApiCategories()
+                .Except(children.Select(x => x.Name))
+                .Select(x => new BaseStoreEmptyCollection(x)));
+        }
+
+        return result
             .Where(x => !DeletedFiles.IsDeleted(x.Name)) // must appear after Select(GetItem) for correct Name.
             .ToArray();
     }
@@ -57,6 +85,10 @@ public class DatabaseStoreSymlinkCollection(
 
     protected override Task<DavStatusCode> DeleteItemAsync(DeleteItemRequest request)
     {
+        // Cannot delete from symlink root folder
+        var isSymlinkFolder = davDirectory.Id == DavItem.SymlinkFolder.Id;
+        if (isSymlinkFolder) return base.DeleteItemAsync(request);
+
         // Items cannot be deleted from the '/completed-symlinks' folder.
         // This path simply mirrors the '/content' folder, except with symlinks.
         // This allows radarr/sonarr to import the lightweight symlink, instead

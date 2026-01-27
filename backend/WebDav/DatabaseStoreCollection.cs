@@ -30,11 +30,29 @@ public class DatabaseStoreCollection(
 
     protected override async Task<IStoreItem?> GetItemAsync(GetItemRequest request)
     {
-        if (davDirectory.Id == DavItem.Root.Id && request.Name == Readme.Name) return Readme;
-        var child = await dbClient.GetDirectoryChildAsync(davDirectory.Id, request.Name, request.CancellationToken)
+        // return readme file
+        var isReadme = davDirectory.Id == DavItem.Root.Id && request.Name == Readme.Name;
+        if (isReadme) return Readme;
+
+        // return database item
+        var child = await dbClient
+            .GetDirectoryChildAsync(davDirectory.Id, request.Name, request.CancellationToken)
             .ConfigureAwait(false);
-        if (child is null) return null;
-        return GetItem(child);
+        if (child is not null) return GetItem(child);
+
+        // return empty category folder
+        var isContentFolder = davDirectory.Id == DavItem.ContentFolder.Id;
+        if (isContentFolder)
+        {
+            var categories = configManager.GetApiCategories();
+            if (categories.Contains(request.Name))
+            {
+                return new BaseStoreEmptyCollection(request.Name);
+            }
+        }
+
+        // the item does not exist
+        return null;
     }
 
     protected override async Task<IStoreItem[]> GetAllItemsAsync(CancellationToken cancellationToken)
@@ -50,6 +68,14 @@ public class DatabaseStoreCollection(
         // include the readme file
         if (davDirectory.Id == DavItem.Root.Id)
             result = result.Append(Readme);
+
+        // include any missing category folders
+        if (davDirectory.Id == DavItem.ContentFolder.Id)
+        {
+            result = result.Concat(configManager.GetApiCategories()
+                .Except(children.Select(x => x.Name))
+                .Select(x => new BaseStoreEmptyCollection(x)));
+        }
 
         return result.ToArray();
     }

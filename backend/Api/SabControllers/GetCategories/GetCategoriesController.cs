@@ -16,12 +16,7 @@ public class GetCategoriesController(
 {
     protected override async Task<IActionResult> Handle()
     {
-        var categories = configManager.GetApiCategories().Split(',')
-            .Prepend(configManager.GetManualUploadCategory())
-            .Select(x => x.Trim())
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .ToList();
-
+        var categories = configManager.GetApiCategories();
         var response = new { categories };
         return Ok(response);
     }

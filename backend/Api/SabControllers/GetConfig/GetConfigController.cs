@@ -28,11 +28,7 @@ public class GetConfigController(
 
         // update the categories
         var categoriesRoot = root["config"]?["categories"]?.AsArray()!;
-        var categories = configManager.GetApiCategories().Split(',')
-            .Prepend(configManager.GetManualUploadCategory())
-            .Select(x => x.Trim())
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .ToList();
+        var categories = configManager.GetApiCategories();
         foreach (var category in categories)
         {
             categoriesRoot.Add(new JsonObject
