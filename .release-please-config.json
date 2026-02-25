@@ -1,0 +1,8 @@
+{
+  "packages": {
+    ".": {
+      "release-type": "simple",
+      "tagPrefix": "v"
+    }
+  }
+}
