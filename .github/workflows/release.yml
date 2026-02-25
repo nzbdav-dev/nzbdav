@@ -83,32 +83,24 @@ jobs:
           MINOR=${{ needs.release.outputs.minor }}
           PATCH=${{ needs.release.outputs.patch }}
 
-          if [[ "${{ github.ref_name }}" == "main" ]]; then
-            echo "NZBDAV_VERSION=${MAJOR}.${MINOR}.${PATCH}" >> $GITHUB_OUTPUT
-          else
-            echo "NZBDAV_VERSION=${{ github.ref_name }}" >> $GITHUB_OUTPUT
-          fi
+          echo "NZBDAV_VERSION=${MAJOR}.${MINOR}.${PATCH}" >> $GITHUB_OUTPUT
 
           GHCR_REPO="ghcr.io/${{ github.repository }}"
           DOCKERHUB_REPO="nzbdav/nzbdav"
-          if [[ "${{ github.ref_name }}" == "main" ]]; then
-            {
-              echo "TAGS<<EOF"
-              echo "${GHCR_REPO}:alpha"
-              echo "${GHCR_REPO}:latest"
-              echo "${GHCR_REPO}:${MAJOR}.x"
-              echo "${GHCR_REPO}:${MAJOR}.${MINOR}.x"
-              echo "${GHCR_REPO}:${MAJOR}.${MINOR}.${PATCH}"
-              echo "${DOCKERHUB_REPO}:alpha"
-              echo "${DOCKERHUB_REPO}:latest"
-              echo "${DOCKERHUB_REPO}:${MAJOR}.x"
-              echo "${DOCKERHUB_REPO}:${MAJOR}.${MINOR}.x"
-              echo "${DOCKERHUB_REPO}:${MAJOR}.${MINOR}.${PATCH}"
-              echo "EOF"
-            } >> $GITHUB_OUTPUT
-          else
-            echo "TAGS=${GHCR_REPO}:${{ github.ref_name }}" >> $GITHUB_OUTPUT
-          fi
+          {
+            echo "TAGS<<EOF"
+            echo "${GHCR_REPO}:alpha"
+            echo "${GHCR_REPO}:latest"
+            echo "${GHCR_REPO}:${MAJOR}.x"
+            echo "${GHCR_REPO}:${MAJOR}.${MINOR}.x"
+            echo "${GHCR_REPO}:${MAJOR}.${MINOR}.${PATCH}"
+            echo "${DOCKERHUB_REPO}:alpha"
+            echo "${DOCKERHUB_REPO}:latest"
+            echo "${DOCKERHUB_REPO}:${MAJOR}.x"
+            echo "${DOCKERHUB_REPO}:${MAJOR}.${MINOR}.x"
+            echo "${DOCKERHUB_REPO}:${MAJOR}.${MINOR}.${PATCH}"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
 
       - name: Build and push Docker image (amd64 + arm64)
         uses: docker/build-push-action@v5
