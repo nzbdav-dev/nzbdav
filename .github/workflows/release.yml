@@ -29,7 +29,7 @@ jobs:
         run: |
           git config user.name "GitHub Actions"
           git config user.email "<>"
-          git remote add gh-token "https://${{ secrets.GITHUB_TOKEN }}@github.com/unchealth/${{github.event.repository.name}}.git"
+          git remote add gh-token "https://${{ secrets.GITHUB_TOKEN }}@github.com/nzbdav-dev/${{github.event.repository.name}}.git"
           git tag -d latest || true
           git tag -d v${{ steps.release.outputs.major }} || true
           git tag -d v${{ steps.release.outputs.major }}.${{ steps.release.outputs.minor }} || true
