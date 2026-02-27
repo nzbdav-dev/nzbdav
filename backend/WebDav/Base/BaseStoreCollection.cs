@@ -27,7 +27,7 @@ public abstract class BaseStoreCollection : IStoreCollection
 
     // interface implementation
     public IPropertyManager? PropertyManager => BaseStoreCollectionPropertyManager.Instance;
-    public InfiniteDepthMode InfiniteDepthMode => InfiniteDepthMode.Rejected;
+    public InfiniteDepthMode InfiniteDepthMode => InfiniteDepthMode.Allowed;
 
     public Task<StoreItemResult> CopyAsync
     (
