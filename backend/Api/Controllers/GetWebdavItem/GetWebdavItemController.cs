@@ -6,14 +6,13 @@ using NWebDav.Server.Stores;
 using NzbWebDAV.Config;
 using NzbWebDAV.Extensions;
 using NzbWebDAV.Par2Recovery;
-using NzbWebDAV.Utils;
 using NzbWebDAV.WebDav;
 
 namespace NzbWebDAV.Api.Controllers.GetWebdavItem;
 
 [ApiController]
 [Route("view/{*path}")]
-public class ListWebdavDirectoryController(DatabaseStore store, ConfigManager configManager) : ControllerBase
+public class GetWebdavItemController(DatabaseStore store, ConfigManager configManager) : ControllerBase
 {
     private static readonly FileExtensionContentTypeProvider MimeTypeProvider = new();
 
@@ -34,8 +33,10 @@ public class ListWebdavDirectoryController(DatabaseStore store, ConfigManager co
         var stream = await item.GetReadableStreamAsync(HttpContext.RequestAborted).ConfigureAwait(false);
         var fileSize = stream.Length;
 
-        // set the content-typ header
+        // set the content-type and content-disposition headers
         Response.Headers["Content-Type"] = GetContentType(item.Name);
+        Response.Headers["Content-Disposition"] = GetContentDisposition(item.Name);
+
         // disable compression to keep Content-Length intact for clients that need seeking
         Response.Headers["Content-Encoding"] = "identity";
         Response.Headers["Accept-Ranges"] = "bytes";
@@ -104,6 +105,21 @@ public class ListWebdavDirectoryController(DatabaseStore store, ConfigManager co
             : extension == ".nfo" ? "text/plain"
             : MimeTypeProvider.TryGetContentType(Path.GetFileName(item), out var mimeType) ? mimeType
             : "application/octet-stream";
+    }
+
+    private static string GetContentDisposition(string filename)
+    {
+        // Remove control characters (header safety)
+        filename = new string(filename.Where(c => !char.IsControl(c)).ToArray());
+
+        // ASCII fallback for legacy clients
+        var chars = filename.Select(c => (c >= 32 && c <= 126 && c != '"' && c != '\\' && c != ';') ? c : '_');
+        var ascii = new string(chars.ToArray());
+
+        // RFC 5987 UTF-8 filename
+        var utf8 = Uri.EscapeDataString(filename);
+
+        return $"inline; filename=\"{ascii}\"; filename*=UTF-8''{utf8}";
     }
 
     private async Task<Stream> GetPar2PreviewStream(IStoreItem item)
