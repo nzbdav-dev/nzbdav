@@ -14,7 +14,7 @@ public class RemoveUnlinkedFilesTask(
     DavDatabaseClient dbClient,
     WebsocketManager websocketManager,
     bool isDryRun
-) : BaseTask
+) : BaseTask(websocketManager, WebsocketTopic.CleanupTaskProgress)
 {
     private static List<string> _allRemovedPaths = [];
 
@@ -112,11 +112,6 @@ public class RemoveUnlinkedFilesTask(
         return OrganizedLinksUtil.GetLibraryDavItemLinks(configManager)
             .Select(x => x.DavItemId)
             .ToHashSet();
-    }
-
-    private void Report(string message)
-    {
-        _ = websocketManager.SendMessage(WebsocketTopic.CleanupTaskProgress, message);
     }
 
     public static string GetAuditReport()

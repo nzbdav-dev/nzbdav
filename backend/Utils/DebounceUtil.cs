@@ -2,6 +2,11 @@ namespace NzbWebDAV.Utils;
 
 public static class DebounceUtil
 {
+    public static Action<Action> CreateDebounce(int milliseconds = 200)
+    {
+        return CreateDebounce(TimeSpan.FromMilliseconds(milliseconds));
+    }
+
     public static Action<Action> CreateDebounce(TimeSpan timespan)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(timespan, TimeSpan.Zero);
