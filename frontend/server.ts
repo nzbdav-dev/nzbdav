@@ -15,7 +15,7 @@ app.use(
   compression({
     // Don't compress proxied WebDAV/media/API responses; keep Content-Length intact for seek
     filter: (req, res) => {
-      const path = req.path || "";
+      const path = decodeURIComponent(req.path || "");
       if (
         path.startsWith("/view") ||
         path.startsWith("/.ids") ||

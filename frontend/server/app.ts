@@ -47,15 +47,16 @@ const setApiKeyForAuthenticatedRequests = async (req: express.Request) => {
 }
 
 app.use(async (req, res, next) => {
+  const path = decodeURIComponent(req.path);
   if (
     req.method.toUpperCase() === "PROPFIND"
     || req.method.toUpperCase() === "OPTIONS"
-    || req.path.startsWith("/api")
-    || req.path.startsWith("/view")
-    || req.path.startsWith("/.ids")
-    || req.path.startsWith("/nzbs")
-    || req.path.startsWith("/content")
-    || req.path.startsWith("/completed-symlinks")
+    || path.startsWith("/api")
+    || path.startsWith("/view")
+    || path.startsWith("/.ids")
+    || path.startsWith("/nzbs")
+    || path.startsWith("/content")
+    || path.startsWith("/completed-symlinks")
   ) {
     await setApiKeyForAuthenticatedRequests(req);
     return forwardToBackend(req, res, next);
