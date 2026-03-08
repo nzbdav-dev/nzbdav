@@ -15,7 +15,7 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
     private static readonly Lazy<DbContextOptions<DavDatabaseContext>> Options = new(
         () => new DbContextOptionsBuilder<DavDatabaseContext>()
             .UseSqlite($"Data Source={DatabaseFilePath}")
-            .AddInterceptors(new SqliteForeignKeyEnabler())
+            .AddInterceptors(new SqliteForeignKeyEnabler(), new ContentIndexSnapshotInterceptor())
             .Options
     );
 
