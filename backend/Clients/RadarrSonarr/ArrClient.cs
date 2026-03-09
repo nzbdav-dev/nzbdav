@@ -8,7 +8,7 @@ namespace NzbWebDAV.Clients.RadarrSonarr;
 
 public class ArrClient(string host, string apiKey)
 {
-    protected static readonly HttpClient HttpClient = new HttpClient();
+    protected static readonly HttpClient HttpClient = new();
 
     public string Host { get; } = host;
     private string ApiKey { get; } = apiKey;
