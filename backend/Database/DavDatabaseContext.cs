@@ -131,11 +131,11 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
                 .IsUnique();
 
             e.HasIndex(i => new { i.IdPrefix, i.Type });
-            
+
             e.HasIndex(i => new { i.Type, i.HistoryItemId, i.NextHealthCheck, i.ReleaseDate, i.Id });
-            
+
             e.HasIndex(i => new { i.HistoryItemId, i.Type, i.CreatedAt });
-            
+
             e.HasIndex(i => new { i.HistoryItemId, i.SubType, i.CreatedAt });
         });
 
@@ -447,6 +447,9 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
 
             e.Property(i => i.Id)
                 .ValueGeneratedNever();
+
+            e.Property(i => i.DeleteMountedFiles)
+                .IsRequired();
         });
 
         // DavCleanupItem

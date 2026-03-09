@@ -27,13 +27,23 @@ public class HistoryCleanupService : BackgroundService
                     continue;
                 }
 
-                // Mark the corresponding dav-items as no longer in History
-                await dbContext.Items
-                    .Where(x => x.HistoryItemId == cleanupItem.Id)
-                    .ExecuteUpdateAsync(
-                        x => x.SetProperty(p => p.HistoryItemId, (Guid?)null),
-                        stoppingToken
-                    );
+                if (cleanupItem.DeleteMountedFiles)
+                {
+                    // Delete the corresponding dav-items
+                    await dbContext.Items
+                        .Where(x => x.HistoryItemId == cleanupItem.Id)
+                        .ExecuteDeleteAsync(stoppingToken);
+                }
+                else
+                {
+                    // Mark the corresponding dav-items as no longer in History
+                    await dbContext.Items
+                        .Where(x => x.HistoryItemId == cleanupItem.Id)
+                        .ExecuteUpdateAsync(
+                            x => x.SetProperty(p => p.HistoryItemId, (Guid?)null),
+                            stoppingToken
+                        );
+                }
 
                 // Remove the cleanup item from the database
                 dbContext.HistoryCleanupItems.Remove(cleanupItem);

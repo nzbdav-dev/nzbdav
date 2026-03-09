@@ -202,10 +202,20 @@ public sealed class DavDatabaseClient(DavDatabaseContext ctx)
             foreach (var historyItem in historyItems.Where(h => h.DownloadDirId is not null))
                 Ctx.Items.Remove(new DavItem() { Id = historyItem.DownloadDirId!.Value });
             Ctx.HistoryItems.RemoveRange(historyItems);
+            Ctx.HistoryCleanupItems.AddRange(historyItems.Select(x => new HistoryCleanupItem
+            {
+                Id = x.Id,
+                DeleteMountedFiles = deleteFiles
+            }));
             return;
         }
 
         Ctx.HistoryItems.RemoveRange(ids.Select(id => new HistoryItem() { Id = id }));
+        Ctx.HistoryCleanupItems.AddRange(ids.Select(x => new HistoryCleanupItem
+        {
+            Id = x,
+            DeleteMountedFiles = deleteFiles
+        }));
     }
 
     private class FileSizeResult
