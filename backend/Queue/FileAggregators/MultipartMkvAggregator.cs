@@ -49,7 +49,8 @@ public class MultipartMkvAggregator(
                 releaseDate: multipartMkvFile.ReleaseDate,
                 lastHealthCheck: checkedFullHealth ? DateTimeOffset.UtcNow : null,
                 historyItemId: MountDirectory.HistoryItemId,
-                fileBlobId: davMultipartFile.Id
+                fileBlobId: davMultipartFile.Id,
+                nzbBlobId: MountDirectory.HistoryItemId
             );
 
             dbClient.Ctx.Items.Add(davItem);

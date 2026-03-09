@@ -57,8 +57,16 @@ public class AddFileController(
                 PauseUntil = request.PauseUntil
             };
 
+            // record the original NZB filename so it can be served at download time
+            var nzbName = new NzbName
+            {
+                Id = id,
+                FileName = request.FileName
+            };
+
             // save
             dbClient.Ctx.QueueItems.Add(queueItem);
+            dbClient.Ctx.NzbNames.Add(nzbName);
             await dbClient.Ctx.SaveChangesAsync(request.CancellationToken).ConfigureAwait(false);
             _ = DavDatabaseContext.RcloneVfsForget(["/nzbs"]);
         }

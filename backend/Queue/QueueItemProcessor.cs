@@ -338,6 +338,7 @@ public class QueueItemProcessor(
             DownloadTimeSeconds = (int)(DateTime.Now - jobStartTime).TotalSeconds,
             FailMessage = errorMessage,
             DownloadDirId = mountFolder?.Id,
+            NzbBlobId = queueItem.Id,
         };
     }
 

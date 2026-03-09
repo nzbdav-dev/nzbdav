@@ -35,7 +35,8 @@ public class FileAggregator(DavDatabaseClient dbClient, DavItem mountDirectory, 
                 releaseDate: result.ReleaseDate,
                 lastHealthCheck: checkedFullHealth ? DateTimeOffset.UtcNow : null,
                 historyItemId: MountDirectory.HistoryItemId,
-                fileBlobId: davNzbFile.Id
+                fileBlobId: davNzbFile.Id,
+                nzbBlobId: MountDirectory.HistoryItemId
             );
 
             dbClient.Ctx.Items.Add(davItem);

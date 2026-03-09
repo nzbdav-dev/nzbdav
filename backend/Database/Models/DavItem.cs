@@ -34,7 +34,8 @@ public class DavItem
         DateTimeOffset? releaseDate,
         DateTimeOffset? lastHealthCheck,
         Guid? historyItemId,
-        Guid? fileBlobId
+        Guid? fileBlobId,
+        Guid? nzbBlobId = null
     )
     {
         return new DavItem()
@@ -54,7 +55,8 @@ public class DavItem
                 ? releaseDate.Value + 2 * (lastHealthCheck.Value - releaseDate.Value)
                 : null,
             HistoryItemId = historyItemId,
-            FileBlobId = fileBlobId
+            FileBlobId = fileBlobId,
+            NzbBlobId = nzbBlobId
         };
     }
 
