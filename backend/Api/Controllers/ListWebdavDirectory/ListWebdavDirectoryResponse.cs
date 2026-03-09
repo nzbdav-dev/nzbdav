@@ -9,5 +9,6 @@ public class ListWebdavDirectoryResponse
         public string Name { get; init; } = null!;
         public bool IsDirectory { get; init; }
         public long? Size { get; init; }
+        public Guid? NzbBlobId { get; init; }
     }
 }

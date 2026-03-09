@@ -22,6 +22,7 @@ public class DatabaseStoreMultipartFile(
     public override string UniqueKey => davMultipartFile.Id.ToString();
     public override long FileSize => davMultipartFile.FileSize!.Value;
     public override DateTime CreatedAt => davMultipartFile.CreatedAt;
+    public override Guid? NzbBlobId => davMultipartFile.NzbBlobId;
 
     protected override async Task<Stream> GetStreamAsync(CancellationToken ct)
     {

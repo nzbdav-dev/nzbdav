@@ -21,6 +21,7 @@ public class DatabaseStoreNzbFile(
     public override string UniqueKey => davNzbFile.Id.ToString();
     public override long FileSize => davNzbFile.FileSize!.Value;
     public override DateTime CreatedAt => davNzbFile.CreatedAt;
+    public override Guid? NzbBlobId => davNzbFile.NzbBlobId;
 
     protected override async Task<Stream> GetStreamAsync(CancellationToken cancellationToken)
     {

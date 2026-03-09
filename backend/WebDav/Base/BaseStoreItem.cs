@@ -16,6 +16,9 @@ public abstract class BaseStoreItem : IStoreItem
     protected abstract Task<DavStatusCode> UploadFromStreamAsync(UploadFromStreamRequest request);
     protected abstract Task<StoreItemResult> CopyAsync(CopyRequest request);
 
+    // NZB blob ID for downloading the original NZB file; null for items without one
+    public virtual Guid? NzbBlobId => null;
+
     // interface implementation
     public IPropertyManager? PropertyManager => BaseStoreItemPropertyManager.Instance;
 
