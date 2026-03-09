@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using NzbWebDAV.Database;
+using NzbWebDAV.Database.Models;
 using Serilog;
 
 namespace NzbWebDAV.Services;
@@ -27,10 +28,19 @@ public class DavCleanupService : BackgroundService
                     continue;
                 }
 
+                // Collect children to delete for vfs/forget
+                var deletedItems = await dbContext.Items
+                    .Where(x => x.ParentId == cleanupItem.Id)
+                    .Select(x => new DavItem { Id = x.Id, Type = x.Type, Path = x.Path })
+                    .ToListAsync(stoppingToken);
+
                 // Delete any children
                 await dbContext.Items
                     .Where(x => x.ParentId == cleanupItem.Id)
                     .ExecuteDeleteAsync(stoppingToken);
+
+                // Trigger rclone vfs/forget for deleted children
+                _ = DavDatabaseContext.RcloneVfsForget(deletedItems);
 
                 // Remove the queue item from database
                 dbContext.DavCleanupItems.Remove(cleanupItem);

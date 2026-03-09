@@ -17,7 +17,7 @@ public class RemoveUnlinkedFilesTask(
 {
     private static List<string> _allRemovedPaths = [];
 
-    private record UnlinkedItemInfo(string Id, string Path);
+    private record UnlinkedItemInfo(string Id, int Type, string Path);
 
     protected override async Task ExecuteInternal()
     {
@@ -151,7 +151,7 @@ public class RemoveUnlinkedFilesTask(
             var itemsToDelete = await dbContext.Database
                 .SqlQueryRaw<UnlinkedItemInfo>(
                     $"""
-                     SELECT Id, Path FROM DavItems
+                     SELECT Id, Type, Path FROM DavItems
                      WHERE Type = {(int)DavItem.ItemType.UsenetFile}
                        AND HistoryItemId IS NULL
                        AND CreatedAt < '{createdBefore:yyyy-MM-dd HH:mm:ss}'
@@ -167,6 +167,14 @@ public class RemoveUnlinkedFilesTask(
             // Delete the items.
             var idsToDelete = string.Join(",", itemsToDelete.Select(x => $"'{x.Id}'"));
             await dbContext.Database.ExecuteSqlRawAsync($"DELETE FROM DavItems WHERE Id IN ({idsToDelete})");
+
+            // Trigger rclone vfs/forget for deleted items
+            _ = DavDatabaseContext.RcloneVfsForget(itemsToDelete.Select(x => new DavItem
+            {
+                Id = Guid.Parse(x.Id),
+                Type = (DavItem.ItemType)x.Type,
+                Path = x.Path
+            }).ToList());
 
             // Track removed paths
             _allRemovedPaths.AddRange(itemsToDelete.Select(x => x.Path));
@@ -186,25 +194,36 @@ public class RemoveUnlinkedFilesTask(
 
         while (true)
         {
-            // Delete directories that have no children.
-            // Only delete regular directories (SubType = Directory), not root folders.
-            var deletedCount = await dbContext.Database.ExecuteSqlRawAsync(
-                $"""
-                 DELETE FROM DavItems
-                 WHERE Id IN (
-                     SELECT d.Id FROM DavItems d
+            // Find empty directories (no children).
+            // Only target regular directories (SubType = Directory), not root folders.
+            var emptyDirs = await dbContext.Database
+                .SqlQueryRaw<UnlinkedItemInfo>(
+                    $"""
+                     SELECT d.Id, d.Type, d.Path FROM DavItems d
                      LEFT JOIN DavItems c ON c.ParentId = d.Id
                      WHERE d.SubType = {(int)DavItem.ItemSubType.Directory}
                        AND d.CreatedAt < '{createdBefore:yyyy-MM-dd HH:mm:ss}'
                        AND c.Id IS NULL
                      LIMIT 100
-                 )
-                 """);
+                     """)
+                .ToListAsync();
 
-            if (deletedCount == 0)
+            if (emptyDirs.Count == 0)
                 break;
 
-            removed += deletedCount;
+            // Delete the empty directories.
+            var idsToDelete = string.Join(",", emptyDirs.Select(x => $"'{x.Id}'"));
+            await dbContext.Database.ExecuteSqlRawAsync($"DELETE FROM DavItems WHERE Id IN ({idsToDelete})");
+
+            // Trigger rclone vfs/forget for deleted directories
+            _ = DavDatabaseContext.RcloneVfsForget(emptyDirs.Select(x => new DavItem
+            {
+                Id = Guid.Parse(x.Id),
+                Type = (DavItem.ItemType)x.Type,
+                Path = x.Path
+            }).ToList());
+
+            removed += emptyDirs.Count;
             Report($"Removing empty directories...\nRemoved {removed}...");
         }
     }
@@ -215,7 +234,7 @@ public class RemoveUnlinkedFilesTask(
         var unlinkedFiles = await dbContext.Database
             .SqlQueryRaw<UnlinkedItemInfo>(
                 $"""
-                 SELECT Id, Path FROM DavItems
+                 SELECT Id, Type, Path FROM DavItems
                  WHERE Type = {(int)DavItem.ItemType.UsenetFile}
                    AND HistoryItemId IS NULL
                    AND CreatedAt < '{createdBefore:yyyy-MM-dd HH:mm:ss}'

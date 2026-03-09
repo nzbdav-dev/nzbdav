@@ -478,9 +478,9 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
                 await BlobStore.WriteBlob(blobMultipartFile.Id, blobMultipartFile);
 
             // save db changes
-            var vfsForgetDirs = GetRcloneVfsForgetDirectories();
+            var addedOrRemovedDavItems = GetAddedOrRemovedDavItems();
             var result = await base.SaveChangesAsync(cancellationToken);
-            _ = RcloneVfsForget(vfsForgetDirs);
+            _ = RcloneVfsForget(addedOrRemovedDavItems);
 
             // clear pending blob writes
             BlobNzbFiles.Clear();
@@ -505,17 +505,22 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
         }
     }
 
-    private List<string> GetRcloneVfsForgetDirectories()
+    private List<DavItem> GetAddedOrRemovedDavItems()
     {
-        var contentDirs = ChangeTracker.Entries<DavItem>()
+        return ChangeTracker.Entries<DavItem>()
             .Where(x => x.State is EntityState.Added or EntityState.Deleted)
-            .Select(x => x.Entity.Path)
+            .Select(x => x.Entity)
+            .ToList();
+    }
+
+    private static List<string> GetRcloneVfsForgetDirectories(List<DavItem> addedOrRemoved)
+    {
+        var contentDirs = addedOrRemoved
+            .Select(x => x.Path)
             .Select(x => Path.GetDirectoryName(x)!)
             .ToList();
 
-        var idDirs = ChangeTracker.Entries<DavItem>()
-            .Where(x => x.State is EntityState.Added or EntityState.Deleted)
-            .Select(x => x.Entity)
+        var idDirs = addedOrRemoved
             .Where(x => x.Type == DavItem.ItemType.UsenetFile)
             .Select(x => DatabaseStoreSymlinkFile.GetTargetPath(x.Id))
             .Select(x => Path.GetDirectoryName(x)!)
@@ -533,12 +538,14 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
             .ToList();
     }
 
-    private Task RcloneVfsForget(List<string> paths)
+    public static Task RcloneVfsForget(List<DavItem> addedOrRemovedDavItems)
     {
         if (!RcloneClient.IsRemoteControlEnabled) return Task.CompletedTask;
         if (RcloneClient.Host == null) return Task.CompletedTask;
-        if (paths.Count == 0) return Task.CompletedTask;
-        return RcloneClient.ForgetVfsPaths(paths);
+        if (addedOrRemovedDavItems.Count == 0) return Task.CompletedTask;
+        var vfsForgetPaths = GetRcloneVfsForgetDirectories(addedOrRemovedDavItems);
+        if (vfsForgetPaths.Count == 0) return Task.CompletedTask;
+        return RcloneClient.ForgetVfsPaths(vfsForgetPaths);
     }
 
     public void ClearChangeTracker()

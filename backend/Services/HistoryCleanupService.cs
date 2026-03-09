@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using NzbWebDAV.Database;
+using NzbWebDAV.Database.Models;
 using Serilog;
 
 namespace NzbWebDAV.Services;
@@ -29,10 +30,19 @@ public class HistoryCleanupService : BackgroundService
 
                 if (cleanupItem.DeleteMountedFiles)
                 {
+                    // Collect items to delete for vfs/forget
+                    var deletedItems = await dbContext.Items
+                        .Where(x => x.HistoryItemId == cleanupItem.Id)
+                        .Select(x => new DavItem { Id = x.Id, Type = x.Type, Path = x.Path })
+                        .ToListAsync(stoppingToken);
+
                     // Delete the corresponding dav-items
                     await dbContext.Items
                         .Where(x => x.HistoryItemId == cleanupItem.Id)
                         .ExecuteDeleteAsync(stoppingToken);
+
+                    // Trigger rclone vfs/forget for deleted items
+                    _ = DavDatabaseContext.RcloneVfsForget(deletedItems);
                 }
                 else
                 {
