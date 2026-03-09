@@ -1,7 +1,9 @@
 ﻿using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NzbWebDAV.Database.Interceptors;
+using NzbWebDAV.Database.MigrationHelpers;
 using NzbWebDAV.Database.Models;
 using NzbWebDAV.Utils;
 
@@ -16,6 +18,7 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
         new DbContextOptionsBuilder<DavDatabaseContext>()
             .UseSqlite($"Data Source={DatabaseFilePath}")
             .AddInterceptors(new SqliteForeignKeyEnabler())
+            .ReplaceService<IMigrationsSqlGenerator, SqliteMigrationsSqlGenerator<SqliteMigrationsSqlGenerator>>()
             .Options
     );
 
@@ -33,6 +36,7 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
     public DbSet<ConfigItem> ConfigItems => Set<ConfigItem>();
     public DbSet<BlobCleanupItem> BlobCleanupItems => Set<BlobCleanupItem>();
     public DbSet<HistoryCleanupItem> HistoryCleanupItems => Set<HistoryCleanupItem>();
+    public DbSet<DavCleanupItem> DavCleanupItems => Set<DavCleanupItem>();
 
     // blob items
     public List<DavNzbFile> BlobNzbFiles = [];
@@ -122,11 +126,6 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
             e.Property(i => i.HistoryItemId)
                 .ValueGeneratedNever()
                 .IsRequired(false);
-
-            e.HasOne(i => i.Parent)
-                .WithMany(p => p.Children)
-                .HasForeignKey(i => i.ParentId)
-                .OnDelete(DeleteBehavior.Cascade);
 
             e.HasIndex(i => new { i.ParentId, i.Name })
                 .IsUnique();
@@ -444,6 +443,16 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
         b.Entity<HistoryCleanupItem>(e =>
         {
             e.ToTable("HistoryCleanupItems");
+            e.HasKey(i => i.Id);
+
+            e.Property(i => i.Id)
+                .ValueGeneratedNever();
+        });
+
+        // DavCleanupItem
+        b.Entity<DavCleanupItem>(e =>
+        {
+            e.ToTable("DavCleanupItems");
             e.HasKey(i => i.Id);
 
             e.Property(i => i.Id)

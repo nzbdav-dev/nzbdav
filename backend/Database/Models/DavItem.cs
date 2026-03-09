@@ -81,13 +81,6 @@ public class DavItem
         MultipartFile = 203,
     }
 
-    // navigation helpers
-    [JsonIgnore]
-    public DavItem? Parent { get; set; }
-
-    [JsonIgnore]
-    public ICollection<DavItem> Children { get; set; } = new List<DavItem>();
-
     // static instances
     // Important: assigned values cannot be
     // changed without a database migration.

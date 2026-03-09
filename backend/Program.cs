@@ -87,6 +87,7 @@ class Program
             .AddHostedService<ArrMonitoringService>()
             .AddHostedService<BlobCleanupService>()
             .AddHostedService<HistoryCleanupService>()
+            .AddHostedService<DavCleanupService>()
             .AddHostedService<UsenetFileToBlobstoreMigrationService>()
             .AddScoped<DavDatabaseContext>()
             .AddScoped<DavDatabaseClient>()
