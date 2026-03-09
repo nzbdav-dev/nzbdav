@@ -171,23 +171,19 @@ public class HealthCheckService : BackgroundService
     {
         if (davItem.SubType == DavItem.ItemSubType.NzbFile)
         {
-            var nzbFile = await dbClient.GetNzbFileAsync(davItem.Id, ct).ConfigureAwait(false);
+            var nzbFile = await dbClient.GetDavNzbFileAsync(davItem, ct).ConfigureAwait(false);
             return nzbFile?.SegmentIds?.ToList() ?? [];
         }
 
         if (davItem.SubType == DavItem.ItemSubType.RarFile)
         {
-            var rarFile = await dbClient.Ctx.RarFiles
-                .Where(x => x.Id == davItem.Id)
-                .FirstOrDefaultAsync(ct).ConfigureAwait(false);
+            var rarFile = await dbClient.GetDavRarFileAsync(davItem, ct).ConfigureAwait(false);
             return rarFile?.RarParts?.SelectMany(x => x.SegmentIds)?.ToList() ?? [];
         }
 
         if (davItem.SubType == DavItem.ItemSubType.MultipartFile)
         {
-            var multipartFile = await dbClient.Ctx.MultipartFiles
-                .Where(x => x.Id == davItem.Id)
-                .FirstOrDefaultAsync(ct).ConfigureAwait(false);
+            var multipartFile = await dbClient.GetDavMultipartFileAsync(davItem, ct).ConfigureAwait(false);
             return multipartFile?.Metadata?.FileParts?.SelectMany(x => x.SegmentIds)?.ToList() ?? [];
         }
 

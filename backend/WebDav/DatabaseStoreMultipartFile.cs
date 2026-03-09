@@ -28,15 +28,20 @@ public class DatabaseStoreMultipartFile(
         // store the DavItem being accessed in the http context
         httpContext.Items["DavItem"] = davMultipartFile;
 
-        // return the stream
         var id = davMultipartFile.Id;
-        var multipartFile = await dbClient.Ctx.MultipartFiles.Where(x => x.Id == id).FirstOrDefaultAsync(ct).ConfigureAwait(false);
+        var multipartFile = await dbClient.GetDavMultipartFileAsync(davMultipartFile, ct).ConfigureAwait(false);
         if (multipartFile is null) throw new FileNotFoundException($"Could not find nzb file with id: {id}");
+        return GetStream(multipartFile);
+    }
+
+    private Stream GetStream(DavMultipartFile multipartFile)
+    {
         var packedStream = new DavMultipartFileStream(
             multipartFile.Metadata.FileParts,
             usenetClient,
             configManager.GetArticleBufferSize()
         );
+
         return multipartFile.Metadata.AesParams != null
             ? new AesDecoderStream(packedStream, multipartFile.Metadata.AesParams)
             : packedStream;

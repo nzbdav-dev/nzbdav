@@ -68,10 +68,53 @@ public sealed class DavDatabaseClient(DavDatabaseContext ctx)
         return Convert.ToInt64(result);
     }
 
-    // nzbfile
-    public async Task<DavNzbFile?> GetNzbFileAsync(Guid id, CancellationToken ct = default)
+    // usenet files
+    public async Task<DavNzbFile?> GetDavNzbFileAsync(DavItem davItem, CancellationToken ct = default)
     {
-        return await ctx.NzbFiles.FirstOrDefaultAsync(x => x.Id == id, ct).ConfigureAwait(false);
+        // attempt to read from blob-store
+        var blobId = davItem.FileBlobId;
+        if (blobId.HasValue)
+        {
+            var blob = await BlobStore.ReadBlob<DavNzbFile>(blobId.Value);
+            if (blob is not null) return blob;
+        }
+
+        // read from database
+        return await ctx.NzbFiles
+            .FirstOrDefaultAsync(x => x.Id == davItem.Id, ct)
+            .ConfigureAwait(false);
+    }
+
+    public async Task<DavRarFile?> GetDavRarFileAsync(DavItem davItem, CancellationToken ct = default)
+    {
+        // attempt to read from blob-store
+        var blobId = davItem.FileBlobId;
+        if (blobId.HasValue)
+        {
+            var blob = await BlobStore.ReadBlob<DavRarFile>(blobId.Value);
+            if (blob is not null) return blob;
+        }
+
+        // read from database
+        return await ctx.RarFiles
+            .FirstOrDefaultAsync(x => x.Id == davItem.Id, ct)
+            .ConfigureAwait(false);
+    }
+
+    public async Task<DavMultipartFile?> GetDavMultipartFileAsync(DavItem davItem, CancellationToken ct = default)
+    {
+        // attempt to read from blob-store
+        var blobId = davItem.FileBlobId;
+        if (blobId.HasValue)
+        {
+            var blob = await BlobStore.ReadBlob<DavMultipartFile>(blobId.Value);
+            if (blob is not null) return blob;
+        }
+
+        // read from database
+        return await ctx.MultipartFiles
+            .FirstOrDefaultAsync(x => x.Id == davItem.Id, ct)
+            .ConfigureAwait(false);
     }
 
     // queue

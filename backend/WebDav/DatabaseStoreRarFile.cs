@@ -28,10 +28,14 @@ public class DatabaseStoreRarFile(
         // store the DavItem being accessed in the http context
         httpContext.Items["DavItem"] = davRarFile;
 
-        // return the stream
         var id = davRarFile.Id;
-        var rarFile = await dbClient.Ctx.RarFiles.Where(x => x.Id == id).FirstOrDefaultAsync(ct).ConfigureAwait(false);
+        var rarFile = await dbClient.GetDavRarFileAsync(davRarFile, ct).ConfigureAwait(false);
         if (rarFile is null) throw new FileNotFoundException($"Could not find nzb file with id: {id}");
+        return GetStream(rarFile);
+    }
+
+    private DavMultipartFileStream GetStream(DavRarFile rarFile)
+    {
         return new DavMultipartFileStream
         (
             rarFile.ToDavMultipartFileMeta().FileParts,

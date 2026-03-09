@@ -3,6 +3,7 @@ using NzbWebDAV.Clients.Usenet;
 using NzbWebDAV.Config;
 using NzbWebDAV.Database;
 using NzbWebDAV.Database.Models;
+using NzbWebDAV.Streams;
 using NzbWebDAV.WebDav.Base;
 
 namespace NzbWebDAV.WebDav;
@@ -26,10 +27,14 @@ public class DatabaseStoreNzbFile(
         // store the DavItem being accessed in the http context
         httpContext.Items["DavItem"] = davNzbFile;
 
-        // return the stream
         var id = davNzbFile.Id;
-        var file = await dbClient.GetNzbFileAsync(id, cancellationToken).ConfigureAwait(false);
+        var file = await dbClient.GetDavNzbFileAsync(davNzbFile, cancellationToken).ConfigureAwait(false);
         if (file is null) throw new FileNotFoundException($"Could not find nzb file with id: {id}");
-        return usenetClient.GetFileStream(file.SegmentIds, FileSize, configManager.GetArticleBufferSize());
+        return GetStream(file);
+    }
+
+    private NzbFileStream GetStream(DavNzbFile nzbFile)
+    {
+        return usenetClient.GetFileStream(nzbFile.SegmentIds, FileSize, configManager.GetArticleBufferSize());
     }
 }
