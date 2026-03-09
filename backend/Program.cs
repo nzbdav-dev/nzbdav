@@ -50,6 +50,9 @@ class Program
             .WriteTo.Console(theme: AnsiConsoleTheme.Code)
             .CreateLogger();
 
+        // Block upgrades to version 0.6.x
+        BlockUpgradesToV06X();
+
         // initialize database
         await using var databaseContext = new DavDatabaseContext();
 
@@ -119,5 +122,38 @@ class Program
         app.UseNWebDav();
         app.Lifetime.ApplicationStopping.Register(SigtermUtil.Cancel);
         await app.RunAsync().ConfigureAwait(false);
+    }
+
+    private static void BlockUpgradesToV06X()
+    {
+        // If the database file doesn't exist.
+        // Then this is a new installation.
+        // Do nothing.
+        if (!File.Exists(DavDatabaseContext.DatabaseFilePath)) return;
+
+        // If there are no pending database migrations,
+        // Then the user has already upgraded.
+        // Do nothing.
+        var databaseContext = new DavDatabaseContext();
+        var hasPendingMigrations = databaseContext.Database.GetPendingMigrations().Any();
+        if (!hasPendingMigrations) return;
+
+        // If the user has set the UPGRADE env variable,
+        // Then they have acknowledged the upgrade message.
+        // Do nothing.
+        var upgradeEnv = EnvironmentUtil.GetEnvironmentVariable("UPGRADE");
+        if (upgradeEnv == "0.6.x") return;
+
+        // Otherwise, display the upgrade message, and exit.
+        Console.WriteLine(
+            """
+            Version 0.6.x of nzbdav is NOT backwards compatible.
+            You can upgrade, but you won't be able to downgrade.
+            Make a backup of your entire /config directory prior to upgrading.
+            The only way to downgrade back to a previous version is by restoring this backup.
+            To acknowledge this message and continue upgrading, set the env variable UPGRADE=0.6.x
+            """
+        );
+        Environment.Exit(1);
     }
 }
