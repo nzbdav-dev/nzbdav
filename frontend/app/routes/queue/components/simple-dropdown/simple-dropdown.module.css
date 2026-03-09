@@ -68,6 +68,7 @@
     min-width: 75px;
     max-height: 300px;
     overflow-y: auto;
+    border-radius: 0 5px 5px 5px;
 }
 
 .dropdown.openAbove {
