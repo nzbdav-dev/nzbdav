@@ -535,6 +535,7 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
 
     private Task RcloneVfsForget(List<string> paths)
     {
+        if (!RcloneClient.IsRemoteControlEnabled) return Task.CompletedTask;
         if (RcloneClient.Host == null) return Task.CompletedTask;
         if (paths.Count == 0) return Task.CompletedTask;
         return RcloneClient.ForgetVfsPaths(paths);

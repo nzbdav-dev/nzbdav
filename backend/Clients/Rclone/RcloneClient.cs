@@ -27,19 +27,23 @@ public class RcloneClient
     public static string? Host { get; private set; }
     private static string? User { get; set; }
     private static string? Pass { get; set; }
+    public static bool IsRemoteControlEnabled { get; private set; } = false;
 
     public static void Initialize(ConfigManager configManager)
     {
         Host = configManager.GetRcloneHost();
         User = configManager.GetRcloneUser();
         Pass = configManager.GetRclonePass();
+        IsRemoteControlEnabled = configManager.IsRcloneRemoteControlEnabled();
 
         configManager.OnConfigChanged += (_, configEventArgs) =>
         {
             var changedConfig = configEventArgs.ChangedConfig;
             if (changedConfig.TryGetValue("rclone.host", out var host)) Host = host;
-            if (changedConfig.TryGetValue("rclone.user", out var user)) Host = user;
-            if (changedConfig.TryGetValue("rclone.pass", out var pass)) Host = pass;
+            if (changedConfig.TryGetValue("rclone.user", out var user)) User = user;
+            if (changedConfig.TryGetValue("rclone.pass", out var pass)) Pass = pass;
+            if (changedConfig.ContainsKey("rclone.rc-enabled"))
+                IsRemoteControlEnabled = configManager.IsRcloneRemoteControlEnabled();
         };
     }
 

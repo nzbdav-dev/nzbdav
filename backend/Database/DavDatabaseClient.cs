@@ -198,9 +198,17 @@ public sealed class DavDatabaseClient(DavDatabaseContext ctx)
     {
         if (deleteFiles)
         {
-            var historyItems = await Ctx.HistoryItems.Where(x => ids.Contains(x.Id)).ToListAsync(ct);
-            foreach (var historyItem in historyItems.Where(h => h.DownloadDirId is not null))
-                Ctx.Items.Remove(new DavItem() { Id = historyItem.DownloadDirId!.Value });
+            var results = await (
+                from h in Ctx.HistoryItems
+                where ids.Contains(h.Id)
+                join d in Ctx.Items on h.DownloadDirId equals d.Id into items
+                from d in items.DefaultIfEmpty()
+                select new { HistoryItem = h, DavItem = d }
+            ).ToListAsync(ct).ConfigureAwait(false);
+
+            var historyItems = results.Select(r => r.HistoryItem).ToList();
+            var davItems = results.Where(r => r.DavItem != null).Select(r => r.DavItem!).ToList();
+            Ctx.Items.RemoveRange(davItems);
             Ctx.HistoryItems.RemoveRange(historyItems);
             Ctx.HistoryCleanupItems.AddRange(historyItems.Select(x => new HistoryCleanupItem
             {

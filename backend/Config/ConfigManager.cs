@@ -239,6 +239,13 @@ public class ConfigManager
         return GetConfigValue("general.base-url") ?? "http://localhost:3000";
     }
 
+    public bool IsRcloneRemoteControlEnabled()
+    {
+        var defaultValue = false;
+        var configValue = StringUtil.EmptyToNull(GetConfigValue("rclone.rc-enabled"));
+        return (configValue != null ? bool.Parse(configValue) : defaultValue);
+    }
+
     public string? GetRcloneHost()
     {
         return GetConfigValue("rclone.host");
