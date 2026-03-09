@@ -1,6 +1,6 @@
-import { Form } from "react-bootstrap";
+import { Button, Form, InputGroup, Spinner } from "react-bootstrap";
 import styles from "./rclone.module.css"
-import { type Dispatch, type SetStateAction } from "react";
+import { type Dispatch, type SetStateAction, useState, useCallback, useEffect } from "react";
 
 type RcloneSettingsProps = {
     config: Record<string, string>
@@ -8,6 +8,43 @@ type RcloneSettingsProps = {
 };
 
 export function RcloneSettings({ config, setNewConfig }: RcloneSettingsProps) {
+    const [connectionState, setConnectionState] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
+
+    useEffect(() => {
+        setConnectionState('idle');
+    }, [config["rclone.host"], config["rclone.user"], config["rclone.pass"]]);
+
+    const testConnection = useCallback(async () => {
+        const host = config["rclone.host"];
+        if (!host?.trim()) {
+            return;
+        }
+
+        setConnectionState('testing');
+
+        try {
+            const formData = new FormData();
+            formData.append('host', host);
+            formData.append('user', config["rclone.user"] ?? '');
+            formData.append('pass', config["rclone.pass"] ?? '');
+
+            const response = await fetch('/api/test-rclone-connection', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (result.status && result.connected) {
+                setConnectionState('success');
+            } else {
+                setConnectionState('error');
+            }
+        } catch (error) {
+            setConnectionState('error');
+        }
+    }, [config]);
+
     return (
         <div className={styles.container}>
             <Form.Group>
@@ -25,22 +62,44 @@ export function RcloneSettings({ config, setNewConfig }: RcloneSettingsProps) {
             </Form.Group>
             <hr />
             <Form.Group>
-                <Form.Label htmlFor="rclone-host-input">RC Host</Form.Label>
-                <Form.Control
-                    className={styles.input}
-                    type="text"
-                    id="rclone-host-input"
-                    aria-describedby="rclone-host-help"
-                    placeholder="http://localhost:5572"
-                    value={config["rclone.host"]}
-                    onChange={e => setNewConfig({ ...config, "rclone.host": e.target.value })} />
+                <Form.Label htmlFor="rclone-host-input">Rclone Server Host</Form.Label>
+                <InputGroup className={styles.input}>
+                    <Form.Control
+                        type="text"
+                        id="rclone-host-input"
+                        aria-describedby="rclone-host-help"
+                        placeholder="http://localhost:5572"
+                        value={config["rclone.host"]}
+                        onChange={e => setNewConfig({ ...config, "rclone.host": e.target.value })} />
+                    {config["rclone.host"]?.trim() && (
+                        <Button
+                            variant={connectionState === 'success' ? 'success' :
+                                connectionState === 'error' ? 'danger' : 'secondary'}
+                            onClick={testConnection}
+                            disabled={connectionState === 'testing'}
+                            className={styles.testButton}
+                        >
+                            {
+                                connectionState === 'testing' ? (
+                                    <Spinner animation="border" size="sm" />
+                                ) : connectionState === 'success' ? (
+                                    '✓'
+                                ) : connectionState === 'error' ? (
+                                    '✗'
+                                ) : (
+                                    'Test Conn'
+                                )
+                            }
+                        </Button>
+                    )}
+                </InputGroup>
                 <Form.Text id="rclone-host-help" muted>
                     The host address of the rclone RC API.
                 </Form.Text>
             </Form.Group>
             <hr />
             <Form.Group>
-                <Form.Label htmlFor="rclone-user-input">RC User</Form.Label>
+                <Form.Label htmlFor="rclone-user-input">Rclone Server User</Form.Label>
                 <Form.Control
                     className={styles.input}
                     type="text"
@@ -49,12 +108,12 @@ export function RcloneSettings({ config, setNewConfig }: RcloneSettingsProps) {
                     value={config["rclone.user"]}
                     onChange={e => setNewConfig({ ...config, "rclone.user": e.target.value })} />
                 <Form.Text id="rclone-user-help" muted>
-                    The username for rclone RC API authentication.
+                    The username for authenticating to the rclone RC API. This field is optional.
                 </Form.Text>
             </Form.Group>
             <hr />
             <Form.Group>
-                <Form.Label htmlFor="rclone-pass-input">RC Password</Form.Label>
+                <Form.Label htmlFor="rclone-pass-input">Rclone Server Password</Form.Label>
                 <Form.Control
                     className={styles.input}
                     type="password"
@@ -63,7 +122,7 @@ export function RcloneSettings({ config, setNewConfig }: RcloneSettingsProps) {
                     value={config["rclone.pass"]}
                     onChange={e => setNewConfig({ ...config, "rclone.pass": e.target.value })} />
                 <Form.Text id="rclone-pass-help" muted>
-                    The password for rclone RC API authentication.
+                    The password for authenticating to the rclone RC API. This field is optional.
                 </Form.Text>
             </Form.Group>
         </div>

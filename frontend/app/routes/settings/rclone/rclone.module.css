@@ -9,3 +9,9 @@
 .input::placeholder {
     color: rgba(255, 255, 255, 0.25);
 }
+
+.testButton {
+    white-space: nowrap;
+    color: white;
+    font-size: 14px;
+}
