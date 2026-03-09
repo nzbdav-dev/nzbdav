@@ -27,10 +27,15 @@ public class DatabaseStoreSymlinkFile(DavItem davFile, ConfigManager configManag
 
     public static string GetTargetPath(Guid davItemId, string mountDir, char? pathSeparator = null)
     {
+        var pathParts = new List<string> { mountDir, GetTargetPath(davItemId, pathSeparator) };
+        return string.Join(pathSeparator ?? Path.DirectorySeparatorChar, pathParts);
+    }
+
+    public static string GetTargetPath(Guid davItemId, char? pathSeparator = null)
+    {
         var pathParts = davItemId.GetFiveLengthPrefix()
             .Select(x => x.ToString())
             .Prepend(DavItem.IdsFolder.Name)
-            .Prepend(mountDir)
             .Append(davItemId.ToString())
             .ToArray();
         return string.Join(pathSeparator ?? Path.DirectorySeparatorChar, pathParts);

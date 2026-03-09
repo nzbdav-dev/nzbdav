@@ -6,6 +6,7 @@ using NzbWebDAV.Database.Interceptors;
 using NzbWebDAV.Database.MigrationHelpers;
 using NzbWebDAV.Database.Models;
 using NzbWebDAV.Utils;
+using NzbWebDAV.WebDav;
 
 namespace NzbWebDAV.Database;
 
@@ -499,6 +500,30 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
             // rethrow the exception
             throw;
         }
+    }
+
+    public IEnumerable<string> GetRcloneVfsForgetDirectories()
+    {
+        var contentDirs = ChangeTracker.Entries<DavItem>()
+            .Where(x => x.State is EntityState.Added or EntityState.Deleted)
+            .Select(x => x.Entity.Path)
+            .Select(x => Path.GetDirectoryName(x)!)
+            .ToList();
+
+        var idDirs = ChangeTracker.Entries<DavItem>()
+            .Where(x => x.State is EntityState.Added or EntityState.Deleted)
+            .Select(x => x.Entity)
+            .Where(x => x.Type == DavItem.ItemType.UsenetFile)
+            .Select(x => DatabaseStoreSymlinkFile.GetTargetPath(x.Id))
+            .Select(x => Path.GetDirectoryName(x)!)
+            .ToList();
+
+        var completedSymlinkDirs = contentDirs
+            .Where(x => x.StartsWith("/content"))
+            .Select(x => $"/completed-symlinks{x["/content".Length..]}")
+            .ToList();
+
+        return contentDirs.Concat(idDirs).Concat(completedSymlinkDirs);
     }
 
     public void ClearChangeTracker()
