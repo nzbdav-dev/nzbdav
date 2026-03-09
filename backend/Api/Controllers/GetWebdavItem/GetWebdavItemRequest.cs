@@ -2,6 +2,7 @@
 using System.Text;
 using Microsoft.AspNetCore.Http;
 using NzbWebDAV.Config;
+using NzbWebDAV.Extensions;
 using NzbWebDAV.Utils;
 
 namespace NzbWebDAV.Api.Controllers.GetWebdavItem;
@@ -11,6 +12,7 @@ public class GetWebdavItemRequest
     public string Item { get; init; }
     public long? RangeStart { get; init; }
     public long? RangeEnd { get; init; }
+    public bool ShouldDownload { get; init; }
 
     public GetWebdavItemRequest(HttpContext context)
     {
@@ -20,6 +22,9 @@ public class GetWebdavItemRequest
         if (path.StartsWith("view")) path = path[4..];
         if (path.StartsWith("/")) path = path[1..];
         Item = path;
+
+        // determine whether to download
+        ShouldDownload = context.GetQueryParam("download")?.ToLower() == "true";
 
         // authenticate the downloadKey
         var downloadKey = context.Request.Query["downloadKey"];

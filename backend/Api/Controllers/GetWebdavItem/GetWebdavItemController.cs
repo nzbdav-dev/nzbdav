@@ -35,7 +35,7 @@ public class GetWebdavItemController(DatabaseStore store, ConfigManager configMa
 
         // set the content-type and content-disposition headers
         Response.Headers["Content-Type"] = GetContentType(item.Name);
-        Response.Headers["Content-Disposition"] = GetContentDisposition(item.Name);
+        Response.Headers["Content-Disposition"] = GetContentDisposition(item.Name, request.ShouldDownload);
 
         // disable compression to keep Content-Length intact for clients that need seeking
         Response.Headers["Content-Encoding"] = "identity";
@@ -71,8 +71,8 @@ public class GetWebdavItemController(DatabaseStore store, ConfigManager configMa
         {
             HttpContext.Items["configManager"] = configManager;
             var request = new GetWebdavItemRequest(HttpContext);
-            await using var response = await GetWebdavItem(request).ConfigureAwait(false);
-            await response.CopyToAsync(Response.Body, bufferSize: 1024, HttpContext.RequestAborted).ConfigureAwait(false);
+            await using var response = await GetWebdavItem(request);
+            await response.CopyToAsync(Response.Body, bufferSize: 1024, HttpContext.RequestAborted);
         }
         catch (UnauthorizedAccessException)
         {
@@ -107,7 +107,7 @@ public class GetWebdavItemController(DatabaseStore store, ConfigManager configMa
             : "application/octet-stream";
     }
 
-    private static string GetContentDisposition(string filename)
+    private static string GetContentDisposition(string filename, bool shouldDownload)
     {
         // Remove control characters (header safety)
         filename = new string(filename.Where(c => !char.IsControl(c)).ToArray());
@@ -119,7 +119,9 @@ public class GetWebdavItemController(DatabaseStore store, ConfigManager configMa
         // RFC 5987 UTF-8 filename
         var utf8 = Uri.EscapeDataString(filename);
 
-        return $"inline; filename=\"{ascii}\"; filename*=UTF-8''{utf8}";
+        // return
+        var type = shouldDownload ? "attachment" : "inline";
+        return $"{type}; filename=\"{ascii}\"; filename*=UTF-8''{utf8}";
     }
 
     private async Task<Stream> GetPar2PreviewStream(IStoreItem item)
