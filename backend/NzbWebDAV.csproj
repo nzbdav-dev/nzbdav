@@ -8,6 +8,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <PackageReference Include="MemoryPack" Version="1.21.4" />
       <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.1" />
       <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.1">
         <PrivateAssets>all</PrivateAssets>

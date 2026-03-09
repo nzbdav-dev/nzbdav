@@ -1,20 +1,34 @@
-﻿using NzbWebDAV.Models;
+﻿using MemoryPack;
+using NzbWebDAV.Models;
 
 namespace NzbWebDAV.Database.Models;
 
-public class DavRarFile
+[MemoryPackable(GenerateType.VersionTolerant)]
+public partial class DavRarFile
 {
+    [MemoryPackOrder(0)]
     public Guid Id { get; set; } // foreign key to DavItem.Id
+
+    [MemoryPackOrder(1)]
     public RarPart[] RarParts { get; set; } = [];
 
     // navigation helpers
+    [MemoryPackIgnore]
     public DavItem? DavItem { get; set; }
 
-    public class RarPart
+    [MemoryPackable(GenerateType.VersionTolerant)]
+    public partial class RarPart
     {
+        [MemoryPackOrder(0)]
         public string[] SegmentIds { get; set; } = [];
+
+        [MemoryPackOrder(1)]
         public long PartSize { get; set; }
+
+        [MemoryPackOrder(2)]
         public long Offset { get; set; }
+
+        [MemoryPackOrder(3)]
         public long ByteCount { get; set; }
     }
 

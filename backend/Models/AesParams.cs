@@ -1,13 +1,26 @@
 ﻿using System.Security.Cryptography;
 using System.Text;
+using MemoryPack;
 
 namespace NzbWebDAV.Models;
 
-public class AesParams()
+[MemoryPackable(GenerateType.VersionTolerant)]
+public partial class AesParams
 {
+    [MemoryPackOrder(0)]
     public long DecodedSize { get; set; } = 0;
+
+    [MemoryPackOrder(1)]
     public byte[] Iv { get; set; } = [];
+
+    [MemoryPackOrder(2)]
     public byte[] Key { get; set; } = [];
+
+    [MemoryPackConstructor]
+    public AesParams()
+    {
+        // intentionally left blank
+    }
 
     public static AesParams? FromCoderInfo(byte[]? coderInfo, string? password, long decodedSize)
     {

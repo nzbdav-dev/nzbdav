@@ -1,8 +1,24 @@
-﻿namespace NzbWebDAV.Models;
+﻿using MemoryPack;
 
-public record LongRange(long StartInclusive, long EndExclusive)
+namespace NzbWebDAV.Models;
+
+[MemoryPackable(GenerateType.VersionTolerant)]
+public partial record LongRange
 {
+    [MemoryPackOrder(0)]
+    public long StartInclusive { get; set; }
+
+    [MemoryPackOrder(1)]
+    public long EndExclusive { get; set; }
+
+    [MemoryPackIgnore]
     public long Count => EndExclusive - StartInclusive;
+
+    public LongRange(long startInclusive, long endExclusive)
+    {
+        StartInclusive = startInclusive;
+        EndExclusive = endExclusive;
+    }
 
     public bool Contains(long value) =>
         value >= StartInclusive && value < EndExclusive;
