@@ -94,6 +94,7 @@ class Program
             .AddHostedService<HealthCheckService>()
             .AddHostedService<ArrMonitoringService>()
             .AddHostedService<BlobCleanupService>()
+            .AddHostedService<NzbBlobCleanupService>()
             .AddHostedService<HistoryCleanupService>()
             .AddHostedService<DavCleanupService>()
             .AddHostedService<UsenetFileToBlobstoreMigrationService>()
