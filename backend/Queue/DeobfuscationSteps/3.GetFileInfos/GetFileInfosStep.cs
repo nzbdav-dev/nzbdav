@@ -25,13 +25,18 @@ public static class GetFileInfosStep
         return filesInfos;
     }
 
-    private static Dictionary<string, FileDesc> GetHashToFileDescMap(List<FileDesc> par2FileDescriptors)
+    private static Dictionary<string, LinkedList<FileDesc>> GetHashToFileDescMap(List<FileDesc> par2FileDescriptors)
     {
-        var hashToFileDescMap = new Dictionary<string, FileDesc>();
+        var hashToFileDescMap = new Dictionary<string, LinkedList<FileDesc>>();
         foreach (var descriptor in par2FileDescriptors)
         {
             var hash = BitConverter.ToString(descriptor.File16kHash);
-            hashToFileDescMap[hash] = descriptor;
+            if (!hashToFileDescMap.TryGetValue(hash, out var list))
+            {
+                list = new LinkedList<FileDesc>();
+                hashToFileDescMap[hash] = list;
+            }
+            list.AddLast(descriptor);
         }
 
         return hashToFileDescMap;
@@ -39,7 +44,7 @@ public static class GetFileInfosStep
 
     private static FileInfo GetFileInfo(
         FetchFirstSegmentsStep.NzbFileWithFirstSegment file,
-        Dictionary<string, FileDesc> hashToFiledescMap,
+        Dictionary<string, LinkedList<FileDesc>> hashToFiledescMap,
         MD5 md5
     )
     {
@@ -77,13 +82,14 @@ public static class GetFileInfosStep
     private static FileDesc? GetMatchingFileDescriptor
     (
         FetchFirstSegmentsStep.NzbFileWithFirstSegment file,
-        Dictionary<string, FileDesc> hashToFiledescMap,
+        Dictionary<string, LinkedList<FileDesc>> hashToFiledescMap,
         MD5 md5
     )
     {
         var hash = !file.MissingFirstSegment ? BitConverter.ToString(md5.ComputeHash(file.First16KB!)) : "";
-        var fileDesc = hashToFiledescMap.GetValueOrDefault(hash);
-        if (fileDesc is null) return null;
+        if (!hashToFiledescMap.TryGetValue(hash, out var fileDescs)) return null;
+        var fileDesc = fileDescs.First!.Value;
+        if (fileDescs.Count > 1) fileDescs.RemoveFirst();
         return IsCloseToYencodedSize((long)fileDesc.FileLength, file.NzbFile.GetTotalYencodedSize())
             ? fileDesc
             : null;

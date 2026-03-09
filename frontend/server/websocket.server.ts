@@ -64,6 +64,10 @@ export function initializeWebsocketClient(subscriptions: Map<string, Set<WebSock
     function connect() {
         const socket = new WebSocket(url);
 
+        socket.on('error', (error: Error) => {
+            console.error('WebSocket error:', error.message);
+        });
+
         socket.onopen = () => {
             console.info("WebSocket connected");
             if (reconnectTimeout) {
@@ -86,10 +90,6 @@ export function initializeWebsocketClient(subscriptions: Map<string, Set<WebSock
                     client.send(rawMessage);
                 }
             });
-        };
-
-        socket.onerror = (event: WebSocket.ErrorEvent) => {
-            console.error('WebSocket error:', event.message);
         };
 
         socket.onclose = (event: WebSocket.CloseEvent) => {

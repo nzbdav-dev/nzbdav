@@ -202,7 +202,6 @@ public class QueueItemProcessor(
     )
     {
         var groups = fileInfos
-            .DistinctBy(x => x.FileName)
             .GroupBy(GetGroup);
 
         foreach (var group in groups)
