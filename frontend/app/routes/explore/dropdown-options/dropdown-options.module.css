@@ -1,0 +1,37 @@
+.dropdown {
+    position: absolute;
+    margin: 0;
+    padding: 4px 0;
+    list-style: none;
+    background-color: hsl(196.8 25% 14.51%);
+    border: 1px solid hsl(196 40% 22%);
+    border-radius: 6px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    right: -1px;
+    top: 100%;
+}
+
+.option {
+    display: block;
+}
+
+.optionButton {
+    display: block;
+    width: 100%;
+    padding: 6px 12px;
+    background: none;
+    border: none;
+    text-align: left;
+    font-size: 1rem;
+    color: #93a1a1;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.optionButton:hover,
+.optionButton:focus-visible {
+    background-color: #002b36;
+    color: white;
+    outline: none;
+}

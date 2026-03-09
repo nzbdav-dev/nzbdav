@@ -267,6 +267,7 @@ export type DirectoryItem = {
     name: string,
     isDirectory: boolean,
     size: number | null | undefined,
+    nzbBlobId?: string,
 }
 
 export type ConfigItem = {
