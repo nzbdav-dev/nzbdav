@@ -39,6 +39,8 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
     public DbSet<BlobCleanupItem> BlobCleanupItems => Set<BlobCleanupItem>();
     public DbSet<HistoryCleanupItem> HistoryCleanupItems => Set<HistoryCleanupItem>();
     public DbSet<DavCleanupItem> DavCleanupItems => Set<DavCleanupItem>();
+    public DbSet<NzbName> NzbNames => Set<NzbName>();
+    public DbSet<NzbBlobCleanupItem> NzbBlobCleanupItems => Set<NzbBlobCleanupItem>();
 
     // blob items
     public List<DavNzbFile> BlobNzbFiles = [];
@@ -129,6 +131,10 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
                 .ValueGeneratedNever()
                 .IsRequired(false);
 
+            e.Property(i => i.NzbBlobId)
+                .ValueGeneratedNever()
+                .IsRequired(false);
+
             e.HasIndex(i => new { i.ParentId, i.Name })
                 .IsUnique();
 
@@ -139,6 +145,9 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
             e.HasIndex(i => new { i.HistoryItemId, i.Type, i.CreatedAt });
 
             e.HasIndex(i => new { i.HistoryItemId, i.SubType, i.CreatedAt });
+
+            e.HasIndex(i => i.NzbBlobId)
+                .IsUnique(false);
         });
 
         // DavNzbFile
@@ -311,6 +320,9 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
             e.Property(i => i.DownloadDirId)
                 .IsRequired(false);
 
+            e.Property(i => i.NzbBlobId)
+                .IsRequired(false);
+
             e.HasIndex(i => new { i.CreatedAt })
                 .IsUnique(false);
 
@@ -321,6 +333,9 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
                 .IsUnique(false);
 
             e.HasIndex(i => new { i.Category, i.DownloadDirId })
+                .IsUnique(false);
+
+            e.HasIndex(i => i.NzbBlobId)
                 .IsUnique(false);
         });
 
@@ -458,6 +473,29 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
         b.Entity<DavCleanupItem>(e =>
         {
             e.ToTable("DavCleanupItems");
+            e.HasKey(i => i.Id);
+
+            e.Property(i => i.Id)
+                .ValueGeneratedNever();
+        });
+
+        // NzbName
+        b.Entity<NzbName>(e =>
+        {
+            e.ToTable("NzbNames");
+            e.HasKey(i => i.Id);
+
+            e.Property(i => i.Id)
+                .ValueGeneratedNever();
+
+            e.Property(i => i.FileName)
+                .IsRequired();
+        });
+
+        // NzbBlobCleanupItem
+        b.Entity<NzbBlobCleanupItem>(e =>
+        {
+            e.ToTable("NzbBlobCleanupItems");
             e.HasKey(i => i.Id);
 
             e.Property(i => i.Id)

@@ -21,6 +21,7 @@ public class DavItem
     public DateTimeOffset? NextHealthCheck { get; set; }
     public Guid? HistoryItemId { get; set; }
     public Guid? FileBlobId { get; set; }
+    public Guid? NzbBlobId { get; set; }
 
     public static DavItem New
     (

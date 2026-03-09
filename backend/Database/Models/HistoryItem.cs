@@ -12,6 +12,7 @@ public class HistoryItem
     public int DownloadTimeSeconds { get; set; }
     public string? FailMessage { get; set; }
     public Guid? DownloadDirId { get; set; }
+    public Guid? NzbBlobId { get; set; }
 
     public enum DownloadStatusOption
     {

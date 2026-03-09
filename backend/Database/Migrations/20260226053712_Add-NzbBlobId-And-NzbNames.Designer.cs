@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NzbWebDAV.Database;
 
@@ -10,9 +11,11 @@ using NzbWebDAV.Database;
 namespace NzbWebDAV.Database.Migrations
 {
     [DbContext(typeof(DavDatabaseContext))]
-    partial class DavDatabaseContextModelSnapshot : ModelSnapshot
+    [Migration("20260226053712_Add-NzbBlobId-And-NzbNames")]
+    partial class AddNzbBlobIdAndNzbNames
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.1");
