@@ -60,6 +60,7 @@ public class AddFileController(
             // save
             dbClient.Ctx.QueueItems.Add(queueItem);
             await dbClient.Ctx.SaveChangesAsync(request.CancellationToken).ConfigureAwait(false);
+            _ = DavDatabaseContext.RcloneVfsForget(["/nzbs"]);
         }
         catch
         {
