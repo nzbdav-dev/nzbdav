@@ -14,6 +14,7 @@ public class DavItem
     public string Name { get; set; } = null!;
     public long? FileSize { get; set; }
     public ItemType Type { get; init; }
+    public ItemSubType SubType { get; init; }
     public string Path { get; set; } = null!;
     public DateTimeOffset? ReleaseDate { get; set; }
     public DateTimeOffset? LastHealthCheck { get; set; }
@@ -26,6 +27,7 @@ public class DavItem
         string name,
         long? fileSize,
         ItemType type,
+        ItemSubType subType,
         DateTimeOffset? releaseDate,
         DateTimeOffset? lastHealthCheck
     )
@@ -39,6 +41,7 @@ public class DavItem
             Name = name,
             FileSize = fileSize,
             Type = type,
+            SubType = subType,
             Path = System.IO.Path.Join(parent.Path, name),
             ReleaseDate = releaseDate,
             LastHealthCheck = lastHealthCheck,
@@ -53,11 +56,23 @@ public class DavItem
     public enum ItemType
     {
         Directory = 1,
-        SymlinkRoot = 2,
-        NzbFile = 3,
-        RarFile = 4,
-        IdsRoot = 5,
-        MultipartFile = 6,
+        UsenetFile = 2,
+    }
+
+    public enum ItemSubType
+    {
+        // directory subtypes
+        Directory = 101,
+        WebdavRoot = 102,
+        NzbsRoot = 103,
+        ContentRoot = 104,
+        SymlinkRoot = 105,
+        IdsRoot = 106,
+
+        // usenet file subtypes
+        NzbFile = 201,
+        RarFile = 202,
+        MultipartFile = 203,
     }
 
     // navigation helpers
@@ -77,6 +92,7 @@ public class DavItem
         Name = "/",
         FileSize = null,
         Type = ItemType.Directory,
+        SubType = ItemSubType.WebdavRoot,
         Path = "/",
     };
 
@@ -87,6 +103,7 @@ public class DavItem
         Name = "nzbs",
         FileSize = null,
         Type = ItemType.Directory,
+        SubType = ItemSubType.NzbsRoot,
         Path = "/nzbs",
     };
 
@@ -97,6 +114,7 @@ public class DavItem
         Name = "content",
         FileSize = null,
         Type = ItemType.Directory,
+        SubType = ItemSubType.ContentRoot,
         Path = "/content",
     };
 
@@ -106,7 +124,8 @@ public class DavItem
         ParentId = Root.Id,
         Name = "completed-symlinks",
         FileSize = null,
-        Type = ItemType.SymlinkRoot,
+        Type = ItemType.Directory,
+        SubType = ItemSubType.SymlinkRoot,
         Path = "/completed-symlinks",
     };
 
@@ -116,7 +135,8 @@ public class DavItem
         ParentId = Root.Id,
         Name = ".ids",
         FileSize = null,
-        Type = ItemType.IdsRoot,
+        Type = ItemType.Directory,
+        SubType = ItemSubType.IdsRoot,
         Path = "/.ids",
     };
 }

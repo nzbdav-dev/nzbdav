@@ -49,6 +49,7 @@ public abstract class BaseAggregator
             name: directoryName,
             fileSize: null,
             type: DavItem.ItemType.Directory,
+            subType: DavItem.ItemSubType.Directory,
             releaseDate: null,
             lastHealthCheck: null
         );

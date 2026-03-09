@@ -19,9 +19,7 @@ public sealed class DavDatabaseClient(DavDatabaseContext ctx)
     {
         return ctx.Items
             .Where(i => i.IdPrefix == prefix)
-            .Where(i => i.Type == DavItem.ItemType.NzbFile
-                        || i.Type == DavItem.ItemType.RarFile
-                        || i.Type == DavItem.ItemType.MultipartFile)
+            .Where(i => i.Type == DavItem.ItemType.UsenetFile)
             .ToListAsync();
     }
 

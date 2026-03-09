@@ -44,7 +44,8 @@ public class SevenZipAggregator(
                 name: name,
                 fileSize: davMultipartFileMeta.AesParams?.DecodedSize
                     ?? davMultipartFileMeta.FileParts.Sum(x => x.FilePartByteRange.Count),
-                type: DavItem.ItemType.MultipartFile,
+                type: DavItem.ItemType.UsenetFile,
+                subType: DavItem.ItemSubType.MultipartFile,
                 releaseDate: sevenZipFile.ReleaseDate,
                 lastHealthCheck: checkedFullHealth ? DateTimeOffset.UtcNow : null
             );

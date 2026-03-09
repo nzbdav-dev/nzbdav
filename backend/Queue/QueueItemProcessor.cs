@@ -258,6 +258,7 @@ public class QueueItemProcessor(
             name: queueItem.Category,
             fileSize: null,
             type: DavItem.ItemType.Directory,
+            subType: DavItem.ItemSubType.Directory,
             releaseDate: null,
             lastHealthCheck: null
         );
@@ -281,6 +282,7 @@ public class QueueItemProcessor(
             name: queueItem.JobName,
             fileSize: null,
             type: DavItem.ItemType.Directory,
+            subType: DavItem.ItemSubType.Directory,
             releaseDate: null,
             lastHealthCheck: null
         );
@@ -303,6 +305,7 @@ public class QueueItemProcessor(
                 name: name,
                 fileSize: null,
                 type: DavItem.ItemType.Directory,
+                subType: DavItem.ItemSubType.Directory,
                 releaseDate: null,
                 lastHealthCheck: null
             );

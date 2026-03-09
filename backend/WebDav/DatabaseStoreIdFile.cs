@@ -28,13 +28,13 @@ public class DatabaseStoreIdFile(
 
     private IStoreItem GetItem(DavItem davItem)
     {
-        return davItem.Type switch
+        return davItem.SubType switch
         {
-            DavItem.ItemType.NzbFile =>
+            DavItem.ItemSubType.NzbFile =>
                 new DatabaseStoreNzbFile(davItem, httpContext, dbClient, usenetClient, configManager),
-            DavItem.ItemType.RarFile =>
+            DavItem.ItemSubType.RarFile =>
                 new DatabaseStoreRarFile(davItem, httpContext, dbClient, usenetClient, configManager),
-            DavItem.ItemType.MultipartFile =>
+            DavItem.ItemSubType.MultipartFile =>
                 new DatabaseStoreMultipartFile(davItem, httpContext, dbClient, usenetClient, configManager),
             _ => throw new ArgumentException("Unrecognized id child type.")
         };

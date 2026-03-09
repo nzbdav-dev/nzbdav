@@ -97,9 +97,7 @@ public class HealthCheckService : BackgroundService
     public static IQueryable<DavItem> GetHealthCheckQueueItemsQuery(DavDatabaseClient dbClient)
     {
         return dbClient.Ctx.Items
-            .Where(x => x.Type == DavItem.ItemType.NzbFile
-                        || x.Type == DavItem.ItemType.RarFile
-                        || x.Type == DavItem.ItemType.MultipartFile);
+            .Where(x => x.Type == DavItem.ItemType.UsenetFile);
     }
 
     private async Task PerformHealthCheck
@@ -171,13 +169,13 @@ public class HealthCheckService : BackgroundService
 
     private async Task<List<string>> GetAllSegments(DavItem davItem, DavDatabaseClient dbClient, CancellationToken ct)
     {
-        if (davItem.Type == DavItem.ItemType.NzbFile)
+        if (davItem.SubType == DavItem.ItemSubType.NzbFile)
         {
             var nzbFile = await dbClient.GetNzbFileAsync(davItem.Id, ct).ConfigureAwait(false);
             return nzbFile?.SegmentIds?.ToList() ?? [];
         }
 
-        if (davItem.Type == DavItem.ItemType.RarFile)
+        if (davItem.SubType == DavItem.ItemSubType.RarFile)
         {
             var rarFile = await dbClient.Ctx.RarFiles
                 .Where(x => x.Id == davItem.Id)
@@ -185,7 +183,7 @@ public class HealthCheckService : BackgroundService
             return rarFile?.RarParts?.SelectMany(x => x.SegmentIds)?.ToList() ?? [];
         }
 
-        if (davItem.Type == DavItem.ItemType.MultipartFile)
+        if (davItem.SubType == DavItem.ItemSubType.MultipartFile)
         {
             var multipartFile = await dbClient.Ctx.MultipartFiles
                 .Where(x => x.Id == davItem.Id)

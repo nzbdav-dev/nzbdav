@@ -39,7 +39,7 @@ public class BlocklistedFilePostProcessor(ConfigManager configManager, DavDataba
 
     private void RemoveBlocklistedFile(DavItem davItem)
     {
-        if (davItem.Type == DavItem.ItemType.NzbFile)
+        if (davItem.SubType == DavItem.ItemSubType.NzbFile)
         {
             var file = dbClient.Ctx.ChangeTracker.Entries<DavNzbFile>()
                 .Where(x => x.State == EntityState.Added)
@@ -48,7 +48,7 @@ public class BlocklistedFilePostProcessor(ConfigManager configManager, DavDataba
             dbClient.Ctx.NzbFiles.Remove(file);
         }
 
-        else if (davItem.Type == DavItem.ItemType.RarFile)
+        else if (davItem.SubType == DavItem.ItemSubType.RarFile)
         {
             var file = dbClient.Ctx.ChangeTracker.Entries<DavRarFile>()
                 .Where(x => x.State == EntityState.Added)
@@ -57,7 +57,7 @@ public class BlocklistedFilePostProcessor(ConfigManager configManager, DavDataba
             dbClient.Ctx.RarFiles.Remove(file);
         }
 
-        else if (davItem.Type == DavItem.ItemType.MultipartFile)
+        else if (davItem.SubType == DavItem.ItemSubType.MultipartFile)
         {
             var file = dbClient.Ctx.ChangeTracker.Entries<DavMultipartFile>()
                 .Where(x => x.State == EntityState.Added)

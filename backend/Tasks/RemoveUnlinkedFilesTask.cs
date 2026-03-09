@@ -59,10 +59,7 @@ public class RemoveUnlinkedFilesTask(
             .Where(x => x.CreatedAt < dateThreshold)
             .Where(x => x.Children.All(y => removedItems.Contains(y.Id)));
         var allUnlinkedFiles = allDavItems
-            .Where(x => x.Type
-                is DavItem.ItemType.NzbFile
-                or DavItem.ItemType.RarFile
-                or DavItem.ItemType.MultipartFile)
+            .Where(x => x.Type is DavItem.ItemType.UsenetFile)
             .Where(x => x.CreatedAt < dateThreshold)
             .Where(x => !linkedIds.Contains(x.Id));
 

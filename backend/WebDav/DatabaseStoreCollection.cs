@@ -101,7 +101,7 @@ public class DatabaseStoreCollection(
         if (davItem is null) return DavStatusCode.NotFound;
 
         // If the item is a file, simply delete it and we're done.
-        if (davItem.Type is DavItem.ItemType.NzbFile or DavItem.ItemType.RarFile or DavItem.ItemType.MultipartFile)
+        if (davItem.Type is DavItem.ItemType.UsenetFile)
         {
             dbClient.Ctx.Items.Remove(davItem);
             await dbClient.Ctx.SaveChangesAsync().ConfigureAwait(false);
@@ -122,27 +122,27 @@ public class DatabaseStoreCollection(
 
     private IStoreItem GetItem(DavItem davItem)
     {
-        return davItem.Type switch
+        return davItem.SubType switch
         {
-            DavItem.ItemType.IdsRoot =>
+            DavItem.ItemSubType.IdsRoot =>
                 new DatabaseStoreIdsCollection(
                     davItem.Name, "", httpContext, dbClient, usenetClient, configManager),
-            DavItem.ItemType.Directory when davItem.Id == DavItem.NzbFolder.Id =>
+            DavItem.ItemSubType.NzbsRoot =>
                 new DatabaseStoreWatchFolder(
                     davItem, httpContext, dbClient, configManager, usenetClient, queueManager, websocketManager),
-            DavItem.ItemType.Directory =>
+            DavItem.ItemSubType.Directory or DavItem.ItemSubType.ContentRoot  =>
                 new DatabaseStoreCollection(
                     davItem, httpContext, dbClient, configManager, usenetClient, queueManager, websocketManager),
-            DavItem.ItemType.SymlinkRoot =>
+            DavItem.ItemSubType.SymlinkRoot =>
                 new DatabaseStoreSymlinkCollection(
                     davItem, dbClient, configManager),
-            DavItem.ItemType.NzbFile =>
+            DavItem.ItemSubType.NzbFile =>
                 new DatabaseStoreNzbFile(
                     davItem, httpContext, dbClient, usenetClient, configManager),
-            DavItem.ItemType.RarFile =>
+            DavItem.ItemSubType.RarFile =>
                 new DatabaseStoreRarFile(
                     davItem, httpContext, dbClient, usenetClient, configManager),
-            DavItem.ItemType.MultipartFile =>
+            DavItem.ItemSubType.MultipartFile =>
                 new DatabaseStoreMultipartFile(
                     davItem, httpContext, dbClient, usenetClient, configManager),
             _ => throw new ArgumentException("Unrecognized directory child type.")

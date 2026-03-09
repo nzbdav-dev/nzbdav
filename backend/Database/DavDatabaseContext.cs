@@ -78,6 +78,10 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
                 .HasConversion<int>()
                 .IsRequired();
 
+            e.Property(i => i.SubType)
+                .HasConversion<int>()
+                .IsRequired();
+
             e.Property(i => i.Path)
                 .IsRequired();
 

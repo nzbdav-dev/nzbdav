@@ -24,7 +24,8 @@ public class FileAggregator(DavDatabaseClient dbClient, DavItem mountDirectory, 
                 parent: parentDirectory,
                 name: name,
                 fileSize: result.FileSize,
-                type: DavItem.ItemType.NzbFile,
+                type: DavItem.ItemType.UsenetFile,
+                subType: DavItem.ItemSubType.NzbFile,
                 releaseDate: result.ReleaseDate,
                 lastHealthCheck: checkedFullHealth ? DateTimeOffset.UtcNow : null
             );

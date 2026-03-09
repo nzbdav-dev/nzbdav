@@ -36,7 +36,8 @@ public class MultipartMkvAggregator
                 parent: parentDirectory,
                 name: name,
                 fileSize: fileParts.Sum(x => x.FilePartByteRange.Count),
-                type: DavItem.ItemType.MultipartFile,
+                type: DavItem.ItemType.UsenetFile,
+                subType: DavItem.ItemSubType.MultipartFile,
                 releaseDate: multipartMkvFile.ReleaseDate,
                 lastHealthCheck: checkedFullHealth ? DateTimeOffset.UtcNow : null
             );
