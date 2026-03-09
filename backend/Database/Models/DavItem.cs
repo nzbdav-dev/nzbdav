@@ -30,7 +30,8 @@ public class DavItem
         ItemType type,
         ItemSubType subType,
         DateTimeOffset? releaseDate,
-        DateTimeOffset? lastHealthCheck
+        DateTimeOffset? lastHealthCheck,
+        Guid? fileBlobId
     )
     {
         return new DavItem()
@@ -48,7 +49,8 @@ public class DavItem
             LastHealthCheck = lastHealthCheck,
             NextHealthCheck = releaseDate != null && lastHealthCheck != null
                 ? releaseDate.Value + 2 * (lastHealthCheck.Value - releaseDate.Value)
-                : null
+                : null,
+            FileBlobId = fileBlobId
         };
     }
 

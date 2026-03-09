@@ -52,20 +52,9 @@ public class RarAggregator(DavDatabaseClient dbClient, DavItem mountDirectory, b
             if (archiveFiles.Count == 1 && ObfuscationUtil.IsProbablyObfuscated(name))
                 name = mountDirectory.Name + Path.GetExtension(name);
 
-            var davItem = DavItem.New(
-                id: Guid.NewGuid(),
-                parent: parentDirectory,
-                name: name,
-                fileSize: fileSize,
-                type: DavItem.ItemType.UsenetFile,
-                subType: DavItem.ItemSubType.MultipartFile,
-                releaseDate: fileParts.First().ReleaseDate,
-                lastHealthCheck: checkedFullHealth ? DateTimeOffset.UtcNow : null
-            );
-
             var davMultipartFile = new DavMultipartFile()
             {
-                Id = davItem.Id,
+                Id = Guid.NewGuid(),
                 Metadata = new DavMultipartFile.Meta()
                 {
                     AesParams = aesParams,
@@ -78,8 +67,20 @@ public class RarAggregator(DavDatabaseClient dbClient, DavItem mountDirectory, b
                 }
             };
 
+            var davItem = DavItem.New(
+                id: Guid.NewGuid(),
+                parent: parentDirectory,
+                name: name,
+                fileSize: fileSize,
+                type: DavItem.ItemType.UsenetFile,
+                subType: DavItem.ItemSubType.MultipartFile,
+                releaseDate: fileParts.First().ReleaseDate,
+                lastHealthCheck: checkedFullHealth ? DateTimeOffset.UtcNow : null,
+                fileBlobId: davMultipartFile.Id
+            );
+
             dbClient.Ctx.Items.Add(davItem);
-            dbClient.Ctx.MultipartFiles.Add(davMultipartFile);
+            dbClient.Ctx.BlobMultipartFiles.Add(davMultipartFile);
         }
     }
 

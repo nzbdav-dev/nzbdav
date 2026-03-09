@@ -49,7 +49,7 @@ public class QueueItemProcessor(
         catch (Exception e) when (e.GetBaseException().IsCancellationException())
         {
             Log.Information($"Processing of queue item `{queueItem.JobName}` was cancelled.");
-            dbClient.Ctx.ChangeTracker.Clear();
+            dbClient.Ctx.ClearChangeTracker();
         }
 
         // when a retryable error is encountered
@@ -61,7 +61,7 @@ public class QueueItemProcessor(
             try
             {
                 Log.Error($"Failed to process job, `{queueItem.JobName}` -- {e.Message}");
-                dbClient.Ctx.ChangeTracker.Clear();
+                dbClient.Ctx.ClearChangeTracker();
                 queueItem.PauseUntil = DateTime.Now.AddMinutes(1);
                 dbClient.Ctx.QueueItems.Attach(queueItem);
                 dbClient.Ctx.Entry(queueItem).Property(x => x.PauseUntil).IsModified = true;
@@ -260,7 +260,8 @@ public class QueueItemProcessor(
             type: DavItem.ItemType.Directory,
             subType: DavItem.ItemSubType.Directory,
             releaseDate: null,
-            lastHealthCheck: null
+            lastHealthCheck: null,
+            fileBlobId: null
         );
         dbClient.Ctx.Items.Add(categoryFolder);
         return categoryFolder;
@@ -284,7 +285,8 @@ public class QueueItemProcessor(
             type: DavItem.ItemType.Directory,
             subType: DavItem.ItemSubType.Directory,
             releaseDate: null,
-            lastHealthCheck: null
+            lastHealthCheck: null,
+            fileBlobId: null
         );
         dbClient.Ctx.Items.Add(mountFolder);
         return Task.FromResult(mountFolder);
@@ -307,7 +309,8 @@ public class QueueItemProcessor(
                 type: DavItem.ItemType.Directory,
                 subType: DavItem.ItemSubType.Directory,
                 releaseDate: null,
-                lastHealthCheck: null
+                lastHealthCheck: null,
+                fileBlobId: null
             );
             dbClient.Ctx.Items.Add(mountFolder);
             return mountFolder;
@@ -342,7 +345,7 @@ public class QueueItemProcessor(
         Func<Task<DavItem?>>? databaseOperations = null
     )
     {
-        dbClient.Ctx.ChangeTracker.Clear();
+        dbClient.Ctx.ClearChangeTracker();
         var mountFolder = databaseOperations != null ? await databaseOperations.Invoke().ConfigureAwait(false) : null;
         var historyItem = CreateHistoryItem(mountFolder, startTime, error);
         var historySlot = GetHistoryResponse.HistorySlot.FromHistoryItem(historyItem, mountFolder, configManager);

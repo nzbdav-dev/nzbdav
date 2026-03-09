@@ -51,7 +51,8 @@ public abstract class BaseAggregator
             type: DavItem.ItemType.Directory,
             subType: DavItem.ItemSubType.Directory,
             releaseDate: null,
-            lastHealthCheck: null
+            lastHealthCheck: null,
+            fileBlobId: null
         );
         _directoryCache.Add(pathKey, directory);
         DBClient.Ctx.Items.Add(directory);

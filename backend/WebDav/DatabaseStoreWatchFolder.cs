@@ -85,7 +85,7 @@ public class DatabaseStoreWatchFolder(
             return DavStatusCode.NotFound;
 
         // delete the item
-        dbClient.Ctx.ChangeTracker.Clear();
+        dbClient.Ctx.ClearChangeTracker();
         await controller.RemoveFromQueue(new RemoveFromQueueRequest()
         {
             NzoIds = [item.Id],

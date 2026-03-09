@@ -12,8 +12,8 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
     public static string ConfigPath => EnvironmentUtil.GetEnvironmentVariable("CONFIG_PATH") ?? "/config";
     public static string DatabaseFilePath => Path.Join(ConfigPath, "db.sqlite");
 
-    private static readonly Lazy<DbContextOptions<DavDatabaseContext>> Options = new(
-        () => new DbContextOptionsBuilder<DavDatabaseContext>()
+    private static readonly Lazy<DbContextOptions<DavDatabaseContext>> Options = new(() =>
+        new DbContextOptionsBuilder<DavDatabaseContext>()
             .UseSqlite($"Data Source={DatabaseFilePath}")
             .AddInterceptors(new SqliteForeignKeyEnabler())
             .Options
@@ -32,6 +32,11 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
     public DbSet<HealthCheckStat> HealthCheckStats => Set<HealthCheckStat>();
     public DbSet<ConfigItem> ConfigItems => Set<ConfigItem>();
     public DbSet<BlobCleanupItem> BlobCleanupItems => Set<BlobCleanupItem>();
+
+    // blob items
+    public List<DavNzbFile> BlobNzbFiles = [];
+    public List<DavRarFile> BlobRarFiles = [];
+    public List<DavMultipartFile> BlobMultipartFiles = [];
 
     // tables
     protected override void OnModelCreating(ModelBuilder b)
@@ -425,5 +430,51 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
             e.Property(i => i.Id)
                 .ValueGeneratedNever();
         });
+    }
+
+    public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = new CancellationToken())
+    {
+        try
+        {
+            // save blobs to blob-store
+            foreach (var blobNzbFile in BlobNzbFiles)
+                await BlobStore.WriteBlob(blobNzbFile.Id, blobNzbFile);
+            foreach (var blobRarFile in BlobRarFiles)
+                await BlobStore.WriteBlob(blobRarFile.Id, blobRarFile);
+            foreach (var blobMultipartFile in BlobMultipartFiles)
+                await BlobStore.WriteBlob(blobMultipartFile.Id, blobMultipartFile);
+
+            // save db changes
+            var result = await base.SaveChangesAsync(cancellationToken);
+
+            // clear pending blob writes
+            BlobNzbFiles.Clear();
+            BlobRarFiles.Clear();
+            BlobMultipartFiles.Clear();
+
+            // return
+            return result;
+        }
+        catch
+        {
+            // on errors, remove any already-written blob files
+            foreach (var blobNzbFile in BlobNzbFiles)
+                BlobStore.Delete(blobNzbFile.Id);
+            foreach (var blobRarFile in BlobRarFiles)
+                BlobStore.Delete(blobRarFile.Id);
+            foreach (var blobMultipartFile in BlobMultipartFiles)
+                BlobStore.Delete(blobMultipartFile.Id);
+
+            // rethrow the exception
+            throw;
+        }
+    }
+
+    public void ClearChangeTracker()
+    {
+        ChangeTracker.Clear();
+        BlobNzbFiles.Clear();
+        BlobRarFiles.Clear();
+        BlobMultipartFiles.Clear();
     }
 }
