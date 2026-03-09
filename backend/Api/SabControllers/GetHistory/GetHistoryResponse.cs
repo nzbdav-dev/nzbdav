@@ -48,6 +48,9 @@ public class GetHistoryResponse : SabBaseResponse
         [JsonPropertyName("fail_message")]
         public string FailMessage { get; set; }
 
+        [JsonPropertyName("nzb_blob_id")]
+        public string? NzbBlobId { get; set; }
+
         public static HistorySlot FromHistoryItem
         (
             HistoryItem historyItem,
@@ -66,6 +69,7 @@ public class GetHistoryResponse : SabBaseResponse
                 DownloadPath = GetDownloadPath(historyItem, downloadFolder, configManager),
                 DownloadTimeSeconds = historyItem.DownloadTimeSeconds,
                 FailMessage = historyItem.FailMessage ?? "",
+                NzbBlobId = historyItem.NzbBlobId?.ToString(),
             };
         }
 
