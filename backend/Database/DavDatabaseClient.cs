@@ -198,17 +198,14 @@ public sealed class DavDatabaseClient(DavDatabaseContext ctx)
     {
         if (deleteFiles)
         {
-            await Ctx.Items
-                .Where(d => Ctx.HistoryItems
-                    .Where(h => ids.Contains(h.Id) && h.DownloadDirId != null)
-                    .Select(h => h.DownloadDirId!)
-                    .Contains(d.Id))
-                .ExecuteDeleteAsync(ct).ConfigureAwait(false);
+            var historyItems = await Ctx.HistoryItems.Where(x => ids.Contains(x.Id)).ToListAsync(ct);
+            foreach (var historyItem in historyItems.Where(h => h.DownloadDirId is not null))
+                Ctx.Items.Remove(new DavItem() { Id = historyItem.DownloadDirId!.Value });
+            Ctx.HistoryItems.RemoveRange(historyItems);
+            return;
         }
 
-        await Ctx.HistoryItems
-            .Where(x => ids.Contains(x.Id))
-            .ExecuteDeleteAsync(ct).ConfigureAwait(false);
+        Ctx.HistoryItems.RemoveRange(ids.Select(id => new HistoryItem() { Id = id }));
     }
 
     private class FileSizeResult
