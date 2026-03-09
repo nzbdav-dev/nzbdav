@@ -133,27 +133,28 @@ class Program
         // Do nothing.
         if (!File.Exists(DavDatabaseContext.DatabaseFilePath)) return;
 
-        // If there are no pending database migrations,
+        // If there is no pending database migration,
         // Then the user has already upgraded.
         // Do nothing.
         using var databaseContext = new DavDatabaseContext();
-        var hasPendingMigrations = databaseContext.Database.GetPendingMigrations().Any();
-        if (!hasPendingMigrations) return;
+        const string migration = "20260226053712_Add-NzbBlobId-And-NzbNames";
+        var hasPendingMigration = databaseContext.Database.GetPendingMigrations().Contains(migration);
+        if (!hasPendingMigration) return;
 
         // If the user has set the UPGRADE env variable,
         // Then they have acknowledged the upgrade message.
         // Do nothing.
         var upgradeEnv = EnvironmentUtil.GetEnvironmentVariable("UPGRADE");
-        if (upgradeEnv == "0.6.x") return;
+        if (upgradeEnv == "0.6.0") return;
 
         // Otherwise, display the upgrade message, and exit.
         Console.WriteLine(
             """
-            Version 0.6.x of nzbdav is NOT backwards compatible.
+            Version 0.6.0 of nzbdav is NOT backwards compatible.
             You can upgrade, but you won't be able to downgrade.
             Make a backup of your entire /config directory prior to upgrading.
             The only way to downgrade back to a previous version is by restoring this backup.
-            To acknowledge this message and continue upgrading, set the env variable UPGRADE=0.6.x
+            To acknowledge this message and continue upgrading, set the env variable UPGRADE=0.6.0
             """
         );
         Environment.Exit(1);
