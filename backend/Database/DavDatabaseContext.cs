@@ -132,10 +132,12 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
                 .IsUnique();
 
             e.HasIndex(i => new { i.IdPrefix, i.Type });
-
+            
             e.HasIndex(i => new { i.Type, i.HistoryItemId, i.NextHealthCheck, i.ReleaseDate, i.Id });
-
-            e.HasIndex(i => new { i.HistoryItemId });
+            
+            e.HasIndex(i => new { i.HistoryItemId, i.Type, i.CreatedAt });
+            
+            e.HasIndex(i => new { i.HistoryItemId, i.SubType, i.CreatedAt });
         });
 
         // DavNzbFile

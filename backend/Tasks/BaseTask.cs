@@ -1,15 +1,19 @@
-﻿namespace NzbWebDAV.Tasks;
+﻿using NzbWebDAV.Utils;
+
+namespace NzbWebDAV.Tasks;
 
 public abstract class BaseTask
 {
     protected abstract Task ExecuteInternal();
-
+    
     private static readonly SemaphoreSlim Semaphore = new(1, 1);
     private static Task? _runningTask;
 
+    protected readonly CancellationToken CancellationToken = SigtermUtil.GetCancellationToken();
+
     public async Task<bool> Execute()
     {
-        await Semaphore.WaitAsync().ConfigureAwait(false);
+        await Semaphore.WaitAsync(CancellationToken).ConfigureAwait(false);
         Task? task;
         try
         {
@@ -18,7 +22,7 @@ public abstract class BaseTask
                 return false;
 
             // otherwise, run the task.
-            _runningTask = Task.Run(ExecuteInternal);
+            _runningTask = Task.Run(ExecuteInternal, CancellationToken);
             task = _runningTask;
         }
         finally

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NzbWebDAV.Database;
 
@@ -10,9 +11,11 @@ using NzbWebDAV.Database;
 namespace NzbWebDAV.Database.Migrations
 {
     [DbContext(typeof(DavDatabaseContext))]
-    partial class DavDatabaseContextModelSnapshot : ModelSnapshot
+    [Migration("20260202005856_Add-Type-CreatedAt-Index-To-DavItems-Table")]
+    partial class AddTypeCreatedAtIndexToDavItemsTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.1");
@@ -117,8 +120,6 @@ namespace NzbWebDAV.Database.Migrations
 
                     b.HasIndex("ParentId", "Name")
                         .IsUnique();
-
-                    b.HasIndex("HistoryItemId", "SubType", "CreatedAt");
 
                     b.HasIndex("HistoryItemId", "Type", "CreatedAt");
 
