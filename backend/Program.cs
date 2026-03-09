@@ -64,6 +64,7 @@ class Program
             await databaseContext.Database
                 .MigrateAsync(targetMigration, SigtermUtil.GetCancellationToken())
                 .ConfigureAwait(false);
+            await PerformDatabaseVacuumIfEnabled();
             return;
         }
 
@@ -134,7 +135,7 @@ class Program
         // If there are no pending database migrations,
         // Then the user has already upgraded.
         // Do nothing.
-        var databaseContext = new DavDatabaseContext();
+        using var databaseContext = new DavDatabaseContext();
         var hasPendingMigrations = databaseContext.Database.GetPendingMigrations().Any();
         if (!hasPendingMigrations) return;
 
@@ -155,5 +156,18 @@ class Program
             """
         );
         Environment.Exit(1);
+    }
+
+    private static async Task PerformDatabaseVacuumIfEnabled()
+    {
+        var configManager = new ConfigManager();
+        await configManager.LoadConfig().ConfigureAwait(false);
+        if (configManager.IsDatabaseStartupVacuumEnabled())
+        {
+            Console.Write("Performing database vacuum...");
+            await using var databaseContext = new DavDatabaseContext();
+            await databaseContext.Database.ExecuteSqlRawAsync("VACUUM;");
+            Console.WriteLine("Done.");
+        }
     }
 }

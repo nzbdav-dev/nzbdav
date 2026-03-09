@@ -6,7 +6,7 @@ import { isUsenetSettingsUpdated, UsenetSettings } from "./usenet/usenet";
 import { isSabnzbdSettingsUpdated, isSabnzbdSettingsValid, SabnzbdSettings } from "./sabnzbd/sabnzbd";
 import { isWebdavSettingsUpdated, isWebdavSettingsValid, WebdavSettings } from "./webdav/webdav";
 import { isArrsSettingsUpdated, isArrsSettingsValid, ArrsSettings } from "./arrs/arrs";
-import { Maintenance } from "./maintenance/maintenance";
+import { isMaintenanceSettingsUpdated, Maintenance } from "./maintenance/maintenance";
 import { isRepairsSettingsUpdated, RepairsSettings } from "./repairs/repairs";
 import { isRcloneSettingsUpdated, RcloneSettings } from "./rclone/rclone";
 import { useCallback, useState } from "react";
@@ -43,6 +43,7 @@ const defaultConfig = {
     "media.library-dir": "",
     "arr.instances": "{\"RadarrInstances\":[],\"SonarrInstances\":[],\"QueueRules\":[]}",
     "repair.enable": "false",
+    "db.is-startup-vacuum-enabled": "false",
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
@@ -87,7 +88,8 @@ function Body(props: BodyProps) {
     const isArrsUpdated = isArrsSettingsUpdated(config, newConfig);
     const isRepairsUpdated = isRepairsSettingsUpdated(config, newConfig);
     const isRcloneUpdated = isRcloneSettingsUpdated(config, newConfig);
-    const isUpdated = iseUsenetUpdated || isSabnzbdUpdated || isWebdavUpdated || isArrsUpdated || isRepairsUpdated || isRcloneUpdated;
+    const isMaintenanceUpdated = isMaintenanceSettingsUpdated(config, newConfig);
+    const isUpdated = iseUsenetUpdated || isSabnzbdUpdated || isWebdavUpdated || isArrsUpdated || isRepairsUpdated || isRcloneUpdated || isMaintenanceUpdated;
     const navigationBlocker = useNavigationBlocker(isUpdated);
 
     const usenetTitle = iseUsenetUpdated ? "✏️ Usenet" : "Usenet";
@@ -96,6 +98,7 @@ function Body(props: BodyProps) {
     const arrsTitle = isArrsUpdated ? "✏️ Radarr/Sonarr" : "Radarr/Sonarr";
     const repairsTitle = isRepairsUpdated ? "✏️ Repairs" : "Repairs";
     const rcloneTitle = isRcloneUpdated ? "✏️ Rclone Server" : "Rclone Server";
+    const maintenanceTitle = isMaintenanceUpdated ? "✏️ Maintenance" : "Maintenance";
 
     const saveButtonLabel = isSaving ? "Saving..."
         : !isUpdated && isSaved ? "Saved ✅"
@@ -159,8 +162,8 @@ function Body(props: BodyProps) {
                 <Tab eventKey="rclone" title={rcloneTitle}>
                     <RcloneSettings config={newConfig} setNewConfig={setNewConfig} />
                 </Tab>
-                <Tab eventKey="maintenance" title="Maintenance">
-                    <Maintenance savedConfig={config} />
+                <Tab eventKey="maintenance" title={maintenanceTitle}>
+                    <Maintenance savedConfig={config} config={newConfig} setNewConfig={setNewConfig} />
                 </Tab>
             </Tabs>
             <hr />

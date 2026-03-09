@@ -1,5 +1,13 @@
-.container {
+.tasksContainer {
     max-width: 600px;
+}
+
+.settingsContainer {
+    max-width: 400px;
+}
+
+.input {
+    margin-bottom: 8px;
 }
 
 .accordionItem {

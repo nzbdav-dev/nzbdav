@@ -65,7 +65,7 @@ public class RemoveUnlinkedFilesTask(
 
     private async Task<int> WriteLinkedIdsToTable()
     {
-        var dbContext = new DavDatabaseContext();
+        await using var dbContext = new DavDatabaseContext();
 
         // Create a new table "TMP_LINKED_FILES", dropping old one if it already exists.
         // No index initially for fast writes.
@@ -119,7 +119,7 @@ public class RemoveUnlinkedFilesTask(
 
     private async Task<int> CountUnlinkedItems(DateTime createdBefore)
     {
-        var dbContext = new DavDatabaseContext();
+        await using var dbContext = new DavDatabaseContext();
         var createdBeforeStr = createdBefore.ToString("yyyy-MM-dd HH:mm:ss");
         var usenetFileType = (int)DavItem.ItemType.UsenetFile;
 
@@ -142,7 +142,7 @@ public class RemoveUnlinkedFilesTask(
     {
         Report("Removing unlinked items...");
         _allRemovedPaths.Clear();
-        var dbContext = new DavDatabaseContext();
+        await using var dbContext = new DavDatabaseContext();
         var removed = 0;
 
         while (true)
@@ -189,7 +189,7 @@ public class RemoveUnlinkedFilesTask(
     private async Task RemoveEmptyDirectories(DateTime createdBefore)
     {
         Report($"Removing empty directories...");
-        var dbContext = new DavDatabaseContext();
+        await using var dbContext = new DavDatabaseContext();
         var removed = 0;
 
         while (true)
@@ -230,7 +230,7 @@ public class RemoveUnlinkedFilesTask(
 
     private async Task DryRunIdentifyUnlinkedFiles(DateTime createdBefore)
     {
-        var dbContext = new DavDatabaseContext();
+        await using var dbContext = new DavDatabaseContext();
         var unlinkedFiles = await dbContext.Database
             .SqlQueryRaw<UnlinkedItemInfo>(
                 $"""

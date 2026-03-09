@@ -269,6 +269,13 @@ public class ConfigManager
                ?? defaultValue;
     }
 
+    public bool IsDatabaseStartupVacuumEnabled()
+    {
+        var defaultValue = false;
+        var configValue = StringUtil.EmptyToNull(GetConfigValue("db.is-startup-vacuum-enabled"));
+        return (configValue != null ? bool.Parse(configValue) : defaultValue);
+    }
+
     public class ConfigEventArgs : EventArgs
     {
         public required Dictionary<string, string> ChangedConfig { get; init; }
