@@ -22,16 +22,22 @@ public class DatabaseStoreSymlinkFile(DavItem davFile, ConfigManager configManag
 
     private string GetTargetPath()
     {
-        return GetTargetPath(davFile.Id, configManager.GetRcloneMountDir());
+        return GetTargetPath(davFile.Id, configManager.GetRcloneMountDir(), originalFileName: davFile.Name);
     }
 
-    public static string GetTargetPath(Guid davItemId, string mountDir, char? pathSeparator = null)
+    public static string GetTargetPath(
+        Guid davItemId,
+        string mountDir,
+        char? pathSeparator = null,
+        string? originalFileName = null
+    )
     {
+        var extension = Path.GetExtension(originalFileName ?? string.Empty);
         var pathParts = davItemId.GetFiveLengthPrefix()
             .Select(x => x.ToString())
             .Prepend(DavItem.IdsFolder.Name)
             .Prepend(mountDir)
-            .Append(davItemId.ToString())
+            .Append($"{davItemId}{extension}")
             .ToArray();
         return string.Join(pathSeparator ?? Path.DirectorySeparatorChar, pathParts);
     }

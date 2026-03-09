@@ -46,7 +46,7 @@ public class CreateStrmFilesPostProcessor(ConfigManager configManager, DavDataba
     {
         var baseUrl = configManager.GetBaseUrl();
         if (baseUrl.EndsWith('/')) baseUrl = baseUrl.TrimEnd('/');
-        var pathUrl = DatabaseStoreSymlinkFile.GetTargetPath(davItem.Id, "", '/');
+        var pathUrl = DatabaseStoreSymlinkFile.GetTargetPath(davItem.Id, "", '/', davItem.Name);
         if (pathUrl.StartsWith('/')) pathUrl = pathUrl.TrimStart('/');
         var strmKey = configManager.GetStrmKey();
         var downloadKey = GetWebdavItemRequest.GenerateDownloadKey(strmKey, pathUrl);

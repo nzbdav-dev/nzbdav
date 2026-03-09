@@ -16,7 +16,7 @@ public class DatabaseStoreIdFile(
     ConfigManager configManager
 ) : BaseStoreReadonlyItem
 {
-    public override string Name => davItem.Id.ToString();
+    public override string Name => GetPathName(davItem);
     public override string UniqueKey => davItem.Id.ToString();
     public override long FileSize => davItem.FileSize!.Value;
     public override DateTime CreatedAt => davItem.CreatedAt;
@@ -24,6 +24,14 @@ public class DatabaseStoreIdFile(
     public override Task<Stream> GetReadableStreamAsync(CancellationToken cancellationToken)
     {
         return GetItem(davItem).GetReadableStreamAsync(cancellationToken);
+    }
+
+    public static string GetPathName(DavItem davItem)
+    {
+        var extension = Path.GetExtension(davItem.Name);
+        return string.IsNullOrEmpty(extension)
+            ? davItem.Id.ToString()
+            : $"{davItem.Id}{extension}";
     }
 
     private IStoreItem GetItem(DavItem davItem)

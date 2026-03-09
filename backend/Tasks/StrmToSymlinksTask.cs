@@ -80,7 +80,12 @@ public class StrmToSymlinksTask(
         foreach (var item in itemsWithExtension)
         {
             var symlinkPath = PathUtil.ReplaceExtension(item.Link.LinkPath, item.Extension);
-            var symlinkTarget = DatabaseStoreSymlinkFile.GetTargetPath(item.Link.DavItemId, mountDir);
+            var originalFileName = string.IsNullOrWhiteSpace(item.Extension) ? null : $"file.{item.Extension}";
+            var symlinkTarget = DatabaseStoreSymlinkFile.GetTargetPath(
+                item.Link.DavItemId,
+                mountDir,
+                originalFileName: originalFileName
+            );
             await Task.Run(() =>
             {
                 File.CreateSymbolicLink(symlinkPath, symlinkTarget);

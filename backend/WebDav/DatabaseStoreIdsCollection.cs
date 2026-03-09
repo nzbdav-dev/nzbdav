@@ -40,7 +40,8 @@ public class DatabaseStoreIdsCollection(
             return new DatabaseStoreIdsCollection(dir, Path.Join(currentPath, dir), ctx, db, usenet, config);
         }
 
-        var item = await dbClient.GetFileById(request.Name).ConfigureAwait(false);
+        var itemId = GetItemIdFromPathName(request.Name);
+        var item = await dbClient.GetFileById(itemId).ConfigureAwait(false);
         return item == null ? null : new DatabaseStoreIdFile(item, ctx, dbClient, usenet, config);
     }
 
@@ -64,5 +65,10 @@ public class DatabaseStoreIdsCollection(
     protected override bool SupportsFastMove(SupportsFastMoveRequest request)
     {
         return false;
+    }
+
+    public static string GetItemIdFromPathName(string pathName)
+    {
+        return Path.GetFileNameWithoutExtension(pathName);
     }
 }
