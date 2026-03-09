@@ -109,6 +109,10 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
                     x => x.HasValue ? DateTimeOffset.FromUnixTimeSeconds(x.Value) : null
                 );
 
+            e.Property(i => i.FileBlobId)
+                .ValueGeneratedNever()
+                .IsRequired(false);
+
             e.HasOne(i => i.Parent)
                 .WithMany(p => p.Children)
                 .HasForeignKey(i => i.ParentId)

@@ -19,6 +19,7 @@ public class DavItem
     public DateTimeOffset? ReleaseDate { get; set; }
     public DateTimeOffset? LastHealthCheck { get; set; }
     public DateTimeOffset? NextHealthCheck { get; set; }
+    public Guid? FileBlobId { get; set; }
 
     public static DavItem New
     (
