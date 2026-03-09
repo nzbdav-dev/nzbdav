@@ -97,7 +97,8 @@ public class HealthCheckService : BackgroundService
     public static IQueryable<DavItem> GetHealthCheckQueueItemsQuery(DavDatabaseClient dbClient)
     {
         return dbClient.Ctx.Items
-            .Where(x => x.Type == DavItem.ItemType.UsenetFile);
+            .Where(x => x.Type == DavItem.ItemType.UsenetFile)
+            .Where(x => x.HistoryItemId == null);
     }
 
     private async Task PerformHealthCheck

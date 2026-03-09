@@ -54,6 +54,7 @@ public class SevenZipAggregator(
                 subType: DavItem.ItemSubType.MultipartFile,
                 releaseDate: sevenZipFile.ReleaseDate,
                 lastHealthCheck: checkedFullHealth ? DateTimeOffset.UtcNow : null,
+                historyItemId: MountDirectory.HistoryItemId,
                 fileBlobId: davMultipartFile.Id
             );
 

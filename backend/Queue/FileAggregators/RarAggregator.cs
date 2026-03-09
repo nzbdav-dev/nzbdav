@@ -76,6 +76,7 @@ public class RarAggregator(DavDatabaseClient dbClient, DavItem mountDirectory, b
                 subType: DavItem.ItemSubType.MultipartFile,
                 releaseDate: fileParts.First().ReleaseDate,
                 lastHealthCheck: checkedFullHealth ? DateTimeOffset.UtcNow : null,
+                historyItemId: MountDirectory.HistoryItemId,
                 fileBlobId: davMultipartFile.Id
             );
 

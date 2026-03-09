@@ -52,6 +52,7 @@ public abstract class BaseAggregator
             subType: DavItem.ItemSubType.Directory,
             releaseDate: null,
             lastHealthCheck: null,
+            historyItemId: MountDirectory.HistoryItemId,
             fileBlobId: null
         );
         _directoryCache.Add(pathKey, directory);

@@ -261,6 +261,7 @@ public class QueueItemProcessor(
             subType: DavItem.ItemSubType.Directory,
             releaseDate: null,
             lastHealthCheck: null,
+            historyItemId: null,
             fileBlobId: null
         );
         dbClient.Ctx.Items.Add(categoryFolder);
@@ -286,6 +287,7 @@ public class QueueItemProcessor(
             subType: DavItem.ItemSubType.Directory,
             releaseDate: null,
             lastHealthCheck: null,
+            historyItemId: queueItem.Id,
             fileBlobId: null
         );
         dbClient.Ctx.Items.Add(mountFolder);
@@ -310,6 +312,7 @@ public class QueueItemProcessor(
                 subType: DavItem.ItemSubType.Directory,
                 releaseDate: null,
                 lastHealthCheck: null,
+                historyItemId: queueItem.Id,
                 fileBlobId: null
             );
             dbClient.Ctx.Items.Add(mountFolder);

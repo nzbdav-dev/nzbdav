@@ -32,6 +32,7 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
     public DbSet<HealthCheckStat> HealthCheckStats => Set<HealthCheckStat>();
     public DbSet<ConfigItem> ConfigItems => Set<ConfigItem>();
     public DbSet<BlobCleanupItem> BlobCleanupItems => Set<BlobCleanupItem>();
+    public DbSet<HistoryCleanupItem> HistoryCleanupItems => Set<HistoryCleanupItem>();
 
     // blob items
     public List<DavNzbFile> BlobNzbFiles = [];
@@ -118,6 +119,10 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
                 .ValueGeneratedNever()
                 .IsRequired(false);
 
+            e.Property(i => i.HistoryItemId)
+                .ValueGeneratedNever()
+                .IsRequired(false);
+
             e.HasOne(i => i.Parent)
                 .WithMany(p => p.Children)
                 .HasForeignKey(i => i.ParentId)
@@ -128,7 +133,9 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
 
             e.HasIndex(i => new { i.IdPrefix, i.Type });
 
-            e.HasIndex(i => new { i.Type, i.NextHealthCheck, i.ReleaseDate, i.Id });
+            e.HasIndex(i => new { i.Type, i.HistoryItemId, i.NextHealthCheck, i.ReleaseDate, i.Id });
+
+            e.HasIndex(i => new { i.HistoryItemId });
         });
 
         // DavNzbFile
@@ -425,6 +432,16 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
         b.Entity<BlobCleanupItem>(e =>
         {
             e.ToTable("BlobCleanupItems");
+            e.HasKey(i => i.Id);
+
+            e.Property(i => i.Id)
+                .ValueGeneratedNever();
+        });
+
+        // HistoryCleanupItem
+        b.Entity<HistoryCleanupItem>(e =>
+        {
+            e.ToTable("HistoryCleanupItems");
             e.HasKey(i => i.Id);
 
             e.Property(i => i.Id)

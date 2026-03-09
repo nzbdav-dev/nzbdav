@@ -19,6 +19,7 @@ public class DavItem
     public DateTimeOffset? ReleaseDate { get; set; }
     public DateTimeOffset? LastHealthCheck { get; set; }
     public DateTimeOffset? NextHealthCheck { get; set; }
+    public Guid? HistoryItemId { get; set; }
     public Guid? FileBlobId { get; set; }
 
     public static DavItem New
@@ -31,6 +32,7 @@ public class DavItem
         ItemSubType subType,
         DateTimeOffset? releaseDate,
         DateTimeOffset? lastHealthCheck,
+        Guid? historyItemId,
         Guid? fileBlobId
     )
     {
@@ -50,6 +52,7 @@ public class DavItem
             NextHealthCheck = releaseDate != null && lastHealthCheck != null
                 ? releaseDate.Value + 2 * (lastHealthCheck.Value - releaseDate.Value)
                 : null,
+            HistoryItemId = historyItemId,
             FileBlobId = fileBlobId
         };
     }
