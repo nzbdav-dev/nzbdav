@@ -141,9 +141,27 @@ public class RcloneClient
         }
     }
 
-    private static async Task<T> Post<T>(string endpoint, object? body) where T : RcloneResponse, new()
+    /// <summary>
+    /// Test connectivity to a rclone RC server with the given credentials.
+    /// </summary>
+    public static async Task<RcloneResponse> TestConnection(string host, string? user, string? pass)
     {
-        var url = $"{Host}/{endpoint}";
+        var result = await Post<CoreVersionResponse>(host, user, pass, "core/version", null);
+        if (result.Success && string.IsNullOrEmpty(result.Version))
+            return new RcloneResponse { Success = false, Error = "Connected but received empty version" };
+        return result;
+    }
+
+    private static async Task<T> Post<T>
+    (
+        string host,
+        string? user,
+        string? pass,
+        string endpoint,
+        object? body
+    ) where T : RcloneResponse, new()
+    {
+        var url = $"{host}/{endpoint}";
         var request = new HttpRequestMessage(HttpMethod.Post, url);
 
         if (body != null)
@@ -156,7 +174,7 @@ public class RcloneClient
             request.Content = new StringContent("{}", Encoding.UTF8, "application/json");
         }
 
-        AddAuthHeader(request);
+        AddAuthHeader(request, user, pass);
 
         try
         {
@@ -205,12 +223,15 @@ public class RcloneClient
         }
     }
 
-    private static void AddAuthHeader(HttpRequestMessage request)
+    private static Task<T> Post<T>(string endpoint, object? body) where T : RcloneResponse, new()
+        => Post<T>(Host!, User, Pass, endpoint, body);
+
+    private static void AddAuthHeader(HttpRequestMessage request, string? user, string? pass)
     {
-        if (string.IsNullOrEmpty(User) && string.IsNullOrEmpty(Pass))
+        if (string.IsNullOrEmpty(user) && string.IsNullOrEmpty(pass))
             return;
 
-        var credentials = $"{User ?? ""}:{Pass ?? ""}";
+        var credentials = $"{user ?? ""}:{pass ?? ""}";
         var encodedCredentials = Convert.ToBase64String(Encoding.UTF8.GetBytes(credentials));
         request.Headers.Authorization = new AuthenticationHeaderValue("Basic", encodedCredentials);
     }
