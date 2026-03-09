@@ -78,6 +78,11 @@ public class HealthCheckService : BackgroundService
                 // perform the health check
                 await PerformHealthCheck(davItem, dbClient, concurrency, cts.Token).ConfigureAwait(false);
             }
+            catch (OperationCanceledException) when (SigtermUtil.IsSigtermTriggered())
+            {
+                // OperationCanceledException is expected on sigterm
+                return;
+            }
             catch (Exception e)
             {
                 Log.Error(e, $"Unexpected error performing background health checks: {e.Message}");

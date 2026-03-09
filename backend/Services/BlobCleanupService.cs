@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using NzbWebDAV.Database;
+using NzbWebDAV.Utils;
 using Serilog;
 
 namespace NzbWebDAV.Services;
@@ -39,6 +40,11 @@ public class BlobCleanupService : BackgroundService
                 await dbContext.SaveChangesAsync(stoppingToken).ConfigureAwait(false);
 
                 // Continue immediately to next iteration to process more items
+            }
+            catch (OperationCanceledException) when (SigtermUtil.IsSigtermTriggered())
+            {
+                // OperationCanceledException is expected on sigterm
+                return;
             }
             catch (Exception e)
             {
