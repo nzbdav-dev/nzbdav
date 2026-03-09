@@ -18,6 +18,9 @@ public class WebsocketTopic
     public static readonly WebsocketTopic HistoryItemAdded = new("ha", TopicType.Event);
     public static readonly WebsocketTopic HistoryItemRemoved = new("hr", TopicType.Event);
 
+    // Migration progress topic
+    public static readonly WebsocketTopic UsenetFileToBlobstoreMigrationProgress = new("uftbmp", TopicType.State);
+
     public readonly string Name;
     public readonly TopicType Type;
 
