@@ -102,6 +102,7 @@ function getExtension(filename: string): string | undefined {
 
 function getIcon(file: ExploreFile) {
     if (file.name.toLowerCase().endsWith(".mkv")) return styles["video-icon"];
+    if (file.mimeType === "application/mp4") return styles["video-icon"];
     if (file.mimeType && file.mimeType.startsWith("video")) return styles["video-icon"];
     if (file.mimeType && file.mimeType.startsWith("image")) return styles["image-icon"];
     return styles["file-icon"];
