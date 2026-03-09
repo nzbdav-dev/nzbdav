@@ -4,8 +4,8 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using NzbWebDAV.Clients.Rclone.Models;
+using NzbWebDAV.Config;
 using NzbWebDAV.Extensions;
-using NzbWebDAV.Utils;
 using Serilog;
 
 namespace NzbWebDAV.Clients.Rclone;
@@ -24,9 +24,24 @@ public class RcloneClient
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
-    public string? Host { get; } = EnvironmentUtil.GetEnvironmentVariable("RCLONE_HOST")?.TrimEnd('/');
-    private string? User { get; } = EnvironmentUtil.GetEnvironmentVariable("RCLONE_USER");
-    private string? Pass { get; } = EnvironmentUtil.GetEnvironmentVariable("RCLONE_PASS");
+    public static string? Host { get; private set; }
+    private static string? User { get; set; }
+    private static string? Pass { get; set; }
+
+    public static void Initialize(ConfigManager configManager)
+    {
+        Host = configManager.GetRcloneHost();
+        User = configManager.GetRcloneUser();
+        Pass = configManager.GetRclonePass();
+
+        configManager.OnConfigChanged += (_, configEventArgs) =>
+        {
+            var changedConfig = configEventArgs.ChangedConfig;
+            if (changedConfig.TryGetValue("rclone.host", out var host)) Host = host;
+            if (changedConfig.TryGetValue("rclone.user", out var user)) Host = user;
+            if (changedConfig.TryGetValue("rclone.pass", out var pass)) Host = pass;
+        };
+    }
 
     /// <summary>
     /// Refresh the VFS directory cache for multiple paths in a single request.
@@ -34,8 +49,7 @@ public class RcloneClient
     /// <param name="paths">The paths to refresh</param>
     /// <param name="recursive">Whether to refresh recursively</param>
     /// <param name="fs">Optional VFS name if multiple VFS instances exist</param>
-    public async Task<RcloneResponse> RefreshVfsPaths(IEnumerable<string> paths, bool recursive = false,
-        string? fs = null)
+    public static async Task<RcloneResponse> RefreshVfsPaths(IEnumerable<string> paths, bool recursive = false)
     {
         var pathList = paths.ToList();
         if (pathList.Count == 0)
@@ -53,10 +67,7 @@ public class RcloneClient
         if (recursive)
             request["recursive"] = true;
 
-        if (fs != null)
-            request["fs"] = fs;
-
-        Log.Information("Rclone vfs/refresh: {0}", paths.ToIndentedJson());
+        Log.Debug("Rclone vfs/refresh: {0}", paths.ToIndentedJson());
         return await Post<RcloneResponse>("vfs/refresh", request);
     }
 
@@ -65,7 +76,7 @@ public class RcloneClient
     /// </summary>
     /// <param name="paths">The paths to forget</param>
     /// <param name="fs">Optional VFS name if multiple VFS instances exist</param>
-    public async Task<VfsForgetResponse> ForgetVfsPaths(IEnumerable<string> paths, string? fs = null)
+    public static async Task<VfsForgetResponse> ForgetVfsPaths(IEnumerable<string> paths)
     {
         var pathList = paths.ToList();
         if (pathList.Count == 0)
@@ -80,10 +91,7 @@ public class RcloneClient
             request[key] = pathList[i];
         }
 
-        if (fs != null)
-            request["fs"] = fs;
-
-        Log.Information("Rclone vfs/forget: {0}", paths.ToIndentedJson());
+        Log.Debug("Rclone vfs/forget: {0}", paths.ToIndentedJson());
         return await Post<VfsForgetResponse>("vfs/forget", request);
     }
 
@@ -91,7 +99,7 @@ public class RcloneClient
     /// Get VFS statistics including cache information.
     /// </summary>
     /// <param name="fs">Optional VFS name if multiple VFS instances exist</param>
-    public async Task<VfsStatsResponse> GetVfsStats(string? fs = null)
+    public static async Task<VfsStatsResponse> GetVfsStats(string? fs = null)
     {
         var request = fs != null ? new { fs } : null;
         return await Post<VfsStatsResponse>("vfs/stats", request);
@@ -100,7 +108,7 @@ public class RcloneClient
     /// <summary>
     /// Get rclone version information.
     /// </summary>
-    public async Task<CoreVersionResponse> GetVersion()
+    public static async Task<CoreVersionResponse> GetVersion()
     {
         return await Post<CoreVersionResponse>("core/version", null);
     }
@@ -108,7 +116,7 @@ public class RcloneClient
     /// <summary>
     /// Test connectivity - a no-operation call.
     /// </summary>
-    public async Task<RcloneResponse> NoOp()
+    public static async Task<RcloneResponse> NoOp()
     {
         return await Post<RcloneResponse>("rc/noop", null);
     }
@@ -116,7 +124,7 @@ public class RcloneClient
     /// <summary>
     /// Check if the rclone RC server is reachable and authenticated.
     /// </summary>
-    public async Task<bool> IsAvailable()
+    public static async Task<bool> IsAvailable()
     {
         try
         {
@@ -129,7 +137,7 @@ public class RcloneClient
         }
     }
 
-    private async Task<T> Post<T>(string endpoint, object? body) where T : RcloneResponse, new()
+    private static async Task<T> Post<T>(string endpoint, object? body) where T : RcloneResponse, new()
     {
         var url = $"{Host}/{endpoint}";
         var request = new HttpRequestMessage(HttpMethod.Post, url);
@@ -193,7 +201,7 @@ public class RcloneClient
         }
     }
 
-    private void AddAuthHeader(HttpRequestMessage request)
+    private static void AddAuthHeader(HttpRequestMessage request)
     {
         if (string.IsNullOrEmpty(User) && string.IsNullOrEmpty(Pass))
             return;

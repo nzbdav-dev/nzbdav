@@ -6,6 +6,7 @@ using NWebDav.Server;
 using NWebDav.Server.Stores;
 using NzbWebDAV.Api.SabControllers;
 using NzbWebDAV.Auth;
+using NzbWebDAV.Clients.Rclone;
 using NzbWebDAV.Clients.Usenet;
 using NzbWebDAV.Config;
 using NzbWebDAV.Database;
@@ -66,6 +67,9 @@ class Program
         // initialize the config-manager
         var configManager = new ConfigManager();
         await configManager.LoadConfig().ConfigureAwait(false);
+
+        // initialize rclone client
+        RcloneClient.Initialize(configManager);
 
         // initialize websocket-manager
         var websocketManager = new WebsocketManager();

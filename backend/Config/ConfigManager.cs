@@ -239,6 +239,21 @@ public class ConfigManager
         return GetConfigValue("general.base-url") ?? "http://localhost:3000";
     }
 
+    public string? GetRcloneHost()
+    {
+        return GetConfigValue("rclone.host");
+    }
+
+    public string? GetRcloneUser()
+    {
+        return GetConfigValue("rclone.user");
+    }
+
+    public string? GetRclonePass()
+    {
+        return GetConfigValue("rclone.pass");
+    }
+
     public string GetUserAgent()
     {
         var defaultValue = $"nzbdav/{AppVersion}";

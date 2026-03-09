@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using NzbWebDAV.Clients.Rclone;
 using NzbWebDAV.Database.Interceptors;
 using NzbWebDAV.Database.MigrationHelpers;
 using NzbWebDAV.Database.Models;
@@ -477,7 +478,9 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
                 await BlobStore.WriteBlob(blobMultipartFile.Id, blobMultipartFile);
 
             // save db changes
+            var vfsForgetDirs = GetRcloneVfsForgetDirectories();
             var result = await base.SaveChangesAsync(cancellationToken);
+            _ = RcloneVfsForget(vfsForgetDirs);
 
             // clear pending blob writes
             BlobNzbFiles.Clear();
@@ -502,7 +505,7 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
         }
     }
 
-    public IEnumerable<string> GetRcloneVfsForgetDirectories()
+    private List<string> GetRcloneVfsForgetDirectories()
     {
         var contentDirs = ChangeTracker.Entries<DavItem>()
             .Where(x => x.State is EntityState.Added or EntityState.Deleted)
@@ -523,7 +526,18 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
             .Select(x => $"/completed-symlinks{x["/content".Length..]}")
             .ToList();
 
-        return contentDirs.Concat(idDirs).Concat(completedSymlinkDirs);
+        return contentDirs
+            .Concat(completedSymlinkDirs)
+            .Concat(idDirs)
+            .Distinct()
+            .ToList();
+    }
+
+    private Task RcloneVfsForget(List<string> paths)
+    {
+        if (RcloneClient.Host == null) return Task.CompletedTask;
+        if (paths.Count == 0) return Task.CompletedTask;
+        return RcloneClient.ForgetVfsPaths(paths);
     }
 
     public void ClearChangeTracker()
