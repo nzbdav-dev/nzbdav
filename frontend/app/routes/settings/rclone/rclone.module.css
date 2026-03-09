@@ -1,0 +1,11 @@
+.container {
+    max-width:400px;
+}
+
+.input {
+    margin-bottom: 8px;
+}
+
+.input::placeholder {
+    color: rgba(255, 255, 255, 0.25);
+}
