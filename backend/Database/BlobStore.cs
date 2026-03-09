@@ -1,9 +1,11 @@
-﻿using NzbWebDAV.Utils;
+﻿using MemoryPack;
+using ZstdSharp;
 
 namespace NzbWebDAV.Database;
 
 public class BlobStore
 {
+    private static readonly int CompressionLevel = 1;
     private static readonly string ConfigPath = DavDatabaseContext.ConfigPath;
     private static readonly Lock LockObj = new();
 
@@ -17,7 +19,7 @@ public class BlobStore
         return Path.Combine(ConfigPath, "blobs", firstTwo, nextTwo, fileName);
     }
 
-    public static async Task WriteBlob(Guid id, Stream stream)
+    private static FileStream OpenBlobWrite(Guid id)
     {
         var blobPath = GetBlobPath(id);
         var directory = Path.GetDirectoryName(blobPath);
@@ -31,17 +33,35 @@ public class BlobStore
             fileStream = File.Create(blobPath);
         }
 
-        // Write data outside lock to avoid blocking other operations during I/O
-        await using (fileStream)
-        {
-            await stream.CopyToAsync(fileStream);
-        }
+        return fileStream;
+    }
+
+    public static async Task WriteBlob(Guid id, Stream stream)
+    {
+        await using var fileStream = OpenBlobWrite(id);
+        await stream.CopyToAsync(fileStream);
+    }
+
+    public static async Task WriteBlob<T>(Guid id, T blob)
+    {
+        await using var fileStream = OpenBlobWrite(id);
+        await using var compressionStream = new CompressionStream(fileStream, CompressionLevel);
+        await MemoryPackSerializer.SerializeAsync(compressionStream, blob);
     }
 
     public static Stream? ReadBlob(Guid id)
     {
         var blobPath = GetBlobPath(id);
         return File.Exists(blobPath) ? File.OpenRead(blobPath) : null;
+    }
+
+    public static async Task<T?> ReadBlob<T>(Guid id)
+    {
+        var stream = ReadBlob(id);
+        if (stream == null) return default;
+        await using var fileStream = stream;
+        await using var decompressionStream = new DecompressionStream(fileStream);
+        return await MemoryPackSerializer.DeserializeAsync<T>(decompressionStream);
     }
 
     public static void Delete(Guid id)
