@@ -27,7 +27,7 @@
     "react-router": "^7.5.3",
     "remix-auth": "^4.2.0",
     "remix-auth-form": "^3.0.0",
-    "ws": "^8.18.3"
+    "ws": "^8.19.0"
   },
   "devDependencies": {
     "@react-router/dev": "^7.5.3",
