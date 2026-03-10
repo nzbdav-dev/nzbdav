@@ -1,0 +1,112 @@
+name: "Deploy Versioned Release"
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - ".github/**"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      major: ${{ steps.release.outputs.major }}
+      minor: ${{ steps.release.outputs.minor }}
+      patch: ${{ steps.release.outputs.patch }}
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          config-file: .release-please-config.json
+      - uses: actions/checkout@v6
+      - name: tag major and minor versions
+        if: ${{ steps.release.outputs.release_created }}
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "<>"
+          git tag -d latest || true
+          git tag -d v${{ steps.release.outputs.major }}.x || true
+          git tag -d v${{ steps.release.outputs.major }}.${{ steps.release.outputs.minor }}.x || true
+          git push origin :latest || true
+          git push origin :v${{ steps.release.outputs.major }}.x || true
+          git push origin :v${{ steps.release.outputs.major }}.${{ steps.release.outputs.minor }}.x || true
+          git tag -a latest -m "Release latest"
+          git tag -a v${{ steps.release.outputs.major }}.x -m "Release v${{ steps.release.outputs.major }}.x"
+          git tag -a v${{ steps.release.outputs.major }}.${{ steps.release.outputs.minor }}.x -m "Release v${{ steps.release.outputs.major }}.${{ steps.release.outputs.minor }}.x"
+          git push origin latest
+          git push origin v${{ steps.release.outputs.major }}.x
+          git push origin v${{ steps.release.outputs.major }}.${{ steps.release.outputs.minor }}.x
+
+  deploy:
+    if: ${{ needs.release.outputs.release_created }}
+    needs: release
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          registry: docker.io
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set tags and NZBDAV_VERSION
+        id: set_vars
+        run: |
+          MAJOR=${{ needs.release.outputs.major }}
+          MINOR=${{ needs.release.outputs.minor }}
+          PATCH=${{ needs.release.outputs.patch }}
+
+          echo "NZBDAV_VERSION=${MAJOR}.${MINOR}.${PATCH}" >> $GITHUB_OUTPUT
+
+          GHCR_REPO="ghcr.io/${{ github.repository }}"
+          DOCKERHUB_REPO="nzbdav/nzbdav"
+          {
+            echo "TAGS<<EOF"
+            echo "${GHCR_REPO}:alpha"
+            echo "${GHCR_REPO}:latest"
+            echo "${GHCR_REPO}:${MAJOR}.x"
+            echo "${GHCR_REPO}:${MAJOR}.${MINOR}.x"
+            echo "${GHCR_REPO}:${MAJOR}.${MINOR}.${PATCH}"
+            echo "${DOCKERHUB_REPO}:alpha"
+            echo "${DOCKERHUB_REPO}:latest"
+            echo "${DOCKERHUB_REPO}:${MAJOR}.x"
+            echo "${DOCKERHUB_REPO}:${MAJOR}.${MINOR}.x"
+            echo "${DOCKERHUB_REPO}:${MAJOR}.${MINOR}.${PATCH}"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
+      - name: Build and push Docker image (amd64 + arm64)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.set_vars.outputs.TAGS }}
+          build-args: |
+            NZBDAV_VERSION=${{ steps.set_vars.outputs.NZBDAV_VERSION }}
