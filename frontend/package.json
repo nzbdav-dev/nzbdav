@@ -43,7 +43,7 @@
     "@types/ws": "^8.18.1",
     "cross-env": "^7.0.3",
     "tailwindcss": "^4.1.4",
-    "tsx": "^4.20.3",
+    "tsx": "^4.21.0",
     "typed-css-modules": "^0.9.1",
     "typescript": "^5.8.3",
     "vite": "^6.3.3",
