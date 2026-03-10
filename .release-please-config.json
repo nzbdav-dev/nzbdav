@@ -2,7 +2,8 @@
   "packages": {
     ".": {
       "release-type": "simple",
-      "tagPrefix": "v"
+      "bump-minor-pre-major": true,
+      "bump-patch-for-minor-pre-major": true
     }
   }
 }

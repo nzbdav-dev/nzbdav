@@ -29,19 +29,18 @@ jobs:
         run: |
           git config user.name "GitHub Actions"
           git config user.email "<>"
-          git remote add gh-token "https://${{ secrets.GITHUB_TOKEN }}@github.com/nzbdav-dev/${{github.event.repository.name}}.git"
           git tag -d latest || true
-          git tag -d v${{ steps.release.outputs.major }} || true
-          git tag -d v${{ steps.release.outputs.major }}.${{ steps.release.outputs.minor }} || true
+          git tag -d v${{ steps.release.outputs.major }}.x || true
+          git tag -d v${{ steps.release.outputs.major }}.${{ steps.release.outputs.minor }}.x || true
           git push origin :latest || true
-          git push origin :v${{ steps.release.outputs.major }} || true
-          git push origin :v${{ steps.release.outputs.major }}.${{ steps.release.outputs.minor }} || true
+          git push origin :v${{ steps.release.outputs.major }}.x || true
+          git push origin :v${{ steps.release.outputs.major }}.${{ steps.release.outputs.minor }}.x || true
           git tag -a latest -m "Release latest"
-          git tag -a v${{ steps.release.outputs.major }} -m "Release v${{ steps.release.outputs.major }}"
-          git tag -a v${{ steps.release.outputs.major }}.${{ steps.release.outputs.minor }} -m "Release v${{ steps.release.outputs.major }}.${{ steps.release.outputs.minor }}"
+          git tag -a v${{ steps.release.outputs.major }}.x -m "Release v${{ steps.release.outputs.major }}.x"
+          git tag -a v${{ steps.release.outputs.major }}.${{ steps.release.outputs.minor }}.x -m "Release v${{ steps.release.outputs.major }}.${{ steps.release.outputs.minor }}.x"
           git push origin latest
-          git push origin v${{ steps.release.outputs.major }}
-          git push origin v${{ steps.release.outputs.major }}.${{ steps.release.outputs.minor }}
+          git push origin v${{ steps.release.outputs.major }}.x
+          git push origin v${{ steps.release.outputs.major }}.${{ steps.release.outputs.minor }}.x
 
   deploy:
     if: ${{ needs.release.outputs.release_created }}

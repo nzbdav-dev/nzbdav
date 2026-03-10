@@ -33,21 +33,18 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          registry: docker.io
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
       - name: Set tags and NZBDAV_VERSION
         id: set_vars
         run: |
+          RAW_REF="${{ github.ref_name }}"
+          DOCKER_TAG=$(echo "$RAW_REF" \
+            | tr '[:upper:]' '[:lower:]' \
+            | sed -E 's#[^a-z0-9._-]+#-#g' \
+            | sed -E 's#(^-+|-+$)##g')
+          echo "DOCKER_TAG: $DOCKER_TAG"
           echo "NZBDAV_VERSION=${{ github.ref_name }}" >> $GITHUB_OUTPUT
-
           GHCR_REPO="ghcr.io/${{ github.repository }}"
-          DOCKERHUB_REPO="nzbdav/nzbdav"
-          echo "TAGS=${GHCR_REPO}:${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          echo "TAGS=${GHCR_REPO}:${DOCKER_TAG}" >> $GITHUB_OUTPUT
 
       - name: Build and push Docker image (amd64 + arm64)
         uses: docker/build-push-action@v5
