@@ -34,7 +34,7 @@
     "@tailwindcss/vite": "^4.2.1",
     "@types/compression": "^1.7.5",
     "@types/express": "^5.0.1",
-    "@types/express-serve-static-core": "^5.0.6",
+    "@types/express-serve-static-core": "^5.1.1",
     "@types/mime-types": "^3.0.1",
     "@types/morgan": "^1.9.9",
     "@types/node": "^25",
