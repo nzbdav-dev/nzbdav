@@ -8,6 +8,10 @@ updates:
     commit-message:
       prefix: "fix(deps)"
     open-pull-requests-limit: 15
+    groups:
+      github-actions:
+        patterns:
+          - "*"
 
   - package-ecosystem: "npm"
     directory: "/frontend"
