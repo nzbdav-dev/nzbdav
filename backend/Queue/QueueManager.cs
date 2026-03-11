@@ -85,7 +85,16 @@ public class QueueManager : IDisposable
                 await using var dbContext = new DavDatabaseContext();
                 var dbClient = new DavDatabaseClient(dbContext);
                 var topItem = await LockAsync(() => dbClient.GetTopQueueItem(ct)).ConfigureAwait(false);
-                if (topItem.queueItem is null || topItem.queueNzbStream is null)
+
+                // NZB blob is missing: fail the item immediately rather than blocking the queue forever.
+                if (topItem.queueItem is not null && topItem.queueNzbStream is null)
+                {
+                    await LockAsync(() => FailMissingNzbItemAsync(dbClient, topItem.queueItem, ct))
+                        .ConfigureAwait(false);
+                    continue;
+                }
+
+                if (topItem.queueItem is null)
                 {
                     try
                     {
@@ -132,6 +141,30 @@ public class QueueManager : IDisposable
                 await LockAsync(() => { _inProgressQueueItem = null; }).ConfigureAwait(false);
             }
         }
+    }
+
+    private async Task FailMissingNzbItemAsync(DavDatabaseClient dbClient, QueueItem queueItem, CancellationToken ct)
+    {
+        const string error = "NZB blob missing: the NZB file could not be found in the blob store.";
+        Log.Error($"Failing queue item `{queueItem.JobName}` — {error}");
+        var historyItem = new HistoryItem
+        {
+            Id = queueItem.Id,
+            CreatedAt = DateTime.Now,
+            FileName = queueItem.FileName,
+            JobName = queueItem.JobName,
+            Category = queueItem.Category,
+            DownloadStatus = HistoryItem.DownloadStatusOption.Failed,
+            TotalSegmentBytes = queueItem.TotalSegmentBytes,
+            DownloadTimeSeconds = 0,
+            FailMessage = error,
+            DownloadDirId = null,
+            NzbBlobId = queueItem.Id,
+        };
+        dbClient.Ctx.QueueItems.Remove(queueItem);
+        dbClient.Ctx.HistoryItems.Add(historyItem);
+        await dbClient.Ctx.SaveChangesAsync(ct).ConfigureAwait(false);
+        _ = _websocketManager.SendMessage(WebsocketTopic.QueueItemRemoved, queueItem.Id.ToString());
     }
 
     private InProgressQueueItem BeginProcessingQueueItem
