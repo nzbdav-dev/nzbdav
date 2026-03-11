@@ -16,6 +16,37 @@ updates:
     commit-message:
       prefix: "fix(deps)"
     open-pull-requests-limit: 15
+    groups:
+      react-router:
+        patterns:
+          - "react-router"
+          - "@react-router/*"
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
+      tailwindcss:
+        patterns:
+          - "tailwindcss"
+          - "@tailwindcss/*"
+      vite:
+        patterns:
+          - "vite"
+          - "vite-*"
+      express-types:
+        patterns:
+          - "@types/express"
+          - "@types/express-serve-static-core"
+      bootstrap:
+        patterns:
+          - "bootstrap"
+          - "react-bootstrap"
+      remix-auth:
+        patterns:
+          - "remix-auth"
+          - "remix-auth-*"
 
   - package-ecosystem: "nuget"
     directory: "/backend"
