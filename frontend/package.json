@@ -41,7 +41,7 @@
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
     "@types/ws": "^8.18.1",
-    "cross-env": "^7.0.3",
+    "cross-env": "^10.1.0",
     "tailwindcss": "^4.2.1",
     "tsx": "^4.21.0",
     "typed-css-modules": "^0.9.1",
