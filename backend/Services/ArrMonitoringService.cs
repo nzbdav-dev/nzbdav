@@ -52,6 +52,10 @@ public class ArrMonitoringService : BackgroundService
             foreach (var record in stuckRecords)
                 await HandleStuckQueueItem(record, arrConfig, client).ConfigureAwait(false);
         }
+        catch (Exception e) when (e is HttpRequestException { InnerException: System.Net.Sockets.SocketException })
+        {
+            Log.Debug($"Could not reach Arr instance `{client.Host}` for queue monitoring: {e.Message}");
+        }
         catch (Exception e)
         {
             Log.Error($"Error occured while monitoring queue for `{client.Host}`: {e.Message}");
