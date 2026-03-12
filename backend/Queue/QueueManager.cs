@@ -1,4 +1,4 @@
-﻿using NzbWebDAV.Clients.Usenet;
+using NzbWebDAV.Clients.Usenet;
 using NzbWebDAV.Config;
 using NzbWebDAV.Database;
 using NzbWebDAV.Database.Models;
@@ -85,15 +85,6 @@ public class QueueManager : IDisposable
                 await using var dbContext = new DavDatabaseContext();
                 var dbClient = new DavDatabaseClient(dbContext);
                 var topItem = await LockAsync(() => dbClient.GetTopQueueItem(ct)).ConfigureAwait(false);
-
-                // NZB blob is missing: fail the item immediately rather than blocking the queue forever.
-                if (topItem.queueItem is not null && topItem.queueNzbStream is null)
-                {
-                    await LockAsync(() => FailMissingNzbItemAsync(dbClient, topItem.queueItem, ct))
-                        .ConfigureAwait(false);
-                    continue;
-                }
-
                 if (topItem.queueItem is null)
                 {
                     try
@@ -122,15 +113,22 @@ public class QueueManager : IDisposable
                 using var cachingUsenetClient = new ArticleCachingNntpClient(_usenetClient);
 
                 // process the queue-item
-                await using var queueNzbStream = topItem.queueNzbStream;
-                using var queueItemCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                await LockAsync(() =>
+                try
                 {
-                    // ReSharper disable twice AccessToDisposedClosure
-                    _inProgressQueueItem = BeginProcessingQueueItem(dbClient, cachingUsenetClient,
-                        topItem.queueItem, queueNzbStream, queueItemCancellationTokenSource);
-                }).ConfigureAwait(false);
-                await (_inProgressQueueItem?.ProcessingTask ?? Task.CompletedTask).ConfigureAwait(false);
+                    using var queueItemCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                    await LockAsync(() =>
+                    {
+                        // ReSharper disable twice AccessToDisposedClosure
+                        _inProgressQueueItem = BeginProcessingQueueItem(dbClient, cachingUsenetClient,
+                            topItem.queueItem, topItem.queueNzbStream, queueItemCancellationTokenSource);
+                    }).ConfigureAwait(false);
+                    await (_inProgressQueueItem?.ProcessingTask ?? Task.CompletedTask).ConfigureAwait(false);
+                }
+                finally
+                {
+                    if (topItem.queueItem is not null)
+                        await topItem.queueNzbStream!.DisposeAsync();
+                }
             }
             catch (Exception e)
             {
@@ -143,36 +141,12 @@ public class QueueManager : IDisposable
         }
     }
 
-    private async Task FailMissingNzbItemAsync(DavDatabaseClient dbClient, QueueItem queueItem, CancellationToken ct)
-    {
-        const string error = "NZB blob missing: the NZB file could not be found in the blob store.";
-        Log.Error($"Failing queue item `{queueItem.JobName}` — {error}");
-        var historyItem = new HistoryItem
-        {
-            Id = queueItem.Id,
-            CreatedAt = DateTime.Now,
-            FileName = queueItem.FileName,
-            JobName = queueItem.JobName,
-            Category = queueItem.Category,
-            DownloadStatus = HistoryItem.DownloadStatusOption.Failed,
-            TotalSegmentBytes = queueItem.TotalSegmentBytes,
-            DownloadTimeSeconds = 0,
-            FailMessage = error,
-            DownloadDirId = null,
-            NzbBlobId = queueItem.Id,
-        };
-        dbClient.Ctx.QueueItems.Remove(queueItem);
-        dbClient.Ctx.HistoryItems.Add(historyItem);
-        await dbClient.Ctx.SaveChangesAsync(ct).ConfigureAwait(false);
-        _ = _websocketManager.SendMessage(WebsocketTopic.QueueItemRemoved, queueItem.Id.ToString());
-    }
-
     private InProgressQueueItem BeginProcessingQueueItem
     (
         DavDatabaseClient dbClient,
         INntpClient usenetClient,
         QueueItem queueItem,
-        Stream queueNzbStream,
+        Stream? queueNzbStream,
         CancellationTokenSource cts
     )
     {
