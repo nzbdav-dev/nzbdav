@@ -1,4 +1,4 @@
-﻿using NzbWebDAV.Clients.Usenet;
+using NzbWebDAV.Clients.Usenet;
 using NzbWebDAV.Config;
 using NzbWebDAV.Database;
 using NzbWebDAV.Database.Models;
@@ -85,7 +85,7 @@ public class QueueManager : IDisposable
                 await using var dbContext = new DavDatabaseContext();
                 var dbClient = new DavDatabaseClient(dbContext);
                 var topItem = await LockAsync(() => dbClient.GetTopQueueItem(ct)).ConfigureAwait(false);
-                if (topItem.queueItem is null || topItem.queueNzbStream is null)
+                if (topItem.queueItem is null)
                 {
                     try
                     {
@@ -113,15 +113,22 @@ public class QueueManager : IDisposable
                 using var cachingUsenetClient = new ArticleCachingNntpClient(_usenetClient);
 
                 // process the queue-item
-                await using var queueNzbStream = topItem.queueNzbStream;
-                using var queueItemCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                await LockAsync(() =>
+                try
                 {
-                    // ReSharper disable twice AccessToDisposedClosure
-                    _inProgressQueueItem = BeginProcessingQueueItem(dbClient, cachingUsenetClient,
-                        topItem.queueItem, queueNzbStream, queueItemCancellationTokenSource);
-                }).ConfigureAwait(false);
-                await (_inProgressQueueItem?.ProcessingTask ?? Task.CompletedTask).ConfigureAwait(false);
+                    using var queueItemCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                    await LockAsync(() =>
+                    {
+                        // ReSharper disable twice AccessToDisposedClosure
+                        _inProgressQueueItem = BeginProcessingQueueItem(dbClient, cachingUsenetClient,
+                            topItem.queueItem, topItem.queueNzbStream, queueItemCancellationTokenSource);
+                    }).ConfigureAwait(false);
+                    await (_inProgressQueueItem?.ProcessingTask ?? Task.CompletedTask).ConfigureAwait(false);
+                }
+                finally
+                {
+                    if (topItem.queueItem is not null)
+                        await topItem.queueNzbStream!.DisposeAsync();
+                }
             }
             catch (Exception e)
             {
@@ -139,7 +146,7 @@ public class QueueManager : IDisposable
         DavDatabaseClient dbClient,
         INntpClient usenetClient,
         QueueItem queueItem,
-        Stream queueNzbStream,
+        Stream? queueNzbStream,
         CancellationTokenSource cts
     )
     {
