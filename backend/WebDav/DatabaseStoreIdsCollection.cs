@@ -20,7 +20,7 @@ public class DatabaseStoreIdsCollection(
 {
     public override string Name => name;
     public override string UniqueKey => currentPath;
-    public override DateTime CreatedAt => default;
+    public override DateTime CreatedAt => DavItem.IdsFolder.CreatedAt;
 
     private const string Alphabet = "0123456789abcdef";
 

@@ -87,9 +87,14 @@ public class DavItem
     // static instances
     // Important: assigned values cannot be
     // changed without a database migration.
+    // Use a fixed epoch for static folder timestamps to avoid DateTime.MinValue (0001-01-01),
+    // which is not a valid HTTP date and breaks WebDAV clients (e.g., macOS mount_webdav).
+    private static readonly DateTime StaticFolderEpoch = new(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
     public static readonly DavItem Root = new()
     {
         Id = Guid.Parse("00000000-0000-0000-0000-000000000000"),
+        CreatedAt = StaticFolderEpoch,
         ParentId = null,
         Name = "/",
         FileSize = null,
@@ -101,6 +106,7 @@ public class DavItem
     public static readonly DavItem NzbFolder = new()
     {
         Id = Guid.Parse("00000000-0000-0000-0000-000000000001"),
+        CreatedAt = StaticFolderEpoch,
         ParentId = Root.Id,
         Name = "nzbs",
         FileSize = null,
@@ -112,6 +118,7 @@ public class DavItem
     public static readonly DavItem ContentFolder = new()
     {
         Id = Guid.Parse("00000000-0000-0000-0000-000000000002"),
+        CreatedAt = StaticFolderEpoch,
         ParentId = Root.Id,
         Name = "content",
         FileSize = null,
@@ -123,6 +130,7 @@ public class DavItem
     public static readonly DavItem SymlinkFolder = new()
     {
         Id = Guid.Parse("00000000-0000-0000-0000-000000000003"),
+        CreatedAt = StaticFolderEpoch,
         ParentId = Root.Id,
         Name = "completed-symlinks",
         FileSize = null,
@@ -134,6 +142,7 @@ public class DavItem
     public static readonly DavItem IdsFolder = new()
     {
         Id = Guid.Parse("00000000-0000-0000-0000-000000000004"),
+        CreatedAt = StaticFolderEpoch,
         ParentId = Root.Id,
         Name = ".ids",
         FileSize = null,
