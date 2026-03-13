@@ -2,7 +2,82 @@
   <img width="1101" height="238" alt="image" src="https://github.com/user-attachments/assets/b14165f4-24ff-4abe-8af6-3ca852e781d4" />
 </p>
 
-# Nzb Dav
+# Nzb Dav — Fork: `fix/webdav-datetime-minvalue`
+
+> **This is a fork** of [NzbDav](https://github.com/nzbdav/nzbdav) with WebDAV compatibility fixes.
+> Image: `ghcr.io/brandon-dacrib/nzbdav:fix-webdav-datetime-minvalue`
+
+## Why This Fork?
+
+The upstream NzbDav WebDAV endpoint has issues that break third-party clients like rclone and macOS `mount_webdav`. This fork adds a `WebDavCompatibilityMiddleware` that patches PROPFIND responses on the fly:
+
+1. **Absolute → relative hrefs** — NWebDav generates `http://host:port/path` hrefs; some clients expect relative paths.
+2. **Strip Set-Cookie headers** — Session cookies confuse stateless WebDAV clients (rclone, macOS Finder).
+3. **Remove 404 propstat blocks** — macOS `webdavfs_agent` fails when unsupported properties like `creationdate` return a 404 propstat.
+4. **Replace DateTime.MinValue dates** — Some collections return `Mon, 01 Jan 0001 00:00:00 GMT` (C# `DateTime.MinValue`) which is invalid per RFC 7231. Replaced with epoch (`Thu, 01 Jan 1970 00:00:00 GMT`).
+5. **Fix Set-Cookie stripping crash** — The original middleware tried to modify headers after the response had started on non-PROPFIND methods, crashing Kestrel. Fixed with `OnStarting` callback.
+6. **Dockerfile permissions** — Added `--chown=1000:1000` to `COPY` commands so the app runs correctly with `PUID`/`PGID` environment variables.
+
+## How to Use
+
+```yaml
+# docker-compose.yaml
+services:
+  nzbdav:
+    image: ghcr.io/brandon-dacrib/nzbdav:fix-webdav-datetime-minvalue
+    environment:
+      - DISABLE_WEBDAV_AUTH=true  # for LAN-only setups
+      - PUID=1000
+      - PGID=1000
+    volumes:
+      - ./appdata/nzbdav:/config
+      - /media/streams:/streams
+    ports:
+      - "3000:3000"   # Web UI
+      - "8080:8080"   # WebDAV endpoint
+```
+
+### Mounting with rclone
+
+Native macOS `mount_webdav` does not work reliably (opaque `webdavfs_agent` failures even with all fixes applied). Use rclone instead:
+
+```ini
+# ~/.config/rclone/rclone.conf
+[nzbdav]
+type = webdav
+url = http://<host>:8080/
+vendor = other
+```
+
+**rclone NFS mount (macOS, no FUSE needed):**
+```bash
+rclone serve nfs nzbdav: --addr 127.0.0.1:18049 --vfs-cache-mode full --read-only &
+sudo mount_nfs -o nfsvers=3,tcp,port=18049,mountport=18049,nolocks,noresvport 127.0.0.1:/ /Volumes/nzbdav
+```
+
+**K8s NFS PV (rclone on the Docker host):**
+```bash
+# On the Docker host, run rclone with host networking:
+rclone serve nfs nzbdav: --addr 0.0.0.0:12049 --vfs-cache-mode full --read-only
+```
+```yaml
+# K8s PersistentVolume
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: nzbdav-nfs
+spec:
+  capacity:
+    storage: 100Gi
+  accessModes: [ReadOnlyMany]
+  persistentVolumeReclaimPolicy: Retain
+  mountOptions: [port=12049, mountport=12049, nfsvers=3, tcp, nolock, soft]
+  nfs:
+    server: <docker-host-ip>
+    path: /
+```
+
+---
 
 NzbDav is a WebDAV server that allows you to mount and browse NZB documents as a virtual file system without downloading. It's designed to integrate with other media management tools, like Sonarr and Radarr, by providing a SABnzbd-compatible API. With it, you can build an infinite Plex or Jellyfin media library that streams directly from your usenet provider at maxed-out speeds, without using any storage space on your own server.
 
