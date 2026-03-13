@@ -77,6 +77,7 @@ class Program
 
         // initialize websocket-manager
         var websocketManager = new WebsocketManager();
+        var activeStreamTracker = new ActiveStreamTracker(websocketManager);
 
         // initialize webapp
         var builder = WebApplication.CreateBuilder(args);
@@ -89,6 +90,7 @@ class Program
             .AddWebdavBasicAuthentication(configManager)
             .AddSingleton(configManager)
             .AddSingleton(websocketManager)
+            .AddSingleton(activeStreamTracker)
             .AddSingleton<UsenetStreamingClient>()
             .AddSingleton<QueueManager>()
             .AddHostedService<HealthCheckService>()
