@@ -38,8 +38,12 @@ public partial class WebDavCompatibilityMiddleware(RequestDelegate next)
         // For non-PROPFIND WebDAV methods, just strip cookies and pass through
         if (!method.Equals("PROPFIND", StringComparison.OrdinalIgnoreCase))
         {
+            context.Response.OnStarting(() =>
+            {
+                context.Response.Headers.Remove("Set-Cookie");
+                return Task.CompletedTask;
+            });
             await next(context).ConfigureAwait(false);
-            context.Response.Headers.Remove("Set-Cookie");
             return;
         }
 
@@ -63,6 +67,12 @@ public partial class WebDavCompatibilityMiddleware(RequestDelegate next)
         // Fix 3: Remove 404 propstat blocks for unsupported properties (e.g., creationdate)
         responseBody = NotFoundPropstatPattern().Replace(responseBody, "");
 
+        // Fix 4: Replace DateTime.MinValue dates (year 0001) with a valid epoch date.
+        // Some DavItem instances return DateTime.MinValue for CreatedAt/ModifiedAt,
+        // producing "Mon, 01 Jan 0001 00:00:00 GMT" which is invalid per RFC 7231
+        // and breaks macOS webdavfs_agent.
+        responseBody = DateTimeMinValuePattern().Replace(responseBody, "Thu, 01 Jan 1970 00:00:00 GMT");
+
         // Write the modified response with correct Content-Length
         var modifiedBytes = Encoding.UTF8.GetBytes(responseBody);
         context.Response.ContentLength = modifiedBytes.Length;
@@ -75,4 +85,7 @@ public partial class WebDavCompatibilityMiddleware(RequestDelegate next)
 
     [GeneratedRegex(@"<D:propstat><D:prop>.*?</D:prop><D:status>HTTP/1\.1 404 Not Found</D:status>.*?</D:propstat>")]
     private static partial Regex NotFoundPropstatPattern();
+
+    [GeneratedRegex(@"\w{3}, 01 Jan 0001 00:00:00 GMT")]
+    private static partial Regex DateTimeMinValuePattern();
 }

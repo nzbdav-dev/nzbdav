@@ -32,13 +32,13 @@ RUN mkdir /config \
     && apk add --no-cache nodejs npm libc6-compat shadow su-exec bash curl
 
 # Copy frontend
-COPY --from=frontend-build /frontend/node_modules ./frontend/node_modules
-COPY --from=frontend-build /frontend/package.json ./frontend/package.json
-COPY --from=frontend-build /frontend/dist-node/server.js ./frontend/dist-node/server.js
-COPY --from=frontend-build /frontend/build ./frontend/build
+COPY --from=frontend-build --chown=1000:1000 /frontend/node_modules ./frontend/node_modules
+COPY --from=frontend-build --chown=1000:1000 /frontend/package.json ./frontend/package.json
+COPY --from=frontend-build --chown=1000:1000 /frontend/dist-node/server.js ./frontend/dist-node/server.js
+COPY --from=frontend-build --chown=1000:1000 /frontend/build ./frontend/build
 
 # Copy backend
-COPY --from=backend-build /backend/publish ./backend
+COPY --from=backend-build --chown=1000:1000 /backend/publish ./backend
 
 # Entry and runtime setup
 COPY entrypoint.sh /entrypoint.sh
