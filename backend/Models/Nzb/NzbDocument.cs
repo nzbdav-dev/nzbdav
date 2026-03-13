@@ -16,25 +16,32 @@ public class NzbDocument
 
     public static async Task<NzbDocument> LoadAsync(Stream stream)
     {
-        var document = new NzbDocument();
-        using var reader = XmlReader.Create(stream, XmlSettings);
-
-        while (await reader.ReadAsync().ConfigureAwait(false))
+        try
         {
-            if (reader.NodeType != XmlNodeType.Element) continue;
-            switch (reader.Name)
-            {
-                case "head":
-                    await ReadHeadAsync(reader, document.Metadata).ConfigureAwait(false);
-                    break;
-                case "file":
-                    var file = await ReadFileAsync(reader).ConfigureAwait(false);
-                    document.Files.Add(file);
-                    break;
-            }
-        }
+            var document = new NzbDocument();
+            using var reader = XmlReader.Create(stream, XmlSettings);
 
-        return document;
+            while (await reader.ReadAsync().ConfigureAwait(false))
+            {
+                if (reader.NodeType != XmlNodeType.Element) continue;
+                switch (reader.Name)
+                {
+                    case "head":
+                        await ReadHeadAsync(reader, document.Metadata).ConfigureAwait(false);
+                        break;
+                    case "file":
+                        var file = await ReadFileAsync(reader).ConfigureAwait(false);
+                        document.Files.Add(file);
+                        break;
+                }
+            }
+
+            return document;
+        }
+        catch (XmlException e)
+        {
+            throw new Exception("Could not parse the nzb document (malformed nzb)", e);
+        }
     }
 
     private static async Task ReadHeadAsync(XmlReader reader, Dictionary<string, string> metadata)
