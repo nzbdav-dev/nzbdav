@@ -38,7 +38,9 @@ export function LeftNavigation({ version, isFrontendAuthDisabled }: LeftNavigati
                     <div className={styles["github-icon"]} />
                 </div>
                 <div className={styles["footer-item"]}>
-                    changelog
+                    <Link to="https://github.com/nzbdav-dev/nzbdav/releases" className={styles["github-link"]}>
+                        changelog
+                    </Link>
                 </div>
                 <div className={styles["footer-item"]}>
                     version: {version || 'unknown'}

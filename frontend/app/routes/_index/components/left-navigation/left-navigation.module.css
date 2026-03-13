@@ -103,6 +103,7 @@
     flex-direction: row;
     gap: 5px;
     align-items: center;
+    word-break: break-all;
 }
 
 .github-link {
