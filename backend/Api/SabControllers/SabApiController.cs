@@ -7,6 +7,7 @@ using NzbWebDAV.Api.SabControllers.GetConfig;
 using NzbWebDAV.Api.SabControllers.GetFullStatus;
 using NzbWebDAV.Api.SabControllers.GetHistory;
 using NzbWebDAV.Api.SabControllers.GetQueue;
+using NzbWebDAV.Api.SabControllers.GetStatus;
 using NzbWebDAV.Api.SabControllers.GetVersion;
 using NzbWebDAV.Api.SabControllers.RemoveFromHistory;
 using NzbWebDAV.Api.SabControllers.RemoveFromQueue;
@@ -65,10 +66,13 @@ public class SabApiController(
 
     public BaseController GetController()
     {
-        switch (HttpContext.GetQueryParam("mode"))
+        switch (HttpContext.GetRequestParam("mode"))
         {
             case "version":
                 return new GetVersionController(
+                    HttpContext, configManager);
+            case "status":
+                return new GetStatusController(
                     HttpContext, configManager);
             case "get_cats":
                 return new GetCategoriesController(
