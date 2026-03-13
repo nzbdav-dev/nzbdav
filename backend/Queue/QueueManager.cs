@@ -126,7 +126,7 @@ public class QueueManager : IDisposable
                 }
                 finally
                 {
-                    if (topItem.queueItem is not null)
+                    if (topItem.queueNzbStream is not null)
                         await topItem.queueNzbStream!.DisposeAsync();
                 }
             }
