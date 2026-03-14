@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.6.2](https://github.com/nzbdav-dev/nzbdav/compare/v0.6.1...v0.6.2) (2026-03-14)
+
+
+### Bug Fixes
+
+* compatability issues with NZBDonkey ([#316](https://github.com/nzbdav-dev/nzbdav/issues/316)) ([b2d0f2a](https://github.com/nzbdav-dev/nzbdav/commit/b2d0f2a4c6b48cca688bdffb91ba1b71a3fb1b84))
+* downgrade unreachable Arr instance log level from Error to Debug ([#352](https://github.com/nzbdav-dev/nzbdav/issues/352)) ([90a03bf](https://github.com/nzbdav-dev/nzbdav/commit/90a03bf3e63a871b75d25ab109a6fcdd4689ffae))
+* ensure `audio/flac` content-type mapping for flac files. ([5253fe3](https://github.com/nzbdav-dev/nzbdav/commit/5253fe3f03cbc2889928c338b2096acc7b863a52))
+* fail queue items with missing nzb blobs instead of blocking queue ([#351](https://github.com/nzbdav-dev/nzbdav/issues/351)) ([a146d07](https://github.com/nzbdav-dev/nzbdav/commit/a146d07d8c62891993796b28ad358e41385dd02d))
+* improve error message for malformed nzbs. ([325252e](https://github.com/nzbdav-dev/nzbdav/commit/325252e65f910f36d0e52810ccb2fba0d1a50019))
+* typo when disposing queue nzb stream. ([3e44aae](https://github.com/nzbdav-dev/nzbdav/commit/3e44aaebd635f6dcd9949f1d6dcd80d61985cbb0))
+* update changelog link on ui leftnav-menu. ([14cd09d](https://github.com/nzbdav-dev/nzbdav/commit/14cd09d2a5f88438b79b46cc6b9c1200fedf0c16))
+
 ## [0.6.1](https://github.com/nzbdav-dev/nzbdav/compare/v0.6.0...v0.6.1) (2026-03-11)
 
 
