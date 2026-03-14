@@ -123,7 +123,7 @@ public class QueueItemProcessor(
 
         // step 0 -- perform article existence pre-check against cache
         // https://github.com/nzbdav-dev/nzbdav/issues/101
-        var articlesToPrecheck = nzbFiles.SelectMany(x => x.Segments).Select(x => x.MessageId);
+        var articlesToPrecheck = nzbFiles.SelectMany(x => x.GetSegmentIds());
         HealthCheckService.CheckCachedMissingSegmentIds(articlesToPrecheck);
 
         // step 1 -- get name and size of each nzb file

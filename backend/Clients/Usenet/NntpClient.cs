@@ -75,7 +75,7 @@ public abstract class NntpClient : INntpClient
 
     public virtual async Task<UsenetYencHeader> GetYencHeadersAsync(string segmentId, CancellationToken ct)
     {
-        var decodedBodyResponse = await DecodedBodyAsync(segmentId, ct).ConfigureAwait(false);
+        var decodedBodyResponse = await this.DecodedBodyWithFallbackAsync(segmentId, ct).ConfigureAwait(false);
         await using var stream = decodedBodyResponse.Stream;
         var headers = await stream.GetYencHeadersAsync(ct).ConfigureAwait(false);
         return headers!;
@@ -83,8 +83,9 @@ public abstract class NntpClient : INntpClient
 
     public virtual async Task<long> GetFileSizeAsync(NzbFile file, CancellationToken ct)
     {
-        if (file.Segments.Count == 0) return 0;
-        var headers = await GetYencHeadersAsync(file.Segments[^1].MessageId, ct).ConfigureAwait(false);
+        var segmentIds = file.GetSegmentIds();
+        if (segmentIds.Length == 0) return 0;
+        var headers = await GetYencHeadersAsync(segmentIds[^1], ct).ConfigureAwait(false);
         return headers!.PartOffset + headers!.PartSize;
     }
 
@@ -119,7 +120,11 @@ public abstract class NntpClient : INntpClient
         var tasks = segmentIds
             .Select(async segmentId => (
                 SegmentId: segmentId,
-                Result: await StatAsync(segmentId, token).ConfigureAwait(false)
+                Result: await NntpClientSegmentFallbackExtensions.WithFallbackAsync(
+                    segmentId,
+                    (candidateSegmentId, ct) => StatAsync(candidateSegmentId, ct),
+                    token
+                ).ConfigureAwait(false)
             ))
             .WithConcurrencyAsync(concurrency);
 
