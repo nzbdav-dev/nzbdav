@@ -8,7 +8,7 @@ namespace NzbWebDAV.Api.SabControllers.AddFile;
 public class AddFileRequest()
 {
     public string FileName { get; init; }
-    public string? MimeType { get; init; }
+    public string? ContentType { get; init; }
     public Stream NzbFileStream { get; init; }
     public string Category { get; init; }
     public QueueItem.PriorityOption Priority { get; init; }
@@ -26,7 +26,7 @@ public class AddFileRequest()
         return new AddFileRequest()
         {
             FileName = file.FileName,
-            MimeType = file.ContentType,
+            ContentType = file.ContentType,
             NzbFileStream = file.OpenReadStream(),
             Category = context.GetQueryParam("cat") ?? configManager.GetManualUploadCategory(),
             Priority = MapPriorityOption(context.GetQueryParam("priority")),

@@ -1,11 +1,11 @@
 ﻿using System.Text;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.StaticFiles;
 using NWebDav.Server.Stores;
 using NzbWebDAV.Config;
 using NzbWebDAV.Extensions;
 using NzbWebDAV.Par2Recovery;
+using NzbWebDAV.Utils;
 using NzbWebDAV.WebDav;
 
 namespace NzbWebDAV.Api.Controllers.GetWebdavItem;
@@ -14,8 +14,6 @@ namespace NzbWebDAV.Api.Controllers.GetWebdavItem;
 [Route("view/{*path}")]
 public class GetWebdavItemController(DatabaseStore store, ConfigManager configManager) : ControllerBase
 {
-    private static readonly FileExtensionContentTypeProvider MimeTypeProvider = new();
-
     private async Task<Stream> GetWebdavItem(GetWebdavItemRequest request)
     {
         var item = await store.GetItemAsync(request.Item, HttpContext.RequestAborted).ConfigureAwait(false);
@@ -103,8 +101,7 @@ public class GetWebdavItemController(DatabaseStore store, ConfigManager configMa
         return extension == ".mkv" ? "video/webm"
             : extension == ".rclonelink" ? "text/plain"
             : extension == ".nfo" ? "text/plain"
-            : MimeTypeProvider.TryGetContentType(Path.GetFileName(item), out var mimeType) ? mimeType
-            : "application/octet-stream";
+            : ContentTypeUtil.GetContentType(Path.GetFileName(item));
     }
 
     private static string GetContentDisposition(string filename, bool shouldDownload)
