@@ -1,4 +1,5 @@
 ﻿using System.Runtime.ExceptionServices;
+using NzbWebDAV.Clients.Usenet.Connections;
 using NzbWebDAV.Clients.Usenet.Models;
 using NzbWebDAV.Extensions;
 using NzbWebDAV.Models;
@@ -9,6 +10,7 @@ namespace NzbWebDAV.Clients.Usenet;
 
 public class MultiProviderNntpClient(List<MultiConnectionNntpClient> providers) : NntpClient
 {
+    private readonly ProviderCircuitBreaker _circuitBreaker = new();
     public override Task ConnectAsync(string host, int port, bool useSsl, CancellationToken ct)
     {
         throw new NotSupportedException("Please connect within the connectionFactory");
@@ -126,31 +128,56 @@ public class MultiProviderNntpClient(List<MultiConnectionNntpClient> providers) 
     {
         ExceptionDispatchInfo? lastException = null;
         var orderedProviders = GetOrderedProviders();
-        for (var i = 0; i < orderedProviders.Count; i++)
+
+        // First pass: skip circuit-broken providers
+        // Second pass (fallback): include circuit-broken providers so we never give up entirely
+        for (var pass = 0; pass < 2; pass++)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            var provider = orderedProviders[i];
-            var isLastProvider = i == orderedProviders.Count - 1;
-
-            if (lastException is not null)
+            for (var i = 0; i < orderedProviders.Count; i++)
             {
-                var msg = lastException.SourceException.Message;
-                Log.Debug($"Encountered error during NNTP Operation: `{msg}`. Trying another provider.");
-            }
+                cancellationToken.ThrowIfCancellationRequested();
+                var (provider, providerIndex) = orderedProviders[i];
+                var isLastProviderInLastPass = pass == 1 && i == orderedProviders.Count - 1;
 
-            try
-            {
-                var result = await task.Invoke(provider).ConfigureAwait(false);
-
-                // if no article with that message-id is found, try again with the next provider.
-                if (!isLastProvider && result.ResponseType == UsenetResponseType.NoArticleWithThatMessageId)
+                // First pass: skip providers with open circuits
+                if (pass == 0 && _circuitBreaker.IsOpen(providerIndex))
+                {
+                    Log.Debug("Skipping provider {ProviderIndex} (circuit breaker open).", providerIndex);
                     continue;
+                }
 
-                return result;
+                if (lastException is not null)
+                {
+                    var msg = lastException.SourceException.Message;
+                    Log.Debug($"Encountered error during NNTP Operation: `{msg}`. Trying another provider.");
+                }
+
+                try
+                {
+                    var result = await task.Invoke(provider).ConfigureAwait(false);
+
+                    _circuitBreaker.RecordSuccess(providerIndex);
+
+                    // if no article with that message-id is found, try again with the next provider.
+                    if (!isLastProviderInLastPass &&
+                        result.ResponseType == UsenetResponseType.NoArticleWithThatMessageId)
+                        continue;
+
+                    return result;
+                }
+                catch (Exception e) when (!e.IsCancellationException())
+                {
+                    _circuitBreaker.RecordFailure(providerIndex);
+                    lastException = ExceptionDispatchInfo.Capture(e);
+                }
             }
-            catch (Exception e) when (!e.IsCancellationException())
+
+            if (pass == 0)
             {
-                lastException = ExceptionDispatchInfo.Capture(e);
+                // Check if any providers were skipped — if not, no point in second pass
+                var anySkipped = orderedProviders.Any(p => _circuitBreaker.IsOpen(p.ProviderIndex));
+                if (!anySkipped)
+                    break;
             }
         }
 
@@ -158,12 +185,13 @@ public class MultiProviderNntpClient(List<MultiConnectionNntpClient> providers) 
         throw new Exception("There are no usenet providers configured.");
     }
 
-    private List<MultiConnectionNntpClient> GetOrderedProviders()
+    private List<(MultiConnectionNntpClient Provider, int ProviderIndex)> GetOrderedProviders()
     {
         return providers
-            .Where(x => x.ProviderType != ProviderType.Disabled)
-            .OrderBy(x => x.ProviderType)
-            .ThenByDescending(x => x.AvailableConnections)
+            .Select((provider, index) => (Provider: provider, ProviderIndex: index))
+            .Where(x => x.Provider.ProviderType != ProviderType.Disabled)
+            .OrderBy(x => x.Provider.ProviderType)
+            .ThenByDescending(x => x.Provider.AvailableConnections)
             .ToList();
     }
 
