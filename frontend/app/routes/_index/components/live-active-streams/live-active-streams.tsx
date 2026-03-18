@@ -55,7 +55,7 @@ export function LiveActiveStreams() {
             </div>
             <div className={styles.list}>
                 {streams.map((stream, i) => (
-                    <div key={i} className={styles.item}>
+                    <div key={i}>
                         <div className={styles.name} title={stream.Name}>{stream.Name}</div>
                         <div className={styles.stats}>
                             <span>{formatBytes(stream.Downloaded)}</span>
