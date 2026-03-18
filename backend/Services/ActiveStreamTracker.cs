@@ -9,23 +9,17 @@ public class ActiveStreamTracker(WebsocketManager websocketManager)
 {
     private readonly ConcurrentDictionary<string, StreamInfo> _streams = new();
 
-    public string Register(string fileKey, string fileName, long fileSize)
+    public string Register(string fileName, long fileSize)
     {
-        _streams.AddOrUpdate(
-            fileKey,
-            _ => new StreamInfo(fileName, fileSize),
-            (_, existing) =>
-            {
-                Interlocked.Increment(ref existing.RefCount);
-                return existing;
-            });
+        var streamId = Guid.NewGuid().ToString();
+        _streams.TryAdd(streamId, new StreamInfo(fileName, fileSize));
         Broadcast();
-        return fileKey;
+        return streamId;
     }
 
-    public void ReportProgress(string fileKey, long bytesRead)
+    public void ReportProgress(string streamId, long bytesRead)
     {
-        if (!_streams.TryGetValue(fileKey, out var info)) return;
+        if (!_streams.TryGetValue(streamId, out var info)) return;
         Interlocked.Add(ref info.BytesDownloaded, bytesRead);
 
         var now = Stopwatch.GetTimestamp();
@@ -35,11 +29,9 @@ public class ActiveStreamTracker(WebsocketManager websocketManager)
         Broadcast();
     }
 
-    public void Unregister(string fileKey)
+    public void Unregister(string streamId)
     {
-        if (!_streams.TryGetValue(fileKey, out var info)) return;
-        if (Interlocked.Decrement(ref info.RefCount) <= 0)
-            _streams.TryRemove(fileKey, out _);
+        _streams.TryRemove(streamId, out _);
         Broadcast();
     }
 
@@ -60,7 +52,6 @@ public class ActiveStreamTracker(WebsocketManager websocketManager)
         public string FileName { get; } = fileName;
         public long FileSize { get; } = fileSize;
         public long BytesDownloaded;
-        public int RefCount = 1;
         public long LastBroadcast = Stopwatch.GetTimestamp();
     }
 

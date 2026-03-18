@@ -22,10 +22,9 @@ public abstract class BaseStoreStreamFile(HttpContext context) : BaseStoreReadon
 
         var tracker = context.RequestServices.GetRequiredService<ActiveStreamTracker>();
         var davItem = context.Items["DavItem"] as DavItem;
-        var fileKey = davItem?.Id.ToString() ?? UniqueKey;
         var fileName = davItem?.Name ?? Name;
         var fileSize = davItem?.FileSize ?? FileSize;
-        var streamId = tracker.Register(fileKey, fileName, fileSize);
+        var streamId = tracker.Register(fileName, fileSize);
         var trackingStream = new ProgressTrackingStream(stream, streamId, tracker);
 
         context.Response.OnCompleted(() =>
