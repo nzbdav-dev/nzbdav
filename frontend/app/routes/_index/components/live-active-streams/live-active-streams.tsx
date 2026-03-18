@@ -7,8 +7,8 @@ const activeStreamsTopic = {'as': 'state'};
 
 type StreamEntry = {
     Name: string;
-    Size: number;
     Downloaded: number;
+    Speed: number;
 };
 
 function formatBytes(bytes: number): string {
@@ -54,23 +54,15 @@ export function LiveActiveStreams() {
                 <div className={styles.count}>{streams.length}</div>
             </div>
             <div className={styles.list}>
-                {streams.map((stream, i) => {
-                    const percent = stream.Size > 0
-                        ? Math.min(100, 100 * stream.Downloaded / stream.Size)
-                        : 0;
-                    return (
-                        <div key={i} className={styles.item}>
-                            <div className={styles.name} title={stream.Name}>{stream.Name}</div>
-                            <div className={styles.progressBar}>
-                                <div className={styles.progressFill} style={{ width: `${percent}%` }} />
-                            </div>
-                            <div className={styles.stats}>
-                                <span>{formatBytes(stream.Downloaded)} / {formatBytes(stream.Size)}</span>
-                                <span>{percent.toFixed(0)}%</span>
-                            </div>
+                {streams.map((stream, i) => (
+                    <div key={i} className={styles.item}>
+                        <div className={styles.name} title={stream.Name}>{stream.Name}</div>
+                        <div className={styles.stats}>
+                            <span>{formatBytes(stream.Downloaded)}</span>
+                            <span>{formatBytes(stream.Speed)}/s</span>
                         </div>
-                    );
-                })}
+                    </div>
+                ))}
             </div>
         </div>
     );

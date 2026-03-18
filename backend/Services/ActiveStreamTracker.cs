@@ -9,10 +9,10 @@ public class ActiveStreamTracker(WebsocketManager websocketManager)
 {
     private readonly ConcurrentDictionary<string, StreamInfo> _streams = new();
 
-    public string Register(string fileName, long fileSize)
+    public string Register(string fileName)
     {
         var streamId = Guid.NewGuid().ToString();
-        _streams.TryAdd(streamId, new StreamInfo(fileName, fileSize));
+        _streams.TryAdd(streamId, new StreamInfo(fileName));
         Broadcast();
         return streamId;
     }
@@ -20,12 +20,15 @@ public class ActiveStreamTracker(WebsocketManager websocketManager)
     public void ReportProgress(string streamId, long bytesRead)
     {
         if (!_streams.TryGetValue(streamId, out var info)) return;
-        Interlocked.Add(ref info.BytesDownloaded, bytesRead);
+        var totalBytes = Interlocked.Add(ref info.BytesDownloaded, bytesRead);
 
         var now = Stopwatch.GetTimestamp();
         var elapsed = Stopwatch.GetElapsedTime(info.LastBroadcast, now);
         if (elapsed.TotalMilliseconds < 500) return;
+
+        var prevBytes = Interlocked.Exchange(ref info.LastBroadcastBytes, totalBytes);
         info.LastBroadcast = now;
+        info.Speed = (long)((totalBytes - prevBytes) / elapsed.TotalSeconds);
         Broadcast();
     }
 
@@ -40,25 +43,26 @@ public class ActiveStreamTracker(WebsocketManager websocketManager)
         var entries = _streams.Values.Select(s => new StreamEntry
         {
             Name = s.FileName,
-            Size = s.FileSize,
             Downloaded = Interlocked.Read(ref s.BytesDownloaded),
+            Speed = s.Speed,
         }).ToArray();
         var message = JsonSerializer.Serialize(entries);
         websocketManager.SendMessage(WebsocketTopic.ActiveStreams, message);
     }
 
-    private class StreamInfo(string fileName, long fileSize)
+    private class StreamInfo(string fileName)
     {
         public string FileName { get; } = fileName;
-        public long FileSize { get; } = fileSize;
         public long BytesDownloaded;
+        public long LastBroadcastBytes;
         public long LastBroadcast = Stopwatch.GetTimestamp();
+        public long Speed;
     }
 
     private struct StreamEntry
     {
         public string Name { get; set; }
-        public long Size { get; set; }
         public long Downloaded { get; set; }
+        public long Speed { get; set; }
     }
 }

@@ -38,21 +38,7 @@
 .name {
     font-size: 12px;
     word-break: break-all;
-}
-
-.progressBar {
-    height: 3px;
-    border-radius: 2px;
-    background-color: rgba(147, 161, 161, 0.15);
     margin-bottom: 4px;
-    overflow: hidden;
-}
-
-.progressFill {
-    height: 100%;
-    border-radius: 2px;
-    background-color: #2ecc71;
-    transition: width 0.4s ease;
 }
 
 .stats {
