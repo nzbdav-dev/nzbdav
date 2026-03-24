@@ -65,11 +65,22 @@ If you'd like to get the most out of NzbDav, check out the [comprehensive guide]
 * **Integrations:** Automating Radarr/Sonarr queue management and repairs.
 * **Stremio:** Streaming Usenet directly via AIOStreams.
 
-# More screenshots
+# More Screenshots
 <img width="300" alt="onboarding" src="https://github.com/user-attachments/assets/4ca1bfed-3b98-4ff2-8108-59ed07a25591" />
 <img width="300" alt="queue and history" src="https://github.com/user-attachments/assets/912c0f02-e44e-49ea-b4c7-8a1a106e8a01" />
 <img width="300" alt="dav-explorer" src="https://github.com/user-attachments/assets/54a1d49b-8a8d-4306-bcda-9740bd5c9f52" />
 <img width="300" alt="health-page" src="https://github.com/user-attachments/assets/7815acb9-6696-49c3-88d6-ea673b52da1c" />
+
+# Special Thanks
+
+* Many thanks to [@g0ldyy](https://github.com/g0ldyy), who kindly reported an auth-bypass vulnerability in nzbdav on 2026-03-17.
+  * The vulnerability affected versions 0.2.46 through 0.6.1
+  * The dockerhub and ghcr images for these versions have since been patched, rebuilt, and republished as of 2026-03-18.
+  * Simply **repull whichever image tag you are using to ensure your instance is patched.**
+  * To confirm a patched version is running, look for a `+260317` suffix on the version displayed in nzbdav ui (example image below)
+  * This is especially important if your instance is public facing and not behind vpn/sso.
+  <img width="253" height="179" alt="image" src="https://github.com/user-attachments/assets/65cbd7c7-c27d-44f4-ba60-23ca540040d9" />
+
 
 -------
 
