@@ -10,8 +10,8 @@
     "typecheck": "react-router typegen && tsc -b"
   },
   "dependencies": {
-    "@react-router/express": "^7.13.1",
-    "@react-router/fs-routes": "^7.13.1",
+    "@react-router/express": "^7.13.2",
+    "@react-router/fs-routes": "^7.13.2",
     "@react-router/node": "^7.5.3",
     "bootstrap": "^5.3.8",
     "compression": "^1.7.5",
