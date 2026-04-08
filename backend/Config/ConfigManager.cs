@@ -276,6 +276,18 @@ public class ConfigManager
         return (configValue != null ? bool.Parse(configValue) : defaultValue);
     }
 
+    public bool IsNzbBackupEnabled()
+    {
+        var defaultValue = false;
+        var configValue = StringUtil.EmptyToNull(GetConfigValue("api.nzb-backup-enabled"));
+        return (configValue != null ? bool.Parse(configValue) : defaultValue);
+    }
+
+    public string? GetNzbBackupLocation()
+    {
+        return StringUtil.EmptyToNull(GetConfigValue("api.nzb-backup-location"));
+    }
+
     public class ConfigEventArgs : EventArgs
     {
         public required Dictionary<string, string> ChangedConfig { get; init; }
