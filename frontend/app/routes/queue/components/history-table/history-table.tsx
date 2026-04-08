@@ -152,7 +152,8 @@ export function HistoryRow({ slot, onIsSelectedChanged, onIsRemovingChanged, onR
                 show={isConfirmingRemoval}
                 title="Remove From History?"
                 message={slot.nzb_name}
-                checkboxMessage="Delete mounted files"
+                checkboxMessage={!slot.fail_message ? "Delete mounted files" : undefined}
+                errorMessage={slot.fail_message}
                 onConfirm={onConfirmRemoval}
                 onCancel={onCancelRemoval} />
         </>
