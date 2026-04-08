@@ -59,3 +59,8 @@ updates:
     commit-message:
       prefix: "fix(deps)"
     open-pull-requests-limit: 15
+    groups:
+      dotnet:
+        patterns:
+          - "Microsoft.AspNetCore.*"
+          - "Microsoft.EntityFrameworkCore.*"
