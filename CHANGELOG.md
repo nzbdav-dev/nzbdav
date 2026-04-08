@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.6.4](https://github.com/nzbdav-dev/nzbdav/compare/v0.6.3...v0.6.4) (2026-04-08)
+
+
+### Bug Fixes
+
+* **deps:** bump @types/node from 25.4.0 to 25.5.0 in /frontend ([#381](https://github.com/nzbdav-dev/nzbdav/issues/381)) ([680e80d](https://github.com/nzbdav-dev/nzbdav/commit/680e80df44d4a86a6c896e25c54762159fd69741))
+* **deps:** bump isbot from 5.1.36 to 5.1.37 in /frontend ([#379](https://github.com/nzbdav-dev/nzbdav/issues/379)) ([b054f42](https://github.com/nzbdav-dev/nzbdav/commit/b054f42a8e2b715f94995b5e37763f8c0d9651f7))
+* **deps:** Bump the dotnet group with 3 updates ([#395](https://github.com/nzbdav-dev/nzbdav/issues/395)) ([aae1e43](https://github.com/nzbdav-dev/nzbdav/commit/aae1e4367bb70f7a0a517779f453680c1e06c2bb))
+* **deps:** bump the react group in /frontend with 2 updates ([#394](https://github.com/nzbdav-dev/nzbdav/issues/394)) ([5ce46bc](https://github.com/nzbdav-dev/nzbdav/commit/5ce46bc74b0cf671a91987f92aca96c5830d4615))
+* **deps:** bump the react-router group in /frontend with 5 updates ([#372](https://github.com/nzbdav-dev/nzbdav/issues/372)) ([27d4cea](https://github.com/nzbdav-dev/nzbdav/commit/27d4cea5790d92bc6f965e3dfdb3c50f9dad207a))
+* **deps:** bump the tailwindcss group in /frontend with 2 updates ([#374](https://github.com/nzbdav-dev/nzbdav/issues/374)) ([2f1c0f8](https://github.com/nzbdav-dev/nzbdav/commit/2f1c0f8bf480d7d49dfdadcafba47e7e6f7ce948))
+* **deps:** bump vite from 7.3.1 to 8.0.3 in /frontend in the vite group ([#375](https://github.com/nzbdav-dev/nzbdav/issues/375)) ([2efc0c2](https://github.com/nzbdav-dev/nzbdav/commit/2efc0c24ae2672afe5644a0186dbc1ebad710419))
+* **deps:** bump ws from 8.19.0 to 8.20.0 in /frontend ([#380](https://github.com/nzbdav-dev/nzbdav/issues/380)) ([cb42d73](https://github.com/nzbdav-dev/nzbdav/commit/cb42d73124d528b57addc70d542f562ca16d8496))
+
 ## [0.6.3](https://github.com/nzbdav-dev/nzbdav/compare/v0.6.2...v0.6.3) (2026-04-08)
 
 
