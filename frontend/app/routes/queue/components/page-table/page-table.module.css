@@ -71,7 +71,7 @@
         border: none;
         background-color: unset;
         border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        padding: 12px 0;
+        padding: 12px 5px;
         vertical-align: middle;
         text-align: center;
         max-width: 200px;
