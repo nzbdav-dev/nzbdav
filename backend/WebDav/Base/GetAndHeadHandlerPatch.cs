@@ -111,11 +111,20 @@ public class GetAndHeadHandlerPatch : IRequestHandler
                         if (range != null)
                         {
                             var start = range.Start ?? 0;
-                            var end = Math.Min(range.End ?? long.MaxValue, length-1);
+                            var end = Math.Min(range.End ?? long.MaxValue, length - 1);
+
+                            // Return 416 if the range start is beyond the end of the file
+                            if (start > end)
+                            {
+                                response.Headers.ContentRange = $"bytes */{stream.Length}";
+                                response.SetStatus((DavStatusCode)416);
+                                return true;
+                            }
+
                             length = end - start + 1;
 
                             // Write the range
-                            response.Headers.ContentRange = $"bytes {start}-{end} / {stream.Length}";
+                            response.Headers.ContentRange = $"bytes {start}-{end}/{stream.Length}";
 
                             // Set status to partial result if not all data can be sent
                             if (length < stream.Length)
