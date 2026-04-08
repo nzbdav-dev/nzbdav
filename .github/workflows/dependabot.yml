@@ -1,11 +1,9 @@
-name: "Deploy Pre-Release/Dev"
+name: "Deploy Dependabot Images"
 
 on:
   push:
     branches:
-      - '**'
-      - '!main'
-      - '!dependabot/**'
+      - 'dependabot/**'
 
   workflow_dispatch:
 
@@ -44,7 +42,7 @@ jobs:
             | sed -E 's#(^-+|-+$)##g')
           echo "DOCKER_TAG: $DOCKER_TAG"
           echo "NZBDAV_VERSION=${{ github.ref_name }}" >> $GITHUB_OUTPUT
-          GHCR_REPO="ghcr.io/${{ github.repository }}"
+          GHCR_REPO="ghcr.io/${{ github.repository }}-dependabot"
           echo "TAGS=${GHCR_REPO}:${DOCKER_TAG}" >> $GITHUB_OUTPUT
 
       - name: Build and push Docker image (amd64 + arm64)
