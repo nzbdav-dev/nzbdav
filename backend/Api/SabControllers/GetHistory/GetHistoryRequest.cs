@@ -15,11 +15,11 @@ public class GetHistoryRequest
 
     public GetHistoryRequest(HttpContext context, ConfigManager configManager)
     {
-        var startParam = context.GetQueryParam("start");
-        var limitParam = context.GetQueryParam("limit");
-        var pageSizeParam = context.GetQueryParam("pageSize");
-        var nzoIdsParam = context.GetQueryParam("nzo_ids");
-        Category = context.GetQueryParam("category");
+        var startParam = context.GetRequestParam("start");
+        var limitParam = context.GetRequestParam("limit");
+        var pageSizeParam = context.GetRequestParam("pageSize");
+        var nzoIdsParam = context.GetRequestParam("nzo_ids");
+        Category = context.GetRequestParam("category");
         CancellationToken = context.RequestAborted;
 
         if (startParam is not null)
