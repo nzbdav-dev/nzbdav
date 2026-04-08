@@ -225,6 +225,32 @@ export function SabnzbdSettings({ config, setNewConfig, appVersion }: SabnzbdSet
                     <a href="https://github.com/Sonarr/Sonarr/issues/5452">See here</a>.
                 </Form.Text>
             </Form.Group>
+            <hr />
+            <Form.Group>
+                <Form.Check
+                    className={styles.input}
+                    type="checkbox"
+                    id="nzb-backup-enabled-checkbox"
+                    aria-describedby="nzb-backup-location-help"
+                    label={`Save backup copies of incoming NZBs`}
+                    checked={config["api.nzb-backup-enabled"] === "true"}
+                    onChange={e => setNewConfig({ ...config, "api.nzb-backup-enabled": "" + e.target.checked })} />
+                <Form.Control
+                    className={styles.input}
+                    style={{ marginTop: '15px' }}
+                    type="text"
+                    id="nzb-backup-location-input"
+                    aria-describedby="nzb-backup-location-help"
+                    placeholder="/data/nzb-backups"
+                    value={config["api.nzb-backup-location"]}
+                    disabled={config["api.nzb-backup-enabled"] !== "true"}
+                    isInvalid={!isValidNzbBackupLocation(config)}
+                    onChange={e => setNewConfig({ ...config, "api.nzb-backup-location": e.target.value })} />
+                <Form.Text id="nzb-backup-location-help" muted>
+                    When enabled, a copy of each incoming NZB will be saved to this directory, organized by category.
+                    The directory will be created if it doesn't already exist.
+                </Form.Text>
+            </Form.Group>
         </div>
     );
 }
@@ -299,10 +325,13 @@ export function isSabnzbdSettingsUpdated(config: Record<string, string>, newConf
         || config["api.completed-downloads-dir"] !== newConfig["api.completed-downloads-dir"]
         || config["general.base-url"] !== newConfig["general.base-url"]
         || config["api.user-agent"] !== newConfig["api.user-agent"]
+        || config["api.nzb-backup-enabled"] !== newConfig["api.nzb-backup-enabled"]
+        || config["api.nzb-backup-location"] !== newConfig["api.nzb-backup-location"]
 }
 
 export function isSabnzbdSettingsValid(newConfig: Record<string, string>) {
-    return isValidCategories(newConfig["api.categories"]);
+    return isValidCategories(newConfig["api.categories"])
+        && isValidNzbBackupLocation(newConfig);
 }
 
 export function generateNewApiKey(): string {
@@ -313,6 +342,11 @@ function isValidCategories(categories: string): boolean {
     if (categories === "") return true;
     var parts = categories.split(",");
     return parts.map(x => x.trim()).every(x => isAlphaNumericWithDashes(x));
+}
+
+function isValidNzbBackupLocation(config: Record<string, string>) {
+    return config["api.nzb-backup-enabled"] !== "true"
+        || !!config["api.nzb-backup-location"]?.trim();
 }
 
 function isAlphaNumericWithDashes(input: string): boolean {

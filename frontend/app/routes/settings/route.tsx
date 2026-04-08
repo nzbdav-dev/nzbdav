@@ -44,6 +44,8 @@ const defaultConfig = {
     "arr.instances": "{\"RadarrInstances\":[],\"SonarrInstances\":[],\"QueueRules\":[]}",
     "repair.enable": "false",
     "db.is-startup-vacuum-enabled": "false",
+    "api.nzb-backup-enabled": "false",
+    "api.nzb-backup-location": "",
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
