@@ -263,7 +263,7 @@ public sealed class DavDatabaseContext() : DbContext(Options.Value)
             e.Property(i => i.JobName)
                 .IsRequired();
 
-            e.HasIndex(i => new { i.FileName })
+            e.HasIndex(i => new { i.Category, i.FileName })
                 .IsUnique();
 
             e.HasIndex(i => new { i.Priority })
