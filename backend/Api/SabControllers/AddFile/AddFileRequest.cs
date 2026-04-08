@@ -28,9 +28,9 @@ public class AddFileRequest()
             FileName = file.FileName,
             ContentType = file.ContentType,
             NzbFileStream = file.OpenReadStream(),
-            Category = context.GetQueryParam("cat") ?? configManager.GetManualUploadCategory(),
-            Priority = MapPriorityOption(context.GetQueryParam("priority")),
-            PostProcessing = MapPostProcessingOption(context.GetQueryParam("pp")),
+            Category = context.GetRequestParam("cat") ?? configManager.GetManualUploadCategory(),
+            Priority = MapPriorityOption(context.GetRequestParam("priority")),
+            PostProcessing = MapPostProcessingOption(context.GetRequestParam("pp")),
             CancellationToken = context.RequestAborted
         };
     }

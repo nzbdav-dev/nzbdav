@@ -30,7 +30,7 @@ public class RemoveFromHistoryRequest
             NzoIds = NzoIdsFromQueryParam(httpContext)
                 .Concat(await NzoIdsFromRequestBody(httpContext, cancellationToken).ConfigureAwait(false))
                 .ToList(),
-            DeleteCompletedFiles = httpContext.GetQueryParam("del_completed_files") == "1",
+            DeleteCompletedFiles = httpContext.GetRequestParam("del_completed_files") == "1",
             CancellationToken = cancellationToken
         };
     }

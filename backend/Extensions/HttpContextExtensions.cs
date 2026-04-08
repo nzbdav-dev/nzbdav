@@ -18,7 +18,9 @@ public static class HttpContextExtensions
 
     public static string? GetFormParam(this HttpContext httpContext, string name)
     {
-        return StringUtil.EmptyToNull(httpContext.Request.Form[name].FirstOrDefault());
+        return httpContext.Request.HasFormContentType
+            ? StringUtil.EmptyToNull(httpContext.Request.Form[name].FirstOrDefault())
+            : null;
     }
 
     public static IEnumerable<string> GetQueryParamValues(this HttpContext httpContext, string name)
