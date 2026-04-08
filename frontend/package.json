@@ -31,7 +31,7 @@
   },
   "devDependencies": {
     "@react-router/dev": "^7.5.3",
-    "@tailwindcss/vite": "^4.2.1",
+    "@tailwindcss/vite": "^4.2.2",
     "@types/compression": "^1.7.5",
     "@types/express": "^5.0.6",
     "@types/express-serve-static-core": "^5.1.1",
