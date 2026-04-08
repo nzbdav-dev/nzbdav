@@ -1,25 +1,31 @@
-import { Button } from "react-bootstrap";
 import styles from "./action-button.module.css";
 import type { ReactNode } from "react";
+import { classNames } from "~/utils/styling";
 
 export type ActionButtonProps = {
-    type: "delete" | "explore",
+    type: "delete" | "explore" | "menu",
     text?: string,
     disabled?: boolean,
-    onClick?: () => void,
+    selected?: boolean,
+    onClick?: (e: React.MouseEvent) => void,
 }
 
-export function ActionButton({ type, text, disabled, onClick }: ActionButtonProps) {
-    const variant = type === "delete" ? "outline-danger" : "outline-warning";
+export function ActionButton({ type, text, disabled, selected, onClick }: ActionButtonProps): ReactNode {
+    const classes = classNames([
+        styles["action-button"],
+        styles[type],
+        selected && styles.selected
+    ]);
+
     return (
-        <Button
-            className={styles["action-button"]}
-            variant={variant} onClick={onClick}
-            disabled={disabled}>
-            {type === "delete" && <TrashIcon />}
-            {type === "explore" && <DirectoryIcon />}
-            {text && <div className={styles.text}>{text}</div>}
-        </Button>
+        <div className={disabled ? styles["disabled"] : undefined}>
+            <div className={classes} onClick={onClick}>
+                {type === "delete" && <TrashIcon />}
+                {type === "explore" && <DirectoryIcon />}
+                {type === "menu" && "⋯"}
+                {text && <div className={styles.text}>{text}</div>}
+            </div>
+        </div>
     )
 }
 

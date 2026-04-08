@@ -52,9 +52,9 @@ export function ExportNzb(): ReactNode {
     );
 }
 
-export function Delete(): ReactNode {
+export function Remove(): ReactNode {
     return (
-        <><TrashIcon /> Delete</>
+        <><TrashIcon /> Remove</>
     );
 }
 

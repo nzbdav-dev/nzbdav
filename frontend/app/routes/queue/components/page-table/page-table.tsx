@@ -17,7 +17,7 @@ export type PageTableProps = {
 export function PageTable({ children, headerCheckboxState, onHeaderCheckboxChange, footer }: PageTableProps) {
     return (
         <div className={styles.tableContainer}>
-            <Table className={styles.table} responsive>
+            <Table className={styles.table}>
                 <thead>
                     <tr>
                         <th>

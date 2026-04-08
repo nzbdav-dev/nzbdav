@@ -261,6 +261,7 @@ export type HistorySlot = {
     storage: string,
     download_time: number,
     fail_message: string,
+    nzb_blob_id?: string,
 }
 
 export type DirectoryItem = {

@@ -14,6 +14,11 @@
 
 .option {
     display: block;
+
+    a {
+        text-decoration: inherit;
+        color: inherit;
+    }
 }
 
 .optionButton {
@@ -31,7 +36,13 @@
 
 .optionButton:hover,
 .optionButton:focus-visible {
-    background-color: #002b36;
+    background-color: hsla(192, 100%, 40%, 0.2);
     color: white;
     outline: none;
+}
+
+
+.optionButton.danger:hover,
+.optionButton.danger:focus-visible {
+    background-color: hsla(0, 100%, 70%, 0.4);
 }

@@ -7,32 +7,111 @@
     flex-direction: row;
     gap: 5px;
     align-items: center;
+    justify-content: center;
+    border: 1px solid white;
+    border-radius: .375rem;
 
     &:hover {
-        .trash-icon {
-            fill: white;
+        cursor: pointer;
+    }
+}
+
+.disabled {
+    cursor: not-allowed;
+
+    .action-button {
+        pointer-events: none;
+    }
+}
+
+.explore {
+    border-color: #ffc107;
+
+    .directory-icon {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        fill: #adb8b8;
+    }
+
+    @media not (pointer: coarse),
+    (min-width: 900px) {
+        &:hover {
+            background-color: #ffc107;
+
+            .directory-icon {
+                fill: white;
+                filter: drop-shadow(0 0 8px black);
+            }
         }
+    }
+
+    &:active {
+        background-color: #f0b607;
 
         .directory-icon {
             fill: white;
+            filter: drop-shadow(0 0 8px black);
         }
     }
 }
 
-.trash-icon {
-    display: inline-block;
-    width: calc(22/24 * 16px);
-    height: 16px;
-    fill: #adb8b8;
+.menu {
+    border-color: hsl(192, 100%, 20%);
+    font-size: 16px;
+    user-select: none;
+    width: 30px;
+
+    @media not (pointer: coarse),
+    (min-width: 900px) {
+        &:hover {
+            background-color: hsl(192, 100%, 14%);
+            color: white;
+            text-shadow: 0 0 2px black;
+        }
+    }
+
+    &:active {
+        background-color: hsl(192, 100%, 13%);
+        color: white;
+        text-shadow: 0 0 2px black;
+    }
 }
 
-.directory-icon {
-    display: inline-block;
-    width: 16px;
-    height: 16px;
-    fill: #adb8b8;
+.menu.selected {
+    background-color: hsl(192, 100%, 14%);
+    color: white;
+    text-shadow: 0 0 2px black;
 }
 
-.text {
-    /* color: #adb8b8; */
+.delete {
+    border-color: #dc3545;
+
+    .trash-icon {
+        display: inline-block;
+        width: calc(22/24 * 16px);
+        height: 16px;
+        fill: #adb8b8;
+    }
+
+    @media not (pointer: coarse),
+    (min-width: 900px) {
+        &:hover {
+            background-color: #dc3545;
+
+            .trash-icon {
+                fill: white;
+                filter: drop-shadow(0 0 3px black);
+            }
+        }
+    }
+
+    &:active {
+        background-color: #c93140;
+
+        .trash-icon {
+            fill: white;
+            filter: drop-shadow(0 0 3px black);
+        }
+    }
 }

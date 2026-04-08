@@ -8,6 +8,8 @@ import { getLeafDirectoryName } from "~/utils/path"
 import { PageRow, PageTable } from "../page-table/page-table"
 import styles from "../../route.module.css"
 import { PageSection } from "../page-section/page-section"
+import { DropdownOptions } from "~/routes/explore/dropdown-options/dropdown-options"
+import { ExportNzb, Remove } from "~/routes/explore/item-menu/item-menu"
 
 export type HistoryTableProps = {
     historySlots: PresentationHistorySlot[],
@@ -158,14 +160,31 @@ export function HistoryRow({ slot, onIsSelectedChanged, onIsRemovingChanged, onR
 }
 
 export function Actions({ slot, onRemove }: { slot: PresentationHistorySlot, onRemove: () => void }) {
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+
     // determine explore action link url
     var downloadFolder = slot.storage && getLeafDirectoryName(slot.storage);
     const encodedCategory = downloadFolder && encodeURIComponent(slot.category);
     const encodedDownloadFolder = downloadFolder && encodeURIComponent(downloadFolder);
     var folderLink = downloadFolder && `/explore/content/${encodedCategory}/${encodedDownloadFolder}`;
 
+    // determine nzb download URL
+    var nzbDownloadUrl = slot.nzb_blob_id
+        ? `/api/download-nzb?nzbBlobId=${slot.nzb_blob_id}`
+        : null;
+
     // determine whether explore action should be disabled
     var isFolderDisabled = !downloadFolder || !!slot.isRemoving || !!slot.fail_message;
+
+    const onMenuClick = useCallback((e: React.MouseEvent) => {
+        e.stopPropagation();
+        setIsMenuOpen(x => !x);
+    }, []);
+
+    const onRemoveSelected = useCallback(() => {
+        setIsMenuOpen(false);
+        onRemove?.();
+    }, [onRemove]);
 
     return (
         <>
@@ -177,7 +196,21 @@ export function Actions({ slot, onRemove }: { slot: PresentationHistorySlot, onR
             {isFolderDisabled &&
                 <ActionButton type="explore" disabled />
             }
-            <ActionButton type="delete" disabled={!!slot.isRemoving} onClick={onRemove} />
+            <div style={{ position: "relative" }}>
+                <ActionButton
+                    type="menu"
+                    disabled={!!slot.isRemoving}
+                    selected={isMenuOpen}
+                    onClick={onMenuClick} />
+                <DropdownOptions
+                    style={{ marginTop: "5px" }}
+                    isOpen={isMenuOpen}
+                    onClose={() => setIsMenuOpen(false)}
+                    options={[
+                        !!nzbDownloadUrl ? { option: <ExportNzb />, linkTo: nzbDownloadUrl } : undefined,
+                        { option: <Remove />, onSelect: onRemoveSelected, variant: "danger" },
+                    ]} />
+            </div>
         </>
     );
 }

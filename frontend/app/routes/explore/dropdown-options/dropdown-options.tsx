@@ -1,8 +1,10 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
 import styles from "./dropdown-options.module.css";
 import { classNames } from "~/utils/styling";
 
 export type DropdownOptionsProps = {
+    className?: string,
+    style?: CSSProperties
     isOpen?: boolean;
     options: (DropdownOption | undefined)[];
     onClose?: () => void;
@@ -10,11 +12,12 @@ export type DropdownOptionsProps = {
 
 export type DropdownOption = {
     option: ReactNode;
+    variant?: undefined | "danger"
     linkTo?: string,
     onSelect?: () => void;
 }
 
-export function DropdownOptions({ isOpen = true, options, onClose }: DropdownOptionsProps) {
+export function DropdownOptions({ className, style, isOpen = true, options, onClose }: DropdownOptionsProps) {
     const ref = useRef<HTMLUListElement>(null);
 
     useEffect(() => {
@@ -32,14 +35,17 @@ export function DropdownOptions({ isOpen = true, options, onClose }: DropdownOpt
     }, [isOpen, onClose]);
 
     return !isOpen ? null : (
-        <ul ref={ref} className={classNames([styles.dropdown])}>
+        <ul ref={ref} className={classNames([styles.dropdown, className])} style={style}>
             {options.filter(x => !!x).map((option, index) => (
                 <li key={index} className={styles.option}>
                     {option.linkTo && <>
                         <a href={option.linkTo}>
                             <button
                                 type="button"
-                                className={styles.optionButton}
+                                className={classNames([
+                                    styles.optionButton,
+                                    option.variant && styles[option.variant]
+                                ])}
                                 onClick={() => option.onSelect?.()}
                             >
                                 {option.option}
@@ -49,7 +55,10 @@ export function DropdownOptions({ isOpen = true, options, onClose }: DropdownOpt
                     {!option.linkTo &&
                         <button
                             type="button"
-                            className={styles.optionButton}
+                                className={classNames([
+                                    styles.optionButton,
+                                    option.variant && styles[option.variant]
+                                ])}
                             onClick={() => option.onSelect?.()}
                         >
                             {option.option}
