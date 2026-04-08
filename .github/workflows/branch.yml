@@ -1,16 +1,17 @@
-name: "Deploy Pre-Release Images"
+name: "Deploy Branch Images"
 
 on:
   push:
     branches:
-      - main
+      - '**'
+      - '!main'
+      - '!dependabot/**'
 
   workflow_dispatch:
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-    if: "${{ !startsWith(github.event.head_commit.message, 'chore(main): release') }}"
 
     permissions:
       contents: read
@@ -33,25 +34,18 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v4
-        with:
-          registry: docker.io
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
       - name: Set tags and NZBDAV_VERSION
         id: set_vars
         run: |
+          RAW_REF="${{ github.ref_name }}"
+          DOCKER_TAG=$(echo "$RAW_REF" \
+            | tr '[:upper:]' '[:lower:]' \
+            | sed -E 's#[^a-z0-9._-]+#-#g' \
+            | sed -E 's#(^-+|-+$)##g')
+          echo "DOCKER_TAG: $DOCKER_TAG"
+          echo "NZBDAV_VERSION=${{ github.ref_name }}" >> $GITHUB_OUTPUT
           GHCR_REPO="ghcr.io/${{ github.repository }}"
-          DOCKERHUB_REPO="nzbdav/nzbdav"
-          echo "NZBDAV_VERSION=$(date +%Y-%m-%d)" >> $GITHUB_OUTPUT
-          {
-            echo "TAGS<<EOF"
-            echo "${GHCR_REPO}:pre-release"
-            echo "${DOCKERHUB_REPO}:pre-release"
-            echo "EOF"
-          } >> $GITHUB_OUTPUT
+          echo "TAGS=${GHCR_REPO}:${DOCKER_TAG}" >> $GITHUB_OUTPUT
 
       - name: Build and push Docker image (amd64 + arm64)
         uses: docker/build-push-action@v7
