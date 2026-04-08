@@ -25,9 +25,12 @@ RUN dotnet publish -c Release -r linux-musl-${TARGETARCH} -o ./publish
 # -------- Stage 3: Combined runtime image --------
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine
 
-WORKDIR /app
+# Label the image
+ARG REPO_URL
+LABEL org.opencontainers.image.source=${REPO_URL}
 
 # Prepare environment
+WORKDIR /app
 RUN mkdir /config \
     && apk add --no-cache nodejs npm libc6-compat shadow su-exec bash curl
 
@@ -44,6 +47,7 @@ COPY --from=backend-build /backend/publish ./backend
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
+# Set env variables
 EXPOSE 3000
 ARG NZBDAV_VERSION
 ENV NZBDAV_VERSION=${NZBDAV_VERSION}
