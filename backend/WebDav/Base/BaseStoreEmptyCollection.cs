@@ -18,9 +18,4 @@ public class BaseStoreEmptyCollection(string name) : BaseStoreReadonlyCollection
     {
         return Task.FromResult<IStoreItem[]>([]);
     }
-
-    protected override bool SupportsFastMove(SupportsFastMoveRequest request)
-    {
-        return false;
-    }
 }

@@ -78,11 +78,6 @@ public class DatabaseStoreSymlinkCollection(
             .ToArray();
     }
 
-    protected override bool SupportsFastMove(SupportsFastMoveRequest request)
-    {
-        return false;
-    }
-
     protected override Task<DavStatusCode> DeleteItemAsync(DeleteItemRequest request)
     {
         // Cannot delete from symlink root folder

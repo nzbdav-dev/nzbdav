@@ -36,4 +36,9 @@ public abstract class BaseStoreReadonlyCollection : BaseStoreCollection
         Log.Warning($"Cannot delete `{request.Name}`: Forbidden");
         return Task.FromResult(DavStatusCode.Forbidden);
     }
+
+    protected override bool SupportsFastMove(SupportsFastMoveRequest request)
+    {
+        return false;
+    }
 }
