@@ -44,6 +44,8 @@ const defaultConfig = {
     "arr.instances": "{\"RadarrInstances\":[],\"SonarrInstances\":[],\"QueueRules\":[]}",
     "repair.enable": "false",
     "db.is-startup-vacuum-enabled": "false",
+    "maintenance.remove-orphaned-schedule-enabled": "false",
+    "maintenance.remove-orphaned-schedule-time": "0",
     "api.nzb-backup-enabled": "false",
     "api.nzb-backup-location": "",
 }
