@@ -160,11 +160,16 @@ public class MultiProviderNntpClient(List<MultiConnectionNntpClient> providers) 
 
     private List<MultiConnectionNntpClient> GetOrderedProviders()
     {
-        return providers
+        var enabled = providers
             .Where(x => x.ProviderType != ProviderType.Disabled)
             .OrderBy(x => x.ProviderType)
             .ThenByDescending(x => x.AvailableConnections)
             .ToList();
+
+        var healthy = enabled.Where(x => !x.IsTripped).ToList();
+
+        // Always return at least one provider so cooldown probes can fire.
+        return healthy.Count > 0 ? healthy : enabled;
     }
 
     public override void Dispose()
