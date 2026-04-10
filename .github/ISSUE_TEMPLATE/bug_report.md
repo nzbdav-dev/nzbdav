@@ -7,6 +7,9 @@ assignees: ''
 
 ---
 
+**NzbDav version**
+The version displayed in the NzbDav UI (e.g. `0.6.4`).
+
 **Describe the bug**
 A clear and concise description of what the bug is.
 
