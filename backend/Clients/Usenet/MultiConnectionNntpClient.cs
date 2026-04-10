@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using NzbWebDAV.Clients.Usenet.Concurrency;
 using NzbWebDAV.Clients.Usenet.Connections;
+using NzbWebDAV.Clients.Usenet.Contexts;
 using NzbWebDAV.Clients.Usenet.Models;
 using NzbWebDAV.Exceptions;
 using NzbWebDAV.Extensions;
@@ -141,6 +142,10 @@ public class MultiConnectionNntpClient(ConnectionPool<INntpClient> connectionPoo
         int retryCount = 1
     ) where T : UsenetResponse
     {
+        var streamingTimeout = ct.GetContext<StreamingTimeoutContext>();
+        if (streamingTimeout != null)
+            retryCount = streamingTimeout.MaxRetries;
+
         while (retryCount >= 0)
         {
             ConnectionLock<INntpClient>? connectionLock = null;
@@ -173,7 +178,32 @@ public class MultiConnectionNntpClient(ConnectionPool<INntpClient> connectionPoo
             T? result;
             try
             {
-                result = await command(connectionLock.Connection, OnConnectionReadyAgain).ConfigureAwait(false);
+                if (streamingTimeout != null)
+                {
+                    using var attemptCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                    attemptCts.CancelAfter(streamingTimeout.PerAttemptTimeout);
+                    result = await command(connectionLock.Connection, OnConnectionReadyAgain)
+                        .WaitAsync(attemptCts.Token).ConfigureAwait(false);
+                }
+                else
+                {
+                    result = await command(connectionLock.Connection, OnConnectionReadyAgain).ConfigureAwait(false);
+                }
+            }
+            catch (Exception e) when (streamingTimeout != null && e.IsCancellationException() && !ct.IsCancellationRequested)
+            {
+                LogException(() => connectionLock?.Replace());
+                LogException(() => connectionLock?.Dispose());
+                if (retryCount > 0)
+                {
+                    Log.Debug($"Streaming timeout executing nntp {name} command after {streamingTimeout.PerAttemptTimeout.TotalSeconds}s. Retrying with a new connection ({retryCount} left).");
+                    retryCount--;
+                    continue;
+                }
+
+                Log.Warning($"Streaming timeout executing nntp {name} command after {streamingTimeout.PerAttemptTimeout.TotalSeconds}s. No retries left.");
+                LogException(() => onConnectionReadyAgain?.Invoke(ArticleBodyResult.NotRetrieved));
+                throw new TimeoutException($"Timeout executing nntp {name} command after {streamingTimeout.MaxRetries + 1} attempts.");
             }
             catch (Exception e) when (e.IsCancellationException())
             {
