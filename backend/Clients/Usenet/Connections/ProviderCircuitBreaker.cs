@@ -35,16 +35,9 @@ public class ProviderCircuitBreaker
     {
         get
         {
-            lock (_lock)
-            {
-                if (_trippedUntilMs == 0) return false;
-                if (Environment.TickCount64 >= _trippedUntilMs)
-                {
-                    // Cooldown expired — allow a probe attempt
-                    return false;
-                }
-                return true;
-            }
+            var trippedUntil = Volatile.Read(ref _trippedUntilMs);
+            if (trippedUntil == 0) return false;
+            return Environment.TickCount64 < trippedUntil;
         }
     }
 
