@@ -31,7 +31,7 @@ The easiest way to get started is by using the official Docker image.
 To try it out, run the following command to pull and run the image with port `3000` exposed:
 
 ```bash
-docker run --rm -it -p 3000:3000 nzbdav/nzbdav:alpha
+docker run --rm -it -p 3000:3000 nzbdav/nzbdav:latest
 ```
 
 And if you would like to persist saved settings, attach a volume at `/config`
@@ -43,7 +43,7 @@ docker run --rm -it \
   -e PUID=1000 \
   -e PGID=1000 \
   -p 3000:3000 \
-  nzbdav/nzbdav:alpha
+  nzbdav/nzbdav:latest
 ```
 After starting the container, be sure to navigate to the Settings page on the UI to finish setting up your usenet connection settings.
 
