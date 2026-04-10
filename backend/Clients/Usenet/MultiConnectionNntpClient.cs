@@ -20,10 +20,16 @@ namespace NzbWebDAV.Clients.Usenet;
 /// </summary>
 /// <param name="connectionPool"></param>
 /// <param name="type"></param>
+/// <param name="circuitBreaker"></param>
 [SuppressMessage("ReSharper", "AccessToDisposedClosure")]
-public class MultiConnectionNntpClient(ConnectionPool<INntpClient> connectionPool, ProviderType type) : NntpClient
+public class MultiConnectionNntpClient(
+    ConnectionPool<INntpClient> connectionPool,
+    ProviderType type,
+    ProviderCircuitBreaker circuitBreaker
+) : NntpClient
 {
     public ProviderType ProviderType { get; } = type;
+    public bool IsTripped => circuitBreaker.IsTripped;
     public int LiveConnections => connectionPool.LiveConnections;
     public int IdleConnections => connectionPool.IdleConnections;
     public int ActiveConnections => connectionPool.ActiveConnections;
@@ -156,6 +162,7 @@ public class MultiConnectionNntpClient(ConnectionPool<INntpClient> connectionPoo
             }
             catch (Exception e)
             {
+                circuitBreaker.RecordFailure();
                 LogException(() => connectionLock?.Replace());
                 LogException(() => connectionLock?.Dispose());
                 if (retryCount > 0)
@@ -189,6 +196,7 @@ public class MultiConnectionNntpClient(ConnectionPool<INntpClient> connectionPoo
             }
             catch (Exception e)
             {
+                circuitBreaker.RecordFailure();
                 LogException(() => connectionLock?.Replace());
                 LogException(() => connectionLock?.Dispose());
                 if (retryCount > 0)
@@ -202,6 +210,8 @@ public class MultiConnectionNntpClient(ConnectionPool<INntpClient> connectionPoo
                 LogException(() => onConnectionReadyAgain?.Invoke(ArticleBodyResult.NotRetrieved));
                 throw;
             }
+
+            circuitBreaker.RecordSuccess();
 
             // stat, head, and date
             if (name is "STAT" or "HEAD" or "DATE")
