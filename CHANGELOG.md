@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.6.5](https://github.com/nzbdav-dev/nzbdav/compare/v0.6.4...v0.6.5) (2026-04-10)
+
+
+### Features
+
+* add backend support for scheduling the RemoveOrphanedFiles task. ([ffcdcfd](https://github.com/nzbdav-dev/nzbdav/commit/ffcdcfd4e25d1ced7648bef29e0a3d246c419410))
+* add ui setting to schedule the RemoveOrphanedFiles task. ([807573b](https://github.com/nzbdav-dev/nzbdav/commit/807573bd7411afcb22731e9a40dc0c8f519b2f95))
+* support the TZ (timezone) env variable. ([cfe0298](https://github.com/nzbdav-dev/nzbdav/commit/cfe02980593b07dd7800a2ce42cdfcd1765cdd20))
+
+
+### Bug Fixes
+
+* **deps:** ran `npm audit fix`. ([a71cf69](https://github.com/nzbdav-dev/nzbdav/commit/a71cf694d9c4e0e7492ec357d68981982e148e52))
+* **deps:** removed the vite-tsconfig-paths plugin. ([c2bdf1d](https://github.com/nzbdav-dev/nzbdav/commit/c2bdf1dd50f745f7929df623bc5bd0be5fff8887))
+* **nntp:** Skip failing usenet providers with circuit breaker ([#400](https://github.com/nzbdav-dev/nzbdav/issues/400)) ([c5fa860](https://github.com/nzbdav-dev/nzbdav/commit/c5fa860930a55b566a06a74006dcc777079f6716))
+* NZBDonkey compatibility issues with nzb category ([#316](https://github.com/nzbdav-dev/nzbdav/issues/316)) ([7059b10](https://github.com/nzbdav-dev/nzbdav/commit/7059b10c4fb79d3dda7c3745360cddbee3ef0561))
+
 ## [0.6.4](https://github.com/nzbdav-dev/nzbdav/compare/v0.6.3...v0.6.4) (2026-04-08)
 
 
