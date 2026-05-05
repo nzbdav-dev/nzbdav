@@ -12,7 +12,7 @@ public class ArrClient(string host, string apiKey)
 
     public string Host { get; } = host;
     private string ApiKey { get; } = apiKey;
-    private const string BasePath = "/api/v3";
+    protected virtual string BasePath => "/api/v3";
 
     public Task<ArrApiInfoResponse> GetApiInfo() =>
         GetRoot<ArrApiInfoResponse>($"/api");
