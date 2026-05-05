@@ -64,9 +64,22 @@ else
     USER_NAME=appuser
 fi
 
-# Set environment variables
+# Configure the listen address.
+# Defaults to 0.0.0.0 (all interfaces), preserving the existing behaviour.
+# Set LISTEN_ADDRESS to a specific IP (e.g. 192.168.1.10) to restrict which
+# network interface nzbdav binds to.
+LISTEN_ADDRESS=${LISTEN_ADDRESS:-0.0.0.0}
+export ASPNETCORE_URLS="http://${LISTEN_ADDRESS}:8080"
+
+# BACKEND_URL is used internally by the frontend to proxy requests to the backend.
+# When LISTEN_ADDRESS is a wildcard/loopback address localhost is always reachable.
+# When LISTEN_ADDRESS is a specific non-loopback IP, derive BACKEND_URL from it.
 if [ -z "${BACKEND_URL}" ]; then
-    export BACKEND_URL="http://localhost:8080"
+    if [ "$LISTEN_ADDRESS" = "0.0.0.0" ] || [ "$LISTEN_ADDRESS" = "127.0.0.1" ] || [ "$LISTEN_ADDRESS" = "localhost" ] || [ "$LISTEN_ADDRESS" = "::" ] || [ "$LISTEN_ADDRESS" = "::1" ]; then
+        export BACKEND_URL="http://localhost:8080"
+    else
+        export BACKEND_URL="http://${LISTEN_ADDRESS}:8080"
+    fi
 fi
 
 if [ -z "${FRONTEND_BACKEND_API_KEY}" ]; then
