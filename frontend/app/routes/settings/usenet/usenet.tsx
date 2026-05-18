@@ -2,6 +2,7 @@ import styles from "./usenet.module.css"
 import { type Dispatch, type SetStateAction, useState, useCallback, useEffect, useMemo } from "react";
 import { Button } from "react-bootstrap";
 import { receiveMessage } from "~/utils/websocket-util";
+import { getWebsocketUrl, withUrlBase } from "~/utils/url-base";
 
 const usenetConnectionsTopic = {'cxs': 'state'};
 
@@ -116,7 +117,7 @@ export function UsenetSettings({ config, setNewConfig }: UsenetSettingsProps) {
         let ws: WebSocket;
         let disposed = false;
         function connect() {
-            ws = new WebSocket(window.location.origin.replace(/^http/, 'ws'));
+            ws = new WebSocket(getWebsocketUrl());
             ws.onmessage = receiveMessage((_, message) => handleConnectionsMessage(message));
             ws.onopen = () => ws.send(JSON.stringify(usenetConnectionsTopic));
             ws.onerror = () => { ws.close() };
@@ -342,7 +343,7 @@ function ProviderModal({ show, provider, onClose, onSave }: ProviderModalProps) 
             formData.append('user', user);
             formData.append('pass', pass);
 
-            const response = await fetch('/api/test-usenet-connection', {
+            const response = await fetch(withUrlBase('/api/test-usenet-connection'), {
                 method: 'POST',
                 body: formData,
             });

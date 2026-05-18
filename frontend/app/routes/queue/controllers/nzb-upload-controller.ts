@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import type { UploadingFile } from "../route";
+import { withUrlBase } from "~/utils/url-base";
 
 export function initializeUploadController(
     isUploadingRef: React.RefObject<boolean>,
@@ -64,7 +65,7 @@ async function processUploadQueue(
             xhr.addEventListener('error', () => reject(new Error('Upload failed')));
             xhr.addEventListener('abort', () => reject(new Error('Upload aborted')));
 
-            xhr.open('POST', `/api?mode=addfile&cat=${fileToUpload.queueSlot.cat}&priority=0&pp=0`);
+            xhr.open('POST', withUrlBase(`/api?mode=addfile&cat=${fileToUpload.queueSlot.cat}&priority=0&pp=0`));
             xhr.send(formData);
         });
 

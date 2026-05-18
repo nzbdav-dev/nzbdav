@@ -65,6 +65,15 @@ If you'd like to get the most out of NzbDav, check out the [comprehensive guide]
 * **Integrations:** Automating Radarr/Sonarr queue management and repairs.
 * **Stremio:** Streaming Usenet directly via AIOStreams.
 
+# Reverse Proxy / Sub-path Hosting
+
+Running NzbDav behind nginx/Caddy/Traefik at a sub-path like
+`https://example.com/nzbdav/`? Set the `URL_BASE` env var (build arg + runtime
+env var, see the guide). The [reverse-proxy guide](docs/url-base.md) covers
+the layout choices, downstream client settings (Sonarr/Radarr/rclone), and
+common pitfalls. Drop-in nginx configs for subfolder and subdomain layouts
+live under [`examples/nginx/`](examples/nginx/).
+
 # More Screenshots
 <img width="300" alt="onboarding" src="https://github.com/user-attachments/assets/4ca1bfed-3b98-4ff2-8108-59ed07a25591" />
 <img width="300" alt="queue and history" src="https://github.com/user-attachments/assets/912c0f02-e44e-49ea-b4c7-8a1a106e8a01" />

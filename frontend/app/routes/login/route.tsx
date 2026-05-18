@@ -4,6 +4,7 @@ import type { Route } from "./+types/route";
 import { isAuthenticated, login } from "~/auth/authentication.server";
 import { Form, redirect, useNavigation } from "react-router";
 import { backendClient } from "~/clients/backend-client.server";
+import { withUrlBase } from "~/utils/url-base";
 
 type LoginPageData = {
     loginError: string
@@ -31,7 +32,7 @@ export default function Index({ loaderData, actionData }: Route.ComponentProps) 
 
     return (
         <Form className={styles["container"]} method="POST">
-            <img className={styles["logo"]} src="/logo.svg"></img>
+            <img className={styles["logo"]} src={withUrlBase("/logo.svg")}></img>
             <div className={styles["title"]}>Nzb DAV</div>
             <Alert className={styles["error"]} show={showError} variant="danger">{pageData.loginError}</Alert>
             <BootstrapForm.Control name="username" type="text" placeholder="Username" autoFocus />

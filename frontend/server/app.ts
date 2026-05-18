@@ -15,7 +15,10 @@ declare module "react-router" {
 export const app = express();
 export const initializeWebsocketServer = websocketServer.initialize;
 
-// Proxy all webdav and api requests to the backend
+// Proxy all webdav and api requests to the backend. Server.ts mounts this
+// router under URL_BASE so Express strips the prefix before we see
+// req.url — the backend doesn't know about URL_BASE and expects to receive
+// the bare paths it always has.
 const forwardToBackend = createProxyMiddleware({
   target: process.env.BACKEND_URL,
   changeOrigin: true,

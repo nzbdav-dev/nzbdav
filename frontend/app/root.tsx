@@ -16,11 +16,16 @@ import { TopNavigation } from "./routes/_index/components/top-navigation/top-nav
 import { LeftNavigation } from "./routes/_index/components/left-navigation/left-navigation";
 import { PageLayout } from "./routes/_index/components/page-layout/page-layout";
 import { Loading } from "./routes/_index/components/loading/loading";
+import { withUrlBase } from "~/utils/url-base";
 
 export async function loader({ request }: Route.LoaderArgs) {
-  let path = new URL(request.url).pathname;
-  if (path === "/login") return { useLayout: false };
-  if (path === "/onboarding") return { useLayout: false };
+  // request.url is the full URL including any URL_BASE prefix, so a plain
+  // `path === "/login"` check breaks under sub-path hosting. Match by suffix
+  // instead — /login and /onboarding are leaf routes, nothing else ends in
+  // either string.
+  let path = new URL(request.url).pathname.replace(/\/+$/, "");
+  if (path.endsWith("/login")) return { useLayout: false };
+  if (path.endsWith("/onboarding")) return { useLayout: false };
 
   return {
     useLayout: true,
@@ -36,7 +41,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <link rel="icon" href="/logo.svg" />
+        <link rel="icon" href={withUrlBase("/logo.svg")} />
         <Meta />
         <Links />
       </head>
