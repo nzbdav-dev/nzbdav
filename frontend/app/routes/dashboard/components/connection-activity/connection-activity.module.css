@@ -1,0 +1,80 @@
+.container {
+    width: 100%;
+    background: hsl(196.8 80% 7%);
+    border-radius: 10px;
+    padding: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.title {
+    margin: 0 0 20px 0;
+}
+
+.empty {
+    color: hsl(180, 7%, 55%);
+}
+
+.providers {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.provider {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.providerHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+}
+
+.host {
+    font-weight: 500;
+    word-break: break-all;
+}
+
+.badge {
+    font-size: 0.75em;
+    color: hsl(180, 7%, 55%);
+    background: hsl(196.8, 25%, 14.51%);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 2px 8px;
+    white-space: nowrap;
+}
+
+.bar {
+    position: relative;
+    height: 10px;
+    border-radius: 5px;
+    overflow: hidden;
+    background: hsl(196.8, 25%, 14.51%);
+}
+
+.barLive {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background: hsl(192, 80%, 35%);
+    transition: width 0.3s ease;
+}
+
+.barActive {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background: hsl(140, 60%, 45%);
+    transition: width 0.3s ease;
+}
+
+.caption {
+    font-size: 0.85em;
+    color: hsl(180, 7%, 55%);
+}

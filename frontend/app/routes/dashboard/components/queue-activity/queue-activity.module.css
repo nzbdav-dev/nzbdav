@@ -1,0 +1,88 @@
+.container {
+    width: 100%;
+    background: hsl(196.8 80% 7%);
+    border-radius: 10px;
+    padding: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    gap: 12px;
+}
+
+.title {
+    margin: 0;
+}
+
+.count {
+    color: hsl(180, 7%, 55%);
+    font-size: 0.9em;
+    font-weight: 500;
+    background: hsl(196.8, 25%, 14.51%);
+    padding: 6px 12px;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    white-space: nowrap;
+}
+
+.empty {
+    color: hsl(180, 7%, 55%);
+}
+
+.items {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.itemHeader {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: baseline;
+}
+
+.filename {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.status {
+    font-size: 0.8em;
+    color: hsl(180, 7%, 55%);
+    white-space: nowrap;
+}
+
+.bar {
+    position: relative;
+    height: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+    background: hsl(196.8, 25%, 14.51%);
+}
+
+.barFill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background: hsl(192, 80%, 40%);
+    transition: width 0.3s ease;
+}
+
+.more {
+    margin-top: 14px;
+    font-size: 0.85em;
+    color: hsl(180, 7%, 55%);
+}

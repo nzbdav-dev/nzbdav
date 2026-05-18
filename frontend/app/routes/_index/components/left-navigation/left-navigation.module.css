@@ -41,6 +41,15 @@
     user-select: none;
 }
 
+.dashboard-icon {
+    display: inline-block;
+    width: 22px;
+    height: 22px;
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%2393a1a1' d='M3 13h8V3H3zm0 8h8v-6H3zm10 0h8V11h-8zm0-18v6h8V3z'/%3E%3C/svg%3E");
+}
+
 .queue-icon {
     display: inline-block;
     width: 22px;

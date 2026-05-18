@@ -12,6 +12,10 @@ export type LeftNavigationProps = {
 export function LeftNavigation({ version, isFrontendAuthDisabled }: LeftNavigationProps) {
     return (
         <div className={styles.container}>
+            <Item target="/dashboard">
+                <div className={styles["dashboard-icon"]} />
+                <div className={styles.title}>Dashboard</div>
+            </Item>
             <Item target="/queue">
                 <div className={styles["queue-icon"]} />
                 <div className={styles.title}>Queue & History</div>
