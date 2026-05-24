@@ -13,6 +13,7 @@ public class MultiSegmentStream : FastReadOnlyNonSeekableStream
     private readonly INntpClient _usenetClient;
     private readonly Channel<Task<Stream>> _streamTasks;
     private readonly ContextualCancellationTokenSource _cts;
+    private readonly int? _endSegmentCount;
     private Stream? _stream;
     private bool _disposed;
 
@@ -21,12 +22,13 @@ public class MultiSegmentStream : FastReadOnlyNonSeekableStream
         Memory<string> segmentIds,
         INntpClient usenetClient,
         int articleBufferSize,
-        CancellationToken cancellationToken
+        CancellationToken cancellationToken,
+        int? endSegmentCount = null
     )
     {
         return articleBufferSize == 0
             ? new UnbufferedMultiSegmentStream(segmentIds, usenetClient)
-            : new MultiSegmentStream(segmentIds, usenetClient, articleBufferSize, cancellationToken);
+            : new MultiSegmentStream(segmentIds, usenetClient, articleBufferSize, cancellationToken, endSegmentCount);
     }
 
     private MultiSegmentStream
@@ -34,21 +36,26 @@ public class MultiSegmentStream : FastReadOnlyNonSeekableStream
         Memory<string> segmentIds,
         INntpClient usenetClient,
         int articleBufferSize,
-        CancellationToken cancellationToken
+        CancellationToken cancellationToken,
+        int? endSegmentCount = null
     )
     {
         _segmentIds = segmentIds;
         _usenetClient = usenetClient;
         _streamTasks = Channel.CreateBounded<Task<Stream>>(articleBufferSize);
         _cts = ContextualCancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        _endSegmentCount = endSegmentCount;
         _ = DownloadSegments(_cts.Token);
     }
 
     private async Task DownloadSegments(CancellationToken cancellationToken)
     {
+        var effectiveCount = _endSegmentCount.HasValue
+            ? Math.Min(_segmentIds.Length, _endSegmentCount.Value)
+            : _segmentIds.Length;
         try
         {
-            for (var i = 0; i < _segmentIds.Length; i++)
+            for (var i = 0; i < effectiveCount; i++)
             {
                 var segmentId = _segmentIds.Span[i];
 

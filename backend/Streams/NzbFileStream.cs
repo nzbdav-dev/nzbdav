@@ -2,6 +2,7 @@
 using NzbWebDAV.Extensions;
 using NzbWebDAV.Models;
 using NzbWebDAV.Utils;
+using Serilog;
 using UsenetSharp.Streams;
 
 namespace NzbWebDAV.Streams;
@@ -10,9 +11,13 @@ public class NzbFileStream(
     string[] fileSegmentIds,
     long fileSize,
     INntpClient usenetClient,
-    int articleBufferSize
+    int articleBufferSize,
+    long? requestedEndByte = null
 ) : FastReadOnlyStream
 {
+    // Extra segments fetched past the requested end to cover seek imprecision.
+    private const int RangePrefetchOvershootSegments = 4;
+
     private long _position;
     private bool _disposed;
     private Stream? _innerStream;
@@ -80,7 +85,35 @@ public class NzbFileStream(
     private Stream GetMultiSegmentStream(int firstSegmentIndex, CancellationToken cancellationToken)
     {
         var segmentIds = fileSegmentIds.AsMemory()[firstSegmentIndex..];
-        return MultiSegmentStream.Create(segmentIds, usenetClient, articleBufferSize, cancellationToken);
+        var endSegmentCount = ComputeEndSegmentCount(firstSegmentIndex, segmentIds.Length);
+        if (endSegmentCount.HasValue)
+        {
+            Log.Debug(
+                "Range-bounded prefetch: requestedEndByte={EndByte}, firstSegmentIndex={First}, "
+                + "endSegmentCount={Count} (of {Remaining} remaining segments)",
+                requestedEndByte, firstSegmentIndex, endSegmentCount.Value, segmentIds.Length);
+        }
+        return MultiSegmentStream.Create(
+            segmentIds, usenetClient, articleBufferSize, cancellationToken, endSegmentCount);
+    }
+
+    // Returns segment count covering requestedEndByte, or null when no cap is needed.
+    private int? ComputeEndSegmentCount(int firstSegmentIndex, int remainingSegmentCount)
+    {
+        if (!requestedEndByte.HasValue) return null;
+        if (fileSegmentIds.Length == 0 || remainingSegmentCount <= 0) return null;
+
+        var endByte = Math.Clamp(requestedEndByte.Value, 0, fileSize - 1);
+        var avgSegmentSize = (double)fileSize / fileSegmentIds.Length;
+        if (avgSegmentSize <= 0) return null;
+
+        var absoluteEndIndex = Math.Clamp(
+            (int)(endByte / avgSegmentSize), 0, fileSegmentIds.Length - 1);
+        var withOvershoot = absoluteEndIndex + RangePrefetchOvershootSegments;
+        var relativeCount = withOvershoot - firstSegmentIndex + 1;
+        if (relativeCount <= 0) return 0;
+        if (relativeCount >= remainingSegmentCount) return null;
+        return relativeCount;
     }
 
     protected override void Dispose(bool disposing)
