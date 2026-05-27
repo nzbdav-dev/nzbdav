@@ -154,6 +154,23 @@ public class ConfigManager
         return new SemaphorePriorityOdds() { HighPriorityOdds = numericalValue };
     }
 
+    public TimeSpan GetStreamingSegmentTimeout()
+    {
+        var seconds = int.Parse(
+            StringUtil.EmptyToNull(GetConfigValue("usenet.streaming-segment-timeout"))
+            ?? "8"
+        );
+        return TimeSpan.FromSeconds(seconds);
+    }
+
+    public int GetStreamingSegmentRetries()
+    {
+        return int.Parse(
+            StringUtil.EmptyToNull(GetConfigValue("usenet.streaming-segment-retries"))
+            ?? "3"
+        );
+    }
+
     public bool IsEnforceReadonlyWebdavEnabled()
     {
         var defaultValue = true;
