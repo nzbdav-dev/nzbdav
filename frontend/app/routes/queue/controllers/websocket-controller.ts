@@ -1,6 +1,7 @@
 import { useCallback, useEffect } from "react";
 import type { HistoryEvents, QueueEvents } from "./events-controller";
 import { receiveMessage } from "~/utils/websocket-util";
+import { getWebsocketUrl } from "~/utils/url-base";
 
 const topicNames = {
     queueItemStatus: 'qs',
@@ -50,7 +51,7 @@ export function initializeQueueHistoryWebsocket(
         let ws: WebSocket;
         let disposed = false;
         function connect() {
-            ws = new WebSocket(window.location.origin.replace(/^http/, 'ws'));
+            ws = new WebSocket(getWebsocketUrl());
             ws.onmessage = receiveMessage(onWebsocketMessage);
             ws.onopen = () => { ws.send(JSON.stringify(topicSubscriptions)); }
             ws.onclose = () => { !disposed && setTimeout(() => connect(), 1000); };

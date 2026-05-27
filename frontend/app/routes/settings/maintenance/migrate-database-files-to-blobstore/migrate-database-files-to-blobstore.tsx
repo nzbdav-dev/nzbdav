@@ -2,6 +2,7 @@ import { Form } from "react-bootstrap";
 import styles from "./migrate-database-files-to-blobstore.module.css";
 import { useEffect, useState } from "react";
 import { receiveMessage } from "~/utils/websocket-util";
+import { getWebsocketUrl } from "~/utils/url-base";
 
 const TaskTopic = { 'uftbmp': 'state' };
 
@@ -19,7 +20,7 @@ export function MigrateDatabaseFilesToBlobstore({ savedConfig }: ConvertStrmToSy
         let ws: WebSocket;
         let disposed = false;
         function connect() {
-            ws = new WebSocket(window.location.origin.replace(/^http/, 'ws'));
+            ws = new WebSocket(getWebsocketUrl());
             ws.onmessage = receiveMessage((_, message) => setProgress(message));
             ws.onopen = () => { setConnected(true); ws.send(JSON.stringify(TaskTopic)); }
             ws.onclose = () => { !disposed && setTimeout(() => connect(), 1000); setProgress(null) };

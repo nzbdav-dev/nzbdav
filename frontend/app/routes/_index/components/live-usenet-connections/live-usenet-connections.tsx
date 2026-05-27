@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import styles from "./live-usenet-connections.module.css";
 import { receiveMessage } from "~/utils/websocket-util";
 import { useNavigate } from "react-router";
+import { getWebsocketUrl } from "~/utils/url-base";
 
 const usenetConnectionsTopic = {'cxs': 'state'};
 
@@ -18,7 +19,7 @@ export function LiveUsenetConnections() {
         let ws: WebSocket;
         let disposed = false;
         function connect() {
-            ws = new WebSocket(window.location.origin.replace(/^http/, 'ws'));
+            ws = new WebSocket(getWebsocketUrl());
             ws.onmessage = receiveMessage((_, message) => setConnections(message));
             ws.onopen = () => ws.send(JSON.stringify(usenetConnectionsTopic));
             ws.onerror = () => { ws.close() };

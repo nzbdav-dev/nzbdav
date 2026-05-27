@@ -9,6 +9,7 @@ import { getDownloadKey } from "~/auth/downloads.server";
 import { Loading } from "../_index/components/loading/loading";
 import { formatFileSize } from "~/utils/file-size";
 import { ItemMenu } from "./item-menu/item-menu";
+import { withUrlBase } from "~/utils/url-base";
 
 export type ExplorePageData = {
     parentDirectories: string[],
@@ -21,12 +22,14 @@ export type ExploreFile = DirectoryItem & {
 }
 
 
-export async function loader({ request }: Route.LoaderArgs) {
+export async function loader({ request, params }: Route.LoaderArgs) {
     // if path ends in trailing slash, remove it
     if (request.url.endsWith('/')) return redirect(request.url.slice(0, -1));
 
-    // load items from backend
-    let path = getWebdavPathDecoded(new URL(request.url).pathname);
+    // Pull the webdav path from the splat param — params["*"] is already
+    // basename-stripped by React Router, so this works under URL_BASE
+    // without re-implementing the prefix-stripping in getWebdavPath.
+    const path = decodeURIComponent(params["*"] || "");
     return {
         parentDirectories: getParentDirectories(path),
         items: (await backendClient.listWebdavDirectory(path)).map(x => {
@@ -65,7 +68,7 @@ function Body(props: ExplorePageData) {
         const relativePath = getRelativePath(pathname, encodeURIComponent(file.name));
         const extension = getExtension(file.name);
         const extensionQueryParam = extension ? `&extension=${extension}` : '';
-        return `/view/${relativePath}?downloadKey=${file.downloadKey}${extensionQueryParam}`;
+        return withUrlBase(`/view/${relativePath}?downloadKey=${file.downloadKey}${extensionQueryParam}`);
     }, [location.pathname]);
 
     return (
