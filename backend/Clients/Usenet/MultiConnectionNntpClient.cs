@@ -21,11 +21,13 @@ namespace NzbWebDAV.Clients.Usenet;
 /// <param name="connectionPool"></param>
 /// <param name="type"></param>
 /// <param name="circuitBreaker"></param>
+/// <param name="providerName"></param>
 [SuppressMessage("ReSharper", "AccessToDisposedClosure")]
 public class MultiConnectionNntpClient(
     ConnectionPool<INntpClient> connectionPool,
     ProviderType type,
-    ProviderCircuitBreaker circuitBreaker
+    ProviderCircuitBreaker circuitBreaker,
+    string providerName
 ) : NntpClient
 {
     public ProviderType ProviderType { get; } = type;
@@ -167,12 +169,12 @@ public class MultiConnectionNntpClient(
                 LogException(() => connectionLock?.Dispose());
                 if (retryCount > 0)
                 {
-                    Log.Debug(e, "Error getting connection-lock. Retrying with a new connection.");
+                    Log.Debug(e, "Error getting connection-lock for provider {Provider}. Retrying with a new connection.", providerName);
                     retryCount--;
                     continue;
                 }
 
-                Log.Warning(e, "Error getting connection-lock.");
+                Log.Warning(e, "Error getting connection-lock for provider {Provider}.", providerName);
                 LogException(() => onConnectionReadyAgain?.Invoke(ArticleBodyResult.NotRetrieved));
                 throw;
             }
@@ -201,12 +203,12 @@ public class MultiConnectionNntpClient(
                 LogException(() => connectionLock?.Dispose());
                 if (retryCount > 0)
                 {
-                    Log.Debug(e, $"Error executing nntp {name} command. Retrying with a new connection.");
+                    Log.Debug(e, "Error executing nntp {Command} command for provider {Provider}. Retrying with a new connection.", name, providerName);
                     retryCount--;
                     continue;
                 }
 
-                Log.Warning(e, $"Error executing nntp {name} command.");
+                Log.Warning(e, "Error executing nntp {Command} command for provider {Provider}.", name, providerName);
                 LogException(() => onConnectionReadyAgain?.Invoke(ArticleBodyResult.NotRetrieved));
                 throw;
             }
