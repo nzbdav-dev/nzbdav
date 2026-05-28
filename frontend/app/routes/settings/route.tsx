@@ -41,7 +41,7 @@ const defaultConfig = {
     "rclone.pass": "",
     "rclone.mount-dir": "",
     "media.library-dir": "",
-    "arr.instances": "{\"RadarrInstances\":[],\"SonarrInstances\":[],\"QueueRules\":[]}",
+    "arr.instances": "{\"RadarrInstances\":[],\"SonarrInstances\":[],\"LidarrInstances\":[],\"QueueRules\":[]}",
     "repair.enable": "false",
     "db.is-startup-vacuum-enabled": "false",
     "maintenance.remove-orphaned-schedule-enabled": "false",
