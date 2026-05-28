@@ -100,9 +100,10 @@ public abstract class NntpClient : INntpClient
         return new NzbFileStream(nzbFile.GetSegmentIds(), fileSize, this, articleBufferSize);
     }
 
-    public virtual NzbFileStream GetFileStream(string[] segmentIds, long fileSize, int articleBufferSize)
+    public virtual NzbFileStream GetFileStream(
+        string[] segmentIds, long fileSize, int articleBufferSize, long? requestedEndByte = null)
     {
-        return new NzbFileStream(segmentIds, fileSize, this, articleBufferSize);
+        return new NzbFileStream(segmentIds, fileSize, this, articleBufferSize, requestedEndByte);
     }
 
     public virtual async Task CheckAllSegmentsAsync

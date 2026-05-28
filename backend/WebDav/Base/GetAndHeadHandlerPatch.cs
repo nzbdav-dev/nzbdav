@@ -48,6 +48,12 @@ public class GetAndHeadHandlerPatch : IRequestHandler
         // Determine the requested range
         var range = request.GetRange();
 
+        // Forward closed-range end byte to downstream prefetch capping.
+        if (range?.End is long requestedRangeEnd)
+        {
+            httpContext.Items["RequestedRangeEnd"] = requestedRangeEnd;
+        }
+
         // Obtain the WebDAV collection
         var entry = await _store.GetItemAsync(request.GetUri(), httpContext.RequestAborted).ConfigureAwait(false);
         if (entry == null)

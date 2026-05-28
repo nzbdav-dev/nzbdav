@@ -154,6 +154,14 @@ public class ConfigManager
         return new SemaphorePriorityOdds() { HighPriorityOdds = numericalValue };
     }
 
+    public int GetConnectionIdleTimeoutSeconds()
+    {
+        return int.Parse(
+            StringUtil.EmptyToNull(GetConfigValue("usenet.connection-idle-timeout-seconds"))
+            ?? "300"
+        );
+    }
+
     public bool IsEnforceReadonlyWebdavEnabled()
     {
         var defaultValue = true;
