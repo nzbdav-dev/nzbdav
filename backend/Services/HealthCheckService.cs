@@ -6,6 +6,7 @@ using NzbWebDAV.Database;
 using NzbWebDAV.Database.Models;
 using NzbWebDAV.Exceptions;
 using NzbWebDAV.Extensions;
+using NzbWebDAV.Models.Nzb;
 using NzbWebDAV.Queue.PostProcessors;
 using NzbWebDAV.Utils;
 using NzbWebDAV.Websocket;
@@ -157,7 +158,8 @@ public class HealthCheckService : BackgroundService
             _ = _websocketManager.SendMessage(WebsocketTopic.HealthItemProgress, $"{davItem.Id}|done");
             if (FilenameUtil.IsImportantFileType(davItem.Name))
                 lock (_missingSegmentIds)
-                    _missingSegmentIds.Add(e.SegmentId);
+                    foreach (var segmentId in NzbSegmentIdSet.Decode(e.SegmentId))
+                        _missingSegmentIds.Add(segmentId);
 
             // when usenet article is missing, perform repairs
             await Repair(davItem, dbClient, ct).ConfigureAwait(false);
@@ -168,7 +170,7 @@ public class HealthCheckService : BackgroundService
     {
         var firstSegmentId = StringUtil.EmptyToNull(segments.FirstOrDefault());
         if (firstSegmentId == null) return;
-        var articleHeadersResponse = await _usenetClient.HeadAsync(firstSegmentId, ct).ConfigureAwait(false);
+        var articleHeadersResponse = await _usenetClient.HeadWithFallbackAsync(firstSegmentId, ct).ConfigureAwait(false);
         var articleHeaders = articleHeadersResponse.ArticleHeaders!;
         davItem.ReleaseDate = articleHeaders.Date;
     }
@@ -343,7 +345,7 @@ public class HealthCheckService : BackgroundService
         lock (_missingSegmentIds)
         {
             foreach (var segmentId in segmentIds)
-                if (_missingSegmentIds.Contains(segmentId))
+                if (NzbSegmentIdSet.Decode(segmentId).All(candidateSegmentId => _missingSegmentIds.Contains(candidateSegmentId)))
                     throw new UsenetArticleNotFoundException(segmentId);
         }
     }
