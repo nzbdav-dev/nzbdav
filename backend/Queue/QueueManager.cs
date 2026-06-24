@@ -2,6 +2,7 @@ using NzbWebDAV.Clients.Usenet;
 using NzbWebDAV.Config;
 using NzbWebDAV.Database;
 using NzbWebDAV.Database.Models;
+using NzbWebDAV.Extensions;
 using NzbWebDAV.Services;
 using NzbWebDAV.Utils;
 using NzbWebDAV.Websocket;
@@ -71,7 +72,14 @@ public class QueueManager : IDisposable
         foreach (var inProgressQueueItem in inProgressQueueItems)
             await inProgressQueueItem.CancellationTokenSource.CancelAsync().ConfigureAwait(false);
 
-        await Task.WhenAll(inProgressQueueItems.Select(x => x.ProcessingTask)).ConfigureAwait(false);
+        try
+        {
+            await Task.WhenAll(inProgressQueueItems.Select(x => x.ProcessingTask)).ConfigureAwait(false);
+        }
+        catch (Exception e) when (!e.GetBaseException().IsCancellationException())
+        {
+            Log.Warning(e, "Error while waiting for removed queue items to stop.");
+        }
 
         await LockAsync(() =>
         {
@@ -169,13 +177,19 @@ public class QueueManager : IDisposable
     {
         await LockAsync(() =>
         {
-            var completedQueueItemIds = _inProgressQueueItems
+            var completedQueueItems = _inProgressQueueItems
                 .Where(x => x.Value.ProcessingTask.IsCompleted)
-                .Select(x => x.Key)
                 .ToList();
 
-            foreach (var queueItemId in completedQueueItemIds)
+            foreach (var completedQueueItem in completedQueueItems)
+            {
+                var queueItemId = completedQueueItem.Key;
+                var processingTask = completedQueueItem.Value.ProcessingTask;
+                if (processingTask.IsFaulted)
+                    Log.Error(processingTask.Exception, "Queue item {QueueItemId} processing task failed unexpectedly.", queueItemId);
+
                 _inProgressQueueItems.Remove(queueItemId);
+            }
         }).ConfigureAwait(false);
     }
 
