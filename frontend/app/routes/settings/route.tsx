@@ -26,6 +26,7 @@ const defaultConfig = {
     "api.import-strategy": "symlinks",
     "api.completed-downloads-dir": "",
     "api.user-agent": "",
+    "api.concurrent-nzb-downloads": "1",
     "usenet.providers": "",
     "usenet.max-download-connections": "15",
     "usenet.streaming-priority": "80",
