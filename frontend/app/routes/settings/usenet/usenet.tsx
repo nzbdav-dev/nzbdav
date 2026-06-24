@@ -65,8 +65,13 @@ export function UsenetSettings({ config, setNewConfig }: UsenetSettingsProps) {
     const [editingIndex, setEditingIndex] = useState<number | null>(null);
     const [connections, setConnections] = useState<{[index: number]: ConnectionCounts}>({});
     const providerConfig = useMemo(() => parseProviderConfig(config["usenet.providers"]), [config]);
+    const concurrentNzbDownloads = config["api.concurrent-nzb-downloads"] ?? "1";
 
     // handlers
+    const handleConcurrentNzbDownloadsChange = useCallback((value: string) => {
+        setNewConfig({ ...config, "api.concurrent-nzb-downloads": value });
+    }, [config, setNewConfig]);
+
     const handleAddProvider = useCallback(() => {
         setEditingIndex(null);
         setShowModal(true);
@@ -133,6 +138,31 @@ export function UsenetSettings({ config, setNewConfig }: UsenetSettingsProps) {
     // view
     return (
         <div className={styles.container}>
+            <div className={styles.section}>
+                <div className={styles.sectionHeader}>
+                    <div>Download Queue</div>
+                </div>
+                <div className={styles["form-grid"]}>
+                    <div className={styles["form-group"]}>
+                        <label htmlFor="concurrent-nzb-downloads" className={styles["form-label"]}>
+                            Concurrent NZB Downloads
+                        </label>
+                        <input
+                            type="number"
+                            min="1"
+                            step="1"
+                            id="concurrent-nzb-downloads"
+                            className={`${styles["form-input"]} ${!isPositiveInteger(concurrentNzbDownloads) ? styles.error : ""}`}
+                            value={concurrentNzbDownloads}
+                            onChange={(e) => handleConcurrentNzbDownloadsChange(e.target.value)}
+                        />
+                    </div>
+                </div>
+                <p className={styles.alertMessage}>
+                    Controls how many NZB queue items can be downloaded at the same time. The default is 1.
+                </p>
+            </div>
+
             <div className={styles.section}>
                 <div className={styles.sectionHeader}>
                     <div>Usenet Providers</div>
@@ -565,6 +595,7 @@ function ProviderModal({ show, provider, onClose, onSave }: ProviderModalProps) 
 
 export function isUsenetSettingsUpdated(config: Record<string, string>, newConfig: Record<string, string>) {
     return config["usenet.providers"] !== newConfig["usenet.providers"]
+        || config["api.concurrent-nzb-downloads"] !== newConfig["api.concurrent-nzb-downloads"]
 }
 
 export function isPositiveInteger(value: string) {
