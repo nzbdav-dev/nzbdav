@@ -58,6 +58,21 @@ export function WebdavSettings({ config, setNewConfig }: SabnzbdSettingsProps) {
             </Form.Group>
             <hr />
             <Form.Group>
+                <Form.Label htmlFor="concurrent-nzb-downloads-input">Concurrent NZB Downloads</Form.Label>
+                <Form.Control
+                    {...className([styles.input, !isValidConcurrentNzbDownloads(config["api.concurrent-nzb-downloads"]) && styles.error])}
+                    type="text"
+                    id="concurrent-nzb-downloads-input"
+                    aria-describedby="concurrent-nzb-downloads-help"
+                    placeholder="1"
+                    value={config["api.concurrent-nzb-downloads"] ?? "1"}
+                    onChange={e => setNewConfig({ ...config, "api.concurrent-nzb-downloads": e.target.value })} />
+                <Form.Text id="concurrent-nzb-downloads-help" muted>
+                    The number of NZB queue items that can download at the same time. The default is 1.
+                </Form.Text>
+            </Form.Group>
+            <hr />
+            <Form.Group>
                 <Form.Label htmlFor="streaming-priority-input">Streaming Priority (vs Queue)</Form.Label>
                 <InputGroup className={styles.input}>
                     <Form.Control
@@ -139,6 +154,7 @@ export function isWebdavSettingsUpdated(config: Record<string, string>, newConfi
     return config["webdav.user"] !== newConfig["webdav.user"]
         || config["webdav.pass"] !== newConfig["webdav.pass"]
         || config["usenet.max-download-connections"] !== newConfig["usenet.max-download-connections"]
+        || config["api.concurrent-nzb-downloads"] !== newConfig["api.concurrent-nzb-downloads"]
         || config["usenet.streaming-priority"] !== newConfig["usenet.streaming-priority"]
         || config["usenet.article-buffer-size"] !== newConfig["usenet.article-buffer-size"]
         || config["webdav.show-hidden-files"] !== newConfig["webdav.show-hidden-files"]
@@ -149,6 +165,7 @@ export function isWebdavSettingsUpdated(config: Record<string, string>, newConfi
 export function isWebdavSettingsValid(newConfig: Record<string, string>) {
     return isValidUser(newConfig["webdav.user"])
         && isValidMaxDownloadConnections(newConfig["usenet.max-download-connections"])
+        && isValidConcurrentNzbDownloads(newConfig["api.concurrent-nzb-downloads"] ?? "1")
         && isValidStreamingPriority(newConfig["usenet.streaming-priority"])
         && isValidArticleBufferSize(newConfig["usenet.article-buffer-size"]);
 }
@@ -159,6 +176,10 @@ function isValidUser(user: string): boolean {
 }
 
 function isValidMaxDownloadConnections(value: string): boolean {
+    return isPositiveInteger(value);
+}
+
+function isValidConcurrentNzbDownloads(value: string): boolean {
     return isPositiveInteger(value);
 }
 
