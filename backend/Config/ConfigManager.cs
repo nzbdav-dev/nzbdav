@@ -139,6 +139,12 @@ public class ConfigManager
         );
     }
 
+    public int GetConcurrentNzbDownloads()
+    {
+        var configValue = StringUtil.EmptyToNull(GetConfigValue("api.concurrent-nzb-downloads"));
+        return int.TryParse(configValue, out var value) && value > 0 ? value : 1;
+    }
+
     public int GetArticleBufferSize()
     {
         return int.Parse(
