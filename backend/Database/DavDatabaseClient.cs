@@ -125,9 +125,19 @@ public sealed class DavDatabaseClient(DavDatabaseContext ctx)
     )
     {
         // read queue item from database
-        var queueItem = await GetQueueItems(null, 0, 1, ct, excludedIds)
-            .ContinueWith(x => x.Result.FirstOrDefault(), ct)
-            .ConfigureAwait(false);
+        var nowTime = DateTime.Now;
+        var excludedIdList = excludedIds?.ToList() ?? [];
+        var queueItems = Ctx.QueueItems
+            .Where(q => q.PauseUntil == null || nowTime >= q.PauseUntil);
+        if (excludedIdList.Count > 0)
+            queueItems = queueItems.Where(q => !excludedIdList.Contains(q.Id));
+
+        var queueItem = await queueItems
+            .OrderByDescending(q => q.Priority)
+            .ThenBy(q => q.CreatedAt)
+            .Skip(0)
+            .Take(1)
+            .FirstOrDefaultAsync(ct).ConfigureAwait(false);
 
         // attempt to read nzb contents from blob-store.
         var queueNzbStream = queueItem != null
@@ -162,9 +172,7 @@ public sealed class DavDatabaseClient(DavDatabaseContext ctx)
         var queueItems = category != null
             ? Ctx.QueueItems.Where(q => q.Category == category)
             : Ctx.QueueItems;
-        var nowTime = DateTime.Now;
         var excludedIdList = excludedIds?.ToList() ?? [];
-        queueItems = queueItems.Where(q => q.PauseUntil == null || nowTime >= q.PauseUntil);
         if (excludedIdList.Count > 0)
             queueItems = queueItems.Where(q => !excludedIdList.Contains(q.Id));
 
