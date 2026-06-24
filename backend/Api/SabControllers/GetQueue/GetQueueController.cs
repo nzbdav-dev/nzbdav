@@ -16,7 +16,9 @@ public class GetQueueController(
     private async Task<GetQueueResponse> GetQueueAsync(GetQueueRequest request)
     {
         // get in progress items
-        var inProgressQueueItems = queueManager.GetInProgressQueueItems();
+        var inProgressQueueItems = queueManager.GetInProgressQueueItems()
+            .Where(x => request.Category is null || x.queueItem.Category == request.Category)
+            .ToArray();
         var inProgressQueueItemIds = inProgressQueueItems
             .Select(x => x.queueItem.Id)
             .ToHashSet();
@@ -27,21 +29,26 @@ public class GetQueueController(
         var ct = request.CancellationToken;
         var totalCount = await dbClient.GetQueueItemsCount(request.Category, ct).ConfigureAwait(false);
 
-        // get queued items
-        var getQueueItemsTask = dbClient.GetQueueItems(request.Category, 0, int.MaxValue, ct);
-        var queueItems = (await getQueueItemsTask.ConfigureAwait(false))
-            .Where(x => !inProgressQueueItemIds.Contains(x.Id))
-            .ToArray();
-
-        // get slots
-        var allSlots = inProgressQueueItems
-            .Where(x => request.Category is null || x.queueItem.Category == request.Category)
-            .Select(x => x.queueItem)
-            .Concat(queueItems)
-            .ToArray();
-        var slots = allSlots
+        // get active and queued page windows
+        var activeItems = inProgressQueueItems.Select(x => x.queueItem).ToArray();
+        var activePageItems = activeItems
             .Skip(request.Start)
             .Take(request.Limit)
+            .ToArray();
+        var queuedStart = Math.Max(0, request.Start - activeItems.Length);
+        var queuedLimit = Math.Max(0, request.Limit - activePageItems.Length);
+
+        // get queued items
+        var queueItems = queuedLimit > 0
+            ? (await dbClient.GetQueueItems(request.Category, queuedStart, queuedLimit + activeItems.Length, ct).ConfigureAwait(false))
+                .Where(x => !inProgressQueueItemIds.Contains(x.Id))
+                .Take(queuedLimit)
+                .ToArray()
+            : [];
+
+        // get slots
+        var slots = activePageItems
+            .Concat(queueItems)
             .Select((queueItem, index) =>
             {
                 var isInProgress = inProgressProgressById.TryGetValue(queueItem.Id, out var progressPercentage);
