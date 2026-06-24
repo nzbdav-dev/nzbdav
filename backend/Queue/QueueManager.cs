@@ -11,7 +11,7 @@ namespace NzbWebDAV.Queue;
 
 public class QueueManager : IDisposable
 {
-    private InProgressQueueItem? _inProgressQueueItem;
+    private readonly Dictionary<Guid, InProgressQueueItem> _inProgressQueueItems = new();
 
     private readonly UsenetStreamingClient _usenetClient;
     private readonly CancellationTokenSource? _cancellationTokenSource;
@@ -36,9 +36,11 @@ public class QueueManager : IDisposable
         _ = ProcessQueueAsync(_cancellationTokenSource.Token);
     }
 
-    public (QueueItem? queueItem, int? progress) GetInProgressQueueItem()
+    public (QueueItem queueItem, int progress)[] GetInProgressQueueItems()
     {
-        return (_inProgressQueueItem?.QueueItem, _inProgressQueueItem?.ProgressPercentage);
+        return Lock(() => _inProgressQueueItems.Values
+            .Select(x => (x.QueueItem, x.ProgressPercentage))
+            .ToArray());
     }
 
     public void AwakenQueue(DateTime? dateTime = null)
@@ -60,19 +62,25 @@ public class QueueManager : IDisposable
         CancellationToken ct = default
     )
     {
-        await LockAsync(async () =>
-        {
-            var inProgressId = _inProgressQueueItem?.QueueItem?.Id;
-            if (inProgressId is not null && queueItemIds.Contains(inProgressId.Value))
-            {
-                await _inProgressQueueItem!.CancellationTokenSource.CancelAsync().ConfigureAwait(false);
-                await _inProgressQueueItem.ProcessingTask.ConfigureAwait(false);
-                _inProgressQueueItem = null;
-            }
+        var queueItemIdSet = queueItemIds.ToHashSet();
+        var inProgressQueueItems = await LockAsync(() => _inProgressQueueItems
+            .Where(x => queueItemIdSet.Contains(x.Key))
+            .Select(x => x.Value)
+            .ToList()).ConfigureAwait(false);
 
-            await dbClient.RemoveQueueItemsAsync(queueItemIds, ct).ConfigureAwait(false);
-            await dbClient.Ctx.SaveChangesAsync(ct).ConfigureAwait(false);
+        foreach (var inProgressQueueItem in inProgressQueueItems)
+            await inProgressQueueItem.CancellationTokenSource.CancelAsync().ConfigureAwait(false);
+
+        await Task.WhenAll(inProgressQueueItems.Select(x => x.ProcessingTask)).ConfigureAwait(false);
+
+        await LockAsync(() =>
+        {
+            foreach (var queueItemId in queueItemIds)
+                _inProgressQueueItems.Remove(queueItemId);
         }).ConfigureAwait(false);
+
+        await dbClient.RemoveQueueItemsAsync(queueItemIds, ct).ConfigureAwait(false);
+        await dbClient.Ctx.SaveChangesAsync(ct).ConfigureAwait(false);
     }
 
     private async Task ProcessQueueAsync(CancellationToken ct)
@@ -81,87 +89,138 @@ public class QueueManager : IDisposable
         {
             try
             {
-                // get the next queue-item from the database
-                await using var dbContext = new DavDatabaseContext();
-                var dbClient = new DavDatabaseClient(dbContext);
-                var topItem = await LockAsync(() => dbClient.GetTopQueueItem(ct)).ConfigureAwait(false);
-                if (topItem.queueItem is null)
-                {
-                    try
-                    {
-                        // if we're done with the queue, wait a minute before checking again.
-                        // or wait until awoken by cancellation of _sleepingQueueToken
-                        await Task.Delay(TimeSpan.FromMinutes(1), _sleepingQueueToken.Token).ConfigureAwait(false);
-                    }
-                    catch when (_sleepingQueueToken.IsCancellationRequested)
-                    {
-                        lock (_sleepingQueueLock)
-                        {
-                            if (!_sleepingQueueToken.TryReset())
-                            {
-                                _sleepingQueueToken.Dispose();
-                                _sleepingQueueToken = new CancellationTokenSource();
-                            }
-                        }
-                    }
+                await RemoveCompletedQueueItemsAsync().ConfigureAwait(false);
+                var startedAnyQueueItems = await StartAvailableQueueItemsAsync(ct).ConfigureAwait(false);
+                var hasActiveQueueItems = await LockAsync(() => _inProgressQueueItems.Count > 0).ConfigureAwait(false);
 
+                if (!hasActiveQueueItems)
+                {
+                    await SleepUntilQueueAwakens().ConfigureAwait(false);
                     continue;
                 }
 
-                // create an article-caching nntp-client.
-                // the cache will be scoped only to this single queue-item.
-                using var cachingUsenetClient = new ArticleCachingNntpClient(_usenetClient);
-
-                // process the queue-item
-                try
-                {
-                    using var queueItemCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                    await LockAsync(() =>
-                    {
-                        // ReSharper disable twice AccessToDisposedClosure
-                        _inProgressQueueItem = BeginProcessingQueueItem(dbClient, cachingUsenetClient,
-                            topItem.queueItem, topItem.queueNzbStream, queueItemCancellationTokenSource);
-                    }).ConfigureAwait(false);
-                    await (_inProgressQueueItem?.ProcessingTask ?? Task.CompletedTask).ConfigureAwait(false);
-                }
-                finally
-                {
-                    if (topItem.queueNzbStream is not null)
-                        await topItem.queueNzbStream!.DisposeAsync();
-                }
+                if (!startedAnyQueueItems)
+                    await WaitForAnyQueueItemToComplete(ct).ConfigureAwait(false);
+            }
+            catch (Exception e) when (e.GetBaseException().IsCancellationException())
+            {
+                // Application shutdown or queue cancellation.
             }
             catch (Exception e)
             {
                 Log.Error($"An unexpected error occured while processing the queue: {e.Message}");
             }
-            finally
+        }
+    }
+
+    private async Task<bool> StartAvailableQueueItemsAsync(CancellationToken ct)
+    {
+        var startedAnyQueueItems = false;
+        var maxConcurrentDownloads = _configManager.GetConcurrentNzbDownloads();
+
+        while (!ct.IsCancellationRequested)
+        {
+            var activeQueueItemIds = await LockAsync(() => _inProgressQueueItems.Keys.ToHashSet()).ConfigureAwait(false);
+            if (activeQueueItemIds.Count >= maxConcurrentDownloads) break;
+
+            await using var dbContext = new DavDatabaseContext();
+            var dbClient = new DavDatabaseClient(dbContext);
+            var topItem = await dbClient.GetTopQueueItem(ct, activeQueueItemIds).ConfigureAwait(false);
+            if (topItem.queueItem is null)
             {
-                await LockAsync(() => { _inProgressQueueItem = null; }).ConfigureAwait(false);
+                if (topItem.queueNzbStream is not null)
+                    await topItem.queueNzbStream.DisposeAsync().ConfigureAwait(false);
+                break;
+            }
+
+            await LockAsync(() =>
+            {
+                if (_inProgressQueueItems.ContainsKey(topItem.queueItem.Id))
+                {
+                    if (topItem.queueNzbStream is not null)
+                        _ = topItem.queueNzbStream.DisposeAsync();
+                    return;
+                }
+
+                _inProgressQueueItems[topItem.queueItem.Id] = BeginProcessingQueueItem(
+                    topItem.queueItem,
+                    topItem.queueNzbStream,
+                    ct
+                );
+                startedAnyQueueItems = true;
+            }).ConfigureAwait(false);
+        }
+
+        return startedAnyQueueItems;
+    }
+
+    private async Task WaitForAnyQueueItemToComplete(CancellationToken ct)
+    {
+        var tasks = await LockAsync(() => _inProgressQueueItems.Values
+            .Select(x => x.ProcessingTask)
+            .ToArray()).ConfigureAwait(false);
+
+        if (tasks.Length == 0) return;
+        await Task.WhenAny(tasks).WaitAsync(ct).ConfigureAwait(false);
+        await RemoveCompletedQueueItemsAsync().ConfigureAwait(false);
+    }
+
+    private async Task RemoveCompletedQueueItemsAsync()
+    {
+        await LockAsync(() =>
+        {
+            var completedQueueItemIds = _inProgressQueueItems
+                .Where(x => x.Value.ProcessingTask.IsCompleted)
+                .Select(x => x.Key)
+                .ToList();
+
+            foreach (var queueItemId in completedQueueItemIds)
+                _inProgressQueueItems.Remove(queueItemId);
+        }).ConfigureAwait(false);
+    }
+
+    private async Task SleepUntilQueueAwakens()
+    {
+        try
+        {
+            // if we're done with the queue, wait a minute before checking again.
+            // or wait until awoken by cancellation of _sleepingQueueToken
+            await Task.Delay(TimeSpan.FromMinutes(1), _sleepingQueueToken.Token).ConfigureAwait(false);
+        }
+        catch when (_sleepingQueueToken.IsCancellationRequested)
+        {
+            lock (_sleepingQueueLock)
+            {
+                if (!_sleepingQueueToken.TryReset())
+                {
+                    _sleepingQueueToken.Dispose();
+                    _sleepingQueueToken = new CancellationTokenSource();
+                }
             }
         }
     }
 
     private InProgressQueueItem BeginProcessingQueueItem
     (
-        DavDatabaseClient dbClient,
-        INntpClient usenetClient,
         QueueItem queueItem,
         Stream? queueNzbStream,
-        CancellationTokenSource cts
+        CancellationToken ct
     )
     {
+        var dbContext = new DavDatabaseContext();
+        var dbClient = new DavDatabaseClient(dbContext);
+        var cachingUsenetClient = new ArticleCachingNntpClient(_usenetClient);
+        var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         var progressHook = new Progress<int>();
-        var task = new QueueItemProcessor(
-            queueItem, queueNzbStream, dbClient, usenetClient,
-            _configManager, _websocketManager, progressHook, cts.Token
-        ).ProcessAsync();
         var inProgressQueueItem = new InProgressQueueItem()
         {
             QueueItem = queueItem,
-            ProcessingTask = task,
             ProgressPercentage = 0,
             CancellationTokenSource = cts
         };
+
+        inProgressQueueItem.ProcessingTask = ProcessQueueItemAsync();
+
         var debounce = DebounceUtil.CreateDebounce(TimeSpan.FromMilliseconds(200));
         progressHook.ProgressChanged += (_, progress) =>
         {
@@ -171,6 +230,25 @@ public class QueueManager : IDisposable
             else debounce(() => _websocketManager.SendMessage(WebsocketTopic.QueueItemProgress, message));
         };
         return inProgressQueueItem;
+
+        async Task ProcessQueueItemAsync()
+        {
+            try
+            {
+                await new QueueItemProcessor(
+                    queueItem, queueNzbStream, dbClient, cachingUsenetClient,
+                    _configManager, _websocketManager, progressHook, cts.Token
+                ).ProcessAsync().ConfigureAwait(false);
+            }
+            finally
+            {
+                if (queueNzbStream is not null)
+                    await queueNzbStream.DisposeAsync().ConfigureAwait(false);
+                cachingUsenetClient.Dispose();
+                await dbContext.DisposeAsync().ConfigureAwait(false);
+                cts.Dispose();
+            }
+        }
     }
 
     private async Task LockAsync(Func<Task> actionAsync)
@@ -212,6 +290,32 @@ public class QueueManager : IDisposable
         }
     }
 
+    private async Task<T> LockAsync<T>(Func<T> action)
+    {
+        await _semaphore.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            return action();
+        }
+        finally
+        {
+            _semaphore.Release();
+        }
+    }
+
+    private T Lock<T>(Func<T> action)
+    {
+        _semaphore.Wait();
+        try
+        {
+            return action();
+        }
+        finally
+        {
+            _semaphore.Release();
+        }
+    }
+
     public void Dispose()
     {
         _cancellationTokenSource?.Cancel();
@@ -220,9 +324,9 @@ public class QueueManager : IDisposable
 
     private class InProgressQueueItem
     {
-        public QueueItem QueueItem { get; init; }
+        public required QueueItem QueueItem { get; init; }
         public int ProgressPercentage { get; set; }
-        public Task ProcessingTask { get; init; }
-        public CancellationTokenSource CancellationTokenSource { get; init; }
+        public Task ProcessingTask { get; set; } = Task.CompletedTask;
+        public required CancellationTokenSource CancellationTokenSource { get; init; }
     }
 }
