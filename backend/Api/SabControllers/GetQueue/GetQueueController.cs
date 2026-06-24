@@ -28,22 +28,26 @@ public class GetQueueController(
         var totalCount = await dbClient.GetQueueItemsCount(request.Category, ct).ConfigureAwait(false);
 
         // get queued items
-        var getQueueItemsTask = dbClient.GetQueueItems(request.Category, request.Start, request.Limit, ct);
+        var getQueueItemsTask = dbClient.GetQueueItems(request.Category, 0, int.MaxValue, ct);
         var queueItems = (await getQueueItemsTask.ConfigureAwait(false))
             .Where(x => !inProgressQueueItemIds.Contains(x.Id))
             .ToArray();
 
         // get slots
-        var slots = inProgressQueueItems
-            .Where(x => request is { Start: 0, Limit: > 0 } && (request.Category is null || x.queueItem.Category == request.Category))
+        var allSlots = inProgressQueueItems
+            .Where(x => request.Category is null || x.queueItem.Category == request.Category)
             .Select(x => x.queueItem)
             .Concat(queueItems)
+            .ToArray();
+        var slots = allSlots
+            .Skip(request.Start)
+            .Take(request.Limit)
             .Select((queueItem, index) =>
             {
                 var isInProgress = inProgressProgressById.TryGetValue(queueItem.Id, out var progressPercentage);
                 var percentage = isInProgress ? progressPercentage : 0;
                 var status = isInProgress ? "Downloading" : "Queued";
-                return GetQueueResponse.QueueSlot.FromQueueItem(queueItem, index, percentage, status);
+                return GetQueueResponse.QueueSlot.FromQueueItem(queueItem, request.Start + index, percentage, status);
             })
             .ToList();
 
