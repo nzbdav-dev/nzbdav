@@ -120,15 +120,21 @@ public sealed class DavDatabaseClient(DavDatabaseContext ctx)
     // queue
     public async Task<(QueueItem? queueItem, Stream? queueNzbStream)> GetTopQueueItem
     (
-        CancellationToken ct = default
+        CancellationToken ct = default,
+        IReadOnlyCollection<Guid>? excludedIds = null
     )
     {
         // read queue item from database
         var nowTime = DateTime.Now;
-        var queueItem = await Ctx.QueueItems
+        var excludedIdList = excludedIds?.ToList() ?? [];
+        var queueItems = Ctx.QueueItems
             .OrderByDescending(q => q.Priority)
             .ThenBy(q => q.CreatedAt)
-            .Where(q => q.PauseUntil == null || nowTime >= q.PauseUntil)
+            .Where(q => q.PauseUntil == null || nowTime >= q.PauseUntil);
+        if (excludedIdList.Count > 0)
+            queueItems = queueItems.Where(q => !excludedIdList.Contains(q.Id));
+
+        var queueItem = await queueItems
             .Skip(0)
             .Take(1)
             .FirstOrDefaultAsync(ct).ConfigureAwait(false);
