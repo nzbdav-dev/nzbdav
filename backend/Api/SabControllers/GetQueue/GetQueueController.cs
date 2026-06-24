@@ -40,10 +40,8 @@ public class GetQueueController(
 
         // get queued items
         var queueItems = queuedLimit > 0
-            ? (await dbClient.GetQueueItems(request.Category, queuedStart, queuedLimit + activeItems.Length, ct).ConfigureAwait(false))
-                .Where(x => !inProgressQueueItemIds.Contains(x.Id))
-                .Take(queuedLimit)
-                .ToArray()
+            ? await dbClient.GetQueueItems(request.Category, queuedStart, queuedLimit, ct, inProgressQueueItemIds)
+                .ConfigureAwait(false)
             : [];
 
         // get slots
