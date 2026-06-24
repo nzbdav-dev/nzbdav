@@ -15,8 +15,13 @@ public class GetQueueController(
 {
     private async Task<GetQueueResponse> GetQueueAsync(GetQueueRequest request)
     {
-        // get in progress item
-        var (inProgressQueueItem, progressPercentage) = queueManager.GetInProgressQueueItem();
+        // get in progress items
+        var inProgressQueueItems = queueManager.GetInProgressQueueItems();
+        var inProgressQueueItemIds = inProgressQueueItems
+            .Select(x => x.queueItem.Id)
+            .ToHashSet();
+        var inProgressProgressById = inProgressQueueItems
+            .ToDictionary(x => x.queueItem.Id, x => x.progress);
 
         // get total count
         var ct = request.CancellationToken;
@@ -25,18 +30,20 @@ public class GetQueueController(
         // get queued items
         var getQueueItemsTask = dbClient.GetQueueItems(request.Category, request.Start, request.Limit, ct);
         var queueItems = (await getQueueItemsTask.ConfigureAwait(false))
-            .Where(x => x.Id != inProgressQueueItem?.Id)
+            .Where(x => !inProgressQueueItemIds.Contains(x.Id))
             .ToArray();
 
         // get slots
-        var slots = queueItems
-            .Prepend(request is { Start: 0, Limit: > 0 } ? inProgressQueueItem : null)
-            .Where(queueItem => queueItem != null)
+        var slots = inProgressQueueItems
+            .Where(x => request is { Start: 0, Limit: > 0 } && (request.Category is null || x.queueItem.Category == request.Category))
+            .Select(x => x.queueItem)
+            .Concat(queueItems)
             .Select((queueItem, index) =>
             {
-                var percentage = (queueItem == inProgressQueueItem ? progressPercentage : 0)!.Value;
-                var status = queueItem == inProgressQueueItem ? "Downloading" : "Queued";
-                return GetQueueResponse.QueueSlot.FromQueueItem(queueItem!, index, percentage, status);
+                var isInProgress = inProgressProgressById.TryGetValue(queueItem.Id, out var progressPercentage);
+                var percentage = isInProgress ? progressPercentage : 0;
+                var status = isInProgress ? "Downloading" : "Queued";
+                return GetQueueResponse.QueueSlot.FromQueueItem(queueItem, index, percentage, status);
             })
             .ToList();
 
