@@ -1,0 +1,50 @@
+.container {
+    width: 100%;
+    margin-top: 25px;
+}
+
+.title {
+    font-size: 14px;
+    margin-bottom: 5px;
+}
+
+.caption {
+    margin-right: 5px;
+    font-size: 12px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.section {
+    border-top: 1px solid rgba(147, 161, 161, 0.25);
+    margin-top: 8px;
+    padding-top: 5px;
+}
+
+.section-title {
+    font-size: 12px;
+    margin-bottom: 3px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.session {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    margin-bottom: 2px;
+}
+
+.name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.rate {
+    flex-shrink: 0;
+    white-space: nowrap;
+}

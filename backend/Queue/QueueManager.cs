@@ -1,7 +1,9 @@
 using NzbWebDAV.Clients.Usenet;
+using NzbWebDAV.Clients.Usenet.Contexts;
 using NzbWebDAV.Config;
 using NzbWebDAV.Database;
 using NzbWebDAV.Database.Models;
+using NzbWebDAV.Extensions;
 using NzbWebDAV.Services;
 using NzbWebDAV.Utils;
 using NzbWebDAV.Websocket;
@@ -18,6 +20,7 @@ public class QueueManager : IDisposable
     private readonly SemaphoreSlim _semaphore = new(1, 1);
     private readonly ConfigManager _configManager;
     private readonly WebsocketManager _websocketManager;
+    private readonly DownloadSpeedTracker _speedTracker;
 
     private CancellationTokenSource _sleepingQueueToken = new();
     private readonly Lock _sleepingQueueLock = new();
@@ -25,12 +28,14 @@ public class QueueManager : IDisposable
     public QueueManager(
         UsenetStreamingClient usenetClient,
         ConfigManager configManager,
-        WebsocketManager websocketManager
+        WebsocketManager websocketManager,
+        DownloadSpeedTracker speedTracker
     )
     {
         _usenetClient = usenetClient;
         _configManager = configManager;
         _websocketManager = websocketManager;
+        _speedTracker = speedTracker;
         _cancellationTokenSource = CancellationTokenSource
             .CreateLinkedTokenSource(SigtermUtil.GetCancellationToken());
         _ = ProcessQueueAsync(_cancellationTokenSource.Token);
@@ -116,6 +121,10 @@ public class QueueManager : IDisposable
                 try
                 {
                     using var queueItemCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                    using var speedSession = _speedTracker.CreateSession(
+                        topItem.queueItem.JobName, DownloadSpeedSession.SessionCategory.QueueImport);
+                    using var scopedSpeedTrackingContext = queueItemCancellationTokenSource.Token
+                        .SetContext(new SpeedTrackingContext() { Session = speedSession });
                     await LockAsync(() =>
                     {
                         // ReSharper disable twice AccessToDisposedClosure

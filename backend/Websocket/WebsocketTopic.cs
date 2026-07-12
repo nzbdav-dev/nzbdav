@@ -4,6 +4,7 @@ public class WebsocketTopic
 {
     // Stateful topics
     public static readonly WebsocketTopic UsenetConnections = new("cxs", TopicType.State);
+    public static readonly WebsocketTopic UsenetDownloadSpeed = new("dls", TopicType.State);
     public static readonly WebsocketTopic SymlinkTaskProgress = new("stp", TopicType.State);
     public static readonly WebsocketTopic CleanupTaskProgress = new("ctp", TopicType.State);
     public static readonly WebsocketTopic StrmToSymlinksTaskProgress = new("st2sy", TopicType.State);

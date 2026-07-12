@@ -1,6 +1,9 @@
-﻿using NzbWebDAV.Clients.Usenet.Models;
+﻿using NzbWebDAV.Clients.Usenet.Contexts;
+using NzbWebDAV.Clients.Usenet.Models;
 using NzbWebDAV.Exceptions;
 using NzbWebDAV.Extensions;
+using NzbWebDAV.Services;
+using NzbWebDAV.Streams;
 using UsenetSharp.Clients;
 using UsenetSharp.Models;
 using UsenetSharp.Streams;
@@ -14,7 +17,7 @@ namespace NzbWebDAV.Clients.Usenet;
 ///   3. Provide yenc-decoded data for articles retrieved through article/body commands.
 ///   4. throw `UsenetArticleNotFound` when articles do not exist, within article/body/head commands.
 /// </summary>
-public class BaseNntpClient : NntpClient
+public class BaseNntpClient(DownloadSpeedTracker? speedTracker = null) : NntpClient
 {
     private readonly UsenetClient _client = new();
 
@@ -102,7 +105,7 @@ public class BaseNntpClient : NntpClient
             SegmentId = bodyResponse.SegmentId,
             ResponseCode = bodyResponse.ResponseCode,
             ResponseMessage = bodyResponse.ResponseMessage,
-            Stream = new YencStream(bodyResponse.Stream!),
+            Stream = new YencStream(TrackDownloadSpeed(bodyResponse.Stream!, cancellationToken)),
         };
     }
 
@@ -133,8 +136,24 @@ public class BaseNntpClient : NntpClient
             ResponseCode = articleResponse.ResponseCode,
             ResponseMessage = articleResponse.ResponseMessage,
             ArticleHeaders = articleResponse.ArticleHeaders!,
-            Stream = new YencStream(articleResponse.Stream!),
+            Stream = new YencStream(TrackDownloadSpeed(articleResponse.Stream!, cancellationToken)),
         };
+    }
+
+    /// <summary>
+    /// Wraps the raw article stream so that all bytes read from the usenet
+    /// connection are counted towards the total download speed, and towards
+    /// the session found on the cancellation-token context, if any.
+    /// </summary>
+    private Stream TrackDownloadSpeed(Stream rawArticleStream, CancellationToken cancellationToken)
+    {
+        var session = cancellationToken.GetContext<SpeedTrackingContext>()?.Session;
+        if (speedTracker is null && session is null) return rawArticleStream;
+        return new ByteCountingStream(rawArticleStream, bytesRead =>
+        {
+            speedTracker?.AddTotalBytes(bytesRead);
+            session?.AddBytes(bytesRead);
+        });
     }
 
     public override Task<UsenetDateResponse> DateAsync(CancellationToken cancellationToken)
