@@ -28,6 +28,8 @@
     max-width: var(--left-nav-width);
     min-width: var(--left-nav-width);
     min-height: calc(100% - var(--top-nav-height));
+    max-height: calc(100% - var(--top-nav-height));
+    overflow-y: auto;
     position: fixed;
     left: 0;
     z-index: 999;

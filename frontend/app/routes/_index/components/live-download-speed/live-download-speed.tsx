@@ -73,12 +73,13 @@ export function LiveDownloadSpeed() {
                 Usenet Download Speed
             </div>
             <div className={styles.caption} onClick={toggleUnit} title="Click to toggle between MB/s and KB/s">
-                {report && <>Total: {formatRate(report.total)}</>}
+                {report && <><span>Total:</span><span className={styles.rate}>{formatRate(report.total)}</span></>}
                 {!report && `Loading...`}
             </div>
             {report && queueSessions.length > 0 &&
                 <div className={styles.caption} onClick={toggleUnit} title="Click to toggle between MB/s and KB/s">
-                    Queue: {formatRate(queueSessions.reduce((sum, session) => sum + session.rate, 0))}
+                    <span>Queue:</span>
+                    <span className={styles.rate}>{formatRate(queueSessions.reduce((sum, session) => sum + session.rate, 0))}</span>
                 </div>
             }
             <SessionSection title="Streams:" sessions={streamSessions} formatRate={formatRate} onClick={toggleUnit} />
@@ -99,7 +100,8 @@ function SessionSection({ title, sessions, formatRate, onClick }: SessionSection
     return (
         <div className={styles.section}>
             <div className={styles["section-title"]} onClick={onClick} title="Click to toggle between MB/s and KB/s">
-                {title} {formatRate(totalRate)}
+                <span>{title}</span>
+                <span className={styles.rate}>{formatRate(totalRate)}</span>
             </div>
             {sessions.map((session, index) => (
                 <div className={styles.session} key={index} title={session.name}>
