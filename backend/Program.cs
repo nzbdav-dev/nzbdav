@@ -78,9 +78,6 @@ class Program
         // initialize websocket-manager
         var websocketManager = new WebsocketManager();
 
-        // initialize download-speed tracker
-        var downloadSpeedTracker = new DownloadSpeedTracker(websocketManager);
-
         // initialize webapp
         var builder = WebApplication.CreateBuilder(args);
         var maxRequestBodySize = EnvironmentUtil.GetLongVariable("MAX_REQUEST_BODY_SIZE") ?? 100 * 1024 * 1024;
@@ -92,9 +89,10 @@ class Program
             .AddWebdavBasicAuthentication(configManager)
             .AddSingleton(configManager)
             .AddSingleton(websocketManager)
-            .AddSingleton(downloadSpeedTracker)
+            .AddSingleton<DownloadSpeedTracker>()
             .AddSingleton<UsenetStreamingClient>()
             .AddSingleton<QueueManager>()
+            .AddHostedService(provider => provider.GetRequiredService<DownloadSpeedTracker>())
             .AddHostedService<HealthCheckService>()
             .AddHostedService<ArrMonitoringService>()
             .AddHostedService<BlobCleanupService>()

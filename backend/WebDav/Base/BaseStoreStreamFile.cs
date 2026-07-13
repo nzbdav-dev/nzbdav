@@ -19,17 +19,29 @@ public abstract class BaseStoreStreamFile(HttpContext context) : BaseStoreReadon
         // track usenet download speed for this file-stream
         var speedTracker = context.RequestServices.GetService<DownloadSpeedTracker>();
         var speedSession = speedTracker?.CreateSession(Name, DownloadSpeedSession.SessionCategory.Stream);
-        var scopedSpeedTrackingContext = speedSession is not null
-            ? cancellationToken.SetContext(new SpeedTrackingContext() { Session = speedSession })
-            : null;
-
-        context.Response.OnCompleted(() =>
+        CancellationTokenContext? scopedSpeedTrackingContext = null;
+        try
         {
+            scopedSpeedTrackingContext = speedSession is not null
+                ? cancellationToken.SetContext(new SpeedTrackingContext() { Session = speedSession })
+                : null;
+
+            context.Response.OnCompleted(() =>
+            {
+                scopedDownloadPriorityContext.Dispose();
+                scopedSpeedTrackingContext?.Dispose();
+                speedSession?.Dispose();
+                return Task.CompletedTask;
+            });
+        }
+        catch
+        {
+            // the OnCompleted callback will never run; clean up here instead.
             scopedDownloadPriorityContext.Dispose();
             scopedSpeedTrackingContext?.Dispose();
             speedSession?.Dispose();
-            return Task.CompletedTask;
-        });
+            throw;
+        }
 
         return GetStreamAsync(cancellationToken);
     }

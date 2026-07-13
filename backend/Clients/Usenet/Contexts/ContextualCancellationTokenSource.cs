@@ -33,10 +33,11 @@ public class ContextualCancellationTokenSource : IDisposable
     {
         var cts = CancellationTokenSource.CreateLinkedTokenSource(linkedToken1, linkedToken2);
         var contextualCts = new ContextualCancellationTokenSource(cts);
-        contextualCts.SetContext(linkedToken1.GetContext<DownloadPriorityContext>());
-        contextualCts.SetContext(linkedToken2.GetContext<DownloadPriorityContext>());
-        contextualCts.SetContext(linkedToken1.GetContext<SpeedTrackingContext>());
-        contextualCts.SetContext(linkedToken2.GetContext<SpeedTrackingContext>());
+        // when both tokens carry a context of the same type, the first token's wins.
+        contextualCts.SetContext(
+            linkedToken1.GetContext<DownloadPriorityContext>() ?? linkedToken2.GetContext<DownloadPriorityContext>());
+        contextualCts.SetContext(
+            linkedToken1.GetContext<SpeedTrackingContext>() ?? linkedToken2.GetContext<SpeedTrackingContext>());
         return contextualCts;
     }
 

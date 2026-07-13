@@ -1,9 +1,7 @@
 import { useEffect, useState } from "react";
 import styles from "./live-download-speed.module.css";
-import { receiveMessage } from "~/utils/websocket-util";
-import { useNavigate } from "react-router";
+import { useWebsocketTopic } from "~/utils/websocket-util";
 
-const downloadSpeedTopic = { 'dls': 'state' };
 const speedUnitStorageKey = 'nzbdav-speed-unit';
 
 type SpeedUnit = 'MB' | 'KB';
@@ -16,19 +14,17 @@ type SpeedSession = {
 
 type SpeedReport = {
     total: number,
-    streams: number,
     sessions: SpeedSession[],
 };
 
 export function LiveDownloadSpeed() {
-    const navigate = useNavigate();
     const [report, setReport] = useState<SpeedReport | null>(null);
     const [unit, setUnit] = useState<SpeedUnit>('MB');
 
     useEffect(() => {
         const storedUnit = localStorage.getItem(speedUnitStorageKey);
         if (storedUnit === 'MB' || storedUnit === 'KB') setUnit(storedUnit);
-    }, [setUnit]);
+    }, []);
 
     function toggleUnit() {
         const newUnit = unit === 'MB' ? 'KB' : 'MB';
@@ -36,27 +32,13 @@ export function LiveDownloadSpeed() {
         localStorage.setItem(speedUnitStorageKey, newUnit);
     }
 
-    useEffect(() => {
-        let ws: WebSocket;
-        let disposed = false;
-        function connect() {
-            ws = new WebSocket(window.location.origin.replace(/^http/, 'ws'));
-            ws.onmessage = receiveMessage((_, message) => {
-                try { setReport(JSON.parse(message)); }
-                catch { setReport(null); }
-            });
-            ws.onopen = () => ws.send(JSON.stringify(downloadSpeedTopic));
-            ws.onerror = () => { ws.close() };
-            ws.onclose = onClose;
-            return () => { disposed = true; ws.close(); }
+    useWebsocketTopic('dls', (message) => {
+        try {
+            const parsed = JSON.parse(message);
+            setReport(Array.isArray(parsed?.sessions) ? parsed : null);
         }
-        function onClose(e: CloseEvent) {
-            if (e.code == 1008) navigate('/login');
-            !disposed && setTimeout(() => connect(), 1000);
-            setReport(null);
-        }
-        return connect();
-    }, [setReport]);
+        catch { setReport(null); }
+    }, () => setReport(null));
 
     function formatRate(bytesPerSecond: number): string {
         return unit === 'MB'

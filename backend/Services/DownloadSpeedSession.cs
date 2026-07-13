@@ -9,7 +9,6 @@ public class DownloadSpeedSession : IDisposable
 {
     private readonly Action<DownloadSpeedSession> _onDisposed;
     private long _bytes;
-    private long _publishedBytes;
     private bool _disposed;
 
     public Guid Id { get; } = Guid.NewGuid();
@@ -29,15 +28,12 @@ public class DownloadSpeedSession : IDisposable
     }
 
     /// <summary>
-    /// Returns the number of bytes added since the previous call.
-    /// Only intended to be called by the tracker's publish loop.
+    /// Atomically returns the number of bytes added since the previous call.
+    /// Called by the tracker's publish loop and on session removal.
     /// </summary>
     internal long TakeBytesDelta()
     {
-        var bytes = Interlocked.Read(ref _bytes);
-        var delta = bytes - _publishedBytes;
-        _publishedBytes = bytes;
-        return delta;
+        return Interlocked.Exchange(ref _bytes, 0);
     }
 
     public void Dispose()
