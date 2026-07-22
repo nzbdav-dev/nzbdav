@@ -151,6 +151,19 @@ public class MultiConnectionNntpClient(
     {
         while (retryCount >= 0)
         {
+            // While tripped, only let one caller at a time actually probe the
+            // provider - every other concurrent caller (other queued items,
+            // health checks, etc.) fails fast instead of also hitting the wire,
+            // which is what let a retry storm reach hundreds of attempts per
+            // second once connections stopped leaking and permits freed up fast.
+            if (circuitBreaker.IsTripped && !circuitBreaker.TryEnterProbe())
+            {
+                var ex = new CouldNotLoginToUsenetException(
+                    $"Provider {providerName} is tripped and another probe is already in flight.");
+                LogException(() => onConnectionReadyAgain?.Invoke(ArticleBodyResult.NotRetrieved));
+                throw ex;
+            }
+
             ConnectionLock<INntpClient>? connectionLock = null;
             try
             {

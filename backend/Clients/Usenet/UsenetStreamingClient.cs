@@ -89,8 +89,22 @@ public class UsenetStreamingClient : WrappingNntpClient
         var useSsl = connectionDetails.UseSsl;
         var user = connectionDetails.User;
         var pass = connectionDetails.Pass;
-        await connection.ConnectAsync(host, port, useSsl, ct).ConfigureAwait(false);
-        await connection.AuthenticateAsync(user, pass, ct).ConfigureAwait(false);
+        try
+        {
+            await connection.ConnectAsync(host, port, useSsl, ct).ConfigureAwait(false);
+            await connection.AuthenticateAsync(user, pass, ct).ConfigureAwait(false);
+        }
+        catch
+        {
+            // ConnectAsync may have already opened the underlying socket even though
+            // AuthenticateAsync (or a later step) failed. Without this, the connection
+            // is silently abandoned - never returned to the caller, so never disposed -
+            // leaking a real, open TCP/TLS connection to the provider on every failed
+            // login. See https://github.com/nzbdav-dev/nzbdav/issues/477.
+            connection.Dispose();
+            throw;
+        }
+
         return connection;
     }
 }
