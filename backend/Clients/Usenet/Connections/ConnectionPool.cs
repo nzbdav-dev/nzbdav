@@ -93,7 +93,8 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
     public ConnectionPool(
         int maxConnections,
         Func<CancellationToken, ValueTask<T>> connectionFactory,
-        TimeSpan? idleTimeout = null)
+        TimeSpan? idleTimeout = null,
+        SemaphorePriorityOdds? priorityOdds = null)
     {
         if (maxConnections <= 0)
             throw new ArgumentOutOfRangeException(nameof(maxConnections));
@@ -107,9 +108,15 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
             throw new ArgumentOutOfRangeException(nameof(idleTimeout));
 
         _maxConnections = maxConnections;
-        _gate = new PrioritizedSemaphore(maxConnections, maxConnections);
+        _gate = new PrioritizedSemaphore(maxConnections, maxConnections, priorityOdds);
         _sweeperTask = Task.Run(SweepLoop); // background idle-reaper
     }
+
+    /// <summary>
+    /// Re-arms the gate's High-vs-Low admission odds (Streaming Priority) in place, so a
+    /// settings save changes contention behavior without replacing live TLS connections.
+    /// </summary>
+    public void UpdatePriorityOdds(SemaphorePriorityOdds odds) => _gate.UpdatePriorityOdds(odds);
 
     /* ============================== public API ==================================== */
 

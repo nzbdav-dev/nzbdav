@@ -26,6 +26,13 @@ public class GetStreamTracesController(StreamTraceBuffer buffer) : BaseApiContro
             Capacity = status.Capacity,
             EventCount = status.EventCount,
             SessionCount = status.SessionCount,
+            RetainedEventCount = status.RetainedEventCount,
+            OverwrittenEventCount = status.OverwrittenEventCount,
+            OldestRetainedSequence = status.OldestRetainedSequence,
+            NewestRetainedSequence = status.NewestRetainedSequence,
+            OldestRetainedAtUnixMs = status.OldestRetainedAtUnixMs,
+            NewestRetainedAtUnixMs = status.NewestRetainedAtUnixMs,
+            Overflowed = status.Overflowed,
             Sessions = sessions.Select(s => new StreamTraceSessionDto
             {
                 SessionId = s.SessionId,

@@ -6,6 +6,7 @@ public sealed class SetStreamTracingRequest
 {
     public bool Enabled { get; }
     public int Minutes { get; }
+    public int Capacity { get; }
 
     public SetStreamTracingRequest(HttpContext context)
     {
@@ -24,5 +25,12 @@ public sealed class SetStreamTracingRequest
         }
 
         Minutes = minutes;
+
+        var capacityRaw = context.Request.Form["capacity"].FirstOrDefault()
+            ?? context.Request.Query["capacity"].FirstOrDefault();
+        Capacity = int.TryParse(capacityRaw, out var capacity)
+                   && Services.StreamTrace.StreamTraceBuffer.AllowedUiCapacities.Contains(capacity)
+            ? capacity
+            : Services.StreamTrace.StreamTraceBuffer.DefaultUiCapacity;
     }
 }

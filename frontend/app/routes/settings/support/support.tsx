@@ -22,6 +22,7 @@ import {
 type Message = { text: string; variant: "success" | "danger" } | null;
 
 const DURATION_OPTIONS = [15, 30, 60] as const;
+const CAPACITY_OPTIONS = [20_000, 50_000, 100_000, 200_000] as const;
 
 function downloadName(response: Response): string {
     const header = response.headers.get("content-disposition");
@@ -37,12 +38,18 @@ function formatRemaining(expiresAtUnixMs: number, nowMs: number): string {
     return `${totalMinutes}m left`;
 }
 
+function formatUtcWindow(unixMs: number): string | null {
+    if (!unixMs || unixMs <= 0) return null;
+    return new Date(unixMs).toISOString().replace(/\.\d{3}Z$/, "Z");
+}
+
 export function SupportSettings() {
     const [busy, setBusy] = useState(false);
     const [message, setMessage] = useState<Message>(null);
     const [tracingBusy, setTracingBusy] = useState(false);
     const [tracingMessage, setTracingMessage] = useState<Message>(null);
     const [minutes, setMinutes] = useState<number>(30);
+    const [capacity, setCapacity] = useState<number>(100_000);
     const [status, setStatus] = useState<StreamTracingStatus | null>(null);
     const [now, setNow] = useState(() => Date.now());
     const [confirmDiscard, setConfirmDiscard] = useState(false);
@@ -53,7 +60,13 @@ export function SupportSettings() {
             .then(async (response) => {
                 if (!response.ok) return;
                 const next = await response.json() as Record<string, unknown>;
-                if (!cancelled) setStatus(toStreamTracingStatus(next));
+                if (!cancelled) {
+                    const parsed = toStreamTracingStatus(next);
+                    setStatus(parsed);
+                    if ((CAPACITY_OPTIONS as readonly number[]).includes(parsed.capacity)) {
+                        setCapacity(parsed.capacity);
+                    }
+                }
             })
             .catch(() => { /* banner / websocket will catch up */ });
         return () => { cancelled = true; };
@@ -111,6 +124,7 @@ export function SupportSettings() {
             const form = new FormData();
             form.append("enabled", enabled ? "true" : "false");
             form.append("minutes", String(durationMinutes));
+            form.append("capacity", String(capacity));
             const response = await fetch("/settings/stream-tracing", { method: "POST", body: form });
             if (!response.ok) {
                 const body = await response.json().catch(() => null);
@@ -137,7 +151,7 @@ export function SupportSettings() {
         } finally {
             setTracingBusy(false);
         }
-    }, [minutes, status?.retained]);
+    }, [minutes, capacity, status?.retained]);
 
     const discardTraces = useCallback(async () => {
         setTracingBusy(true);
@@ -168,12 +182,21 @@ export function SupportSettings() {
 
     const enabled = Boolean(status?.enabled);
     const retained = Boolean(status?.retained && (status?.eventCount ?? 0) > 0);
+    const fillRatio = status && status.capacity > 0
+        ? status.retainedEventCount / status.capacity
+        : 0;
     let statusLine = "Tracing is off.";
     if (enabled && status) {
-        statusLine = `Tracing active — ${formatRemaining(status.expiresAtUnixMs, now)}, ${status.eventCount.toLocaleString()} events across ${status.sessionCount.toLocaleString()} sessions`;
+        statusLine = `Tracing active — ${formatRemaining(status.expiresAtUnixMs, now)}, ${status.retainedEventCount.toLocaleString()} / ${status.capacity.toLocaleString()} events (${Math.round(fillRatio * 100)}%) across ${status.sessionCount.toLocaleString()} sessions`;
     } else if (retained && status) {
-        statusLine = `Tracing is off — ${status.eventCount.toLocaleString()} events across ${status.sessionCount.toLocaleString()} sessions retained for a support pack (released automatically in ${formatRemaining(status.retainedUntilUnixMs, now)})`;
+        statusLine = `Tracing is off — ${status.retainedEventCount.toLocaleString()} / ${status.capacity.toLocaleString()} events across ${status.sessionCount.toLocaleString()} sessions retained for a support pack (released automatically in ${formatRemaining(status.retainedUntilUnixMs, now)})`;
     }
+
+    const overflowWindowStart = status ? formatUtcWindow(status.oldestRetainedAtUnixMs) : null;
+    const overflowWindowEnd = status ? formatUtcWindow(status.newestRetainedAtUnixMs) : null;
+    const overflowPct = status && status.eventCount > 0
+        ? Math.round(100 * status.overwrittenEventCount / status.eventCount)
+        : 0;
 
     return (
         <SettingsPage>
@@ -224,15 +247,41 @@ export function SupportSettings() {
                 <Alert variant="info" className="items-start text-sm">
                     <Icon name="memory" className="mt-0.5 !text-[20px]" />
                     <span>
-                        Tracing is memory-only (up to 20,000 events), never written to disk, and resets on
-                        restart. Leave it off unless you are collecting a support pack — a warning banner
+                        Tracing is memory-only (default {capacity.toLocaleString()} events; up to 200,000),
+                        never written to disk, and resets on restart. The ring keeps the newest events when
+                        full. Leave it off unless you are collecting a support pack — a warning banner
                         appears while it is active. Turning it off keeps the capture for about an hour so
-                        you can still download a pack.
+                        you can still download a pack. Resuming a retained capture keeps its original
+                        capacity; discard first to start fresh at a different size.
                     </span>
                 </Alert>
 
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
-                    <div className="flex-1 space-y-2">
+                {status?.overflowed && (
+                    <Alert variant="warning" className="items-start text-sm">
+                        <Icon name="warning" className="mt-0.5 !text-[20px]" />
+                        <span>
+                            Trace buffer full — {status.overwrittenEventCount.toLocaleString()} of{" "}
+                            {status.eventCount.toLocaleString()} events ({overflowPct}%) were discarded.
+                            {overflowWindowStart && overflowWindowEnd
+                                ? ` Only ${overflowWindowStart}–${overflowWindowEnd} is retained.`
+                                : ""}{" "}
+                            Increase the capacity and reproduce again for a complete capture.
+                        </span>
+                    </Alert>
+                )}
+
+                {!status?.overflowed && enabled && fillRatio >= 0.8 && (
+                    <Alert variant="info" className="items-start text-sm">
+                        <Icon name="info" className="mt-0.5 !text-[20px]" />
+                        <span>
+                            Trace buffer is {Math.round(fillRatio * 100)}% full. Increase capacity or
+                            shorten the reproduction before older events are discarded.
+                        </span>
+                    </Alert>
+                )}
+
+                <div className="flex flex-col gap-4">
+                    <div className="space-y-2">
                         <Label htmlFor="stream-tracing-duration">Duration</Label>
                         <Select
                             id="stream-tracing-duration"
@@ -247,45 +296,58 @@ export function SupportSettings() {
                         </Select>
                         <HelpText>Auto-disables after the timer so tracing cannot be left on indefinitely.</HelpText>
                     </div>
-                    <Toggle
-                        label={enabled ? "Tracing on" : "Tracing off"}
-                        checked={enabled}
-                        disabled={tracingBusy}
-                        onChange={(event) => {
-                            if (event.target.checked) {
-                                void setTracing(true, minutes);
-                            } else {
-                                void setTracing(false);
-                            }
-                        }}
-                    />
+                    <div className="space-y-2">
+                        <Label htmlFor="stream-tracing-capacity">Capacity</Label>
+                        <Select
+                            id="stream-tracing-capacity"
+                            className="w-full max-w-xs"
+                            value={String(capacity)}
+                            disabled={tracingBusy || enabled}
+                            onChange={(event) => setCapacity(Number(event.target.value))}
+                        >
+                            {CAPACITY_OPTIONS.map((value) => (
+                                <option key={value} value={value}>{value.toLocaleString()} events</option>
+                            ))}
+                        </Select>
+                        <HelpText>
+                            At roughly 1,900 events/minute, 100,000 covers a 30-minute capture with headroom.
+                        </HelpText>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3">
+                        <Toggle
+                            label={enabled ? "Tracing on" : "Tracing off"}
+                            checked={enabled}
+                            disabled={tracingBusy}
+                            onChange={(event) => {
+                                if (event.target.checked) {
+                                    void setTracing(true, minutes);
+                                } else {
+                                    void setTracing(false);
+                                }
+                            }}
+                        />
+                        {enabled && (
+                            <Button
+                                variant="outline"
+                                disabled={tracingBusy}
+                                onClick={() => void setTracing(false)}
+                            >
+                                Turn off now
+                            </Button>
+                        )}
+                        {retained && (
+                            <Button
+                                variant="outline"
+                                disabled={tracingBusy}
+                                onClick={() => setConfirmDiscard(true)}
+                            >
+                                Discard captured traces
+                            </Button>
+                        )}
+                    </div>
                 </div>
 
                 <p className="text-sm text-base-content/70" aria-live="polite">{statusLine}</p>
-
-                {enabled && (
-                    <div>
-                        <Button
-                            variant="outline"
-                            disabled={tracingBusy}
-                            onClick={() => void setTracing(false)}
-                        >
-                            Turn off now
-                        </Button>
-                    </div>
-                )}
-
-                {retained && (
-                    <div>
-                        <Button
-                            variant="outline"
-                            disabled={tracingBusy}
-                            onClick={() => setConfirmDiscard(true)}
-                        >
-                            Discard captured traces
-                        </Button>
-                    </div>
-                )}
 
                 {status?.source === "env" && enabled && (
                     <HelpText>

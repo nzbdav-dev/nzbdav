@@ -4,6 +4,7 @@ using NzbWebDAV.Clients.Usenet.Contexts;
 using NzbWebDAV.Clients.Usenet.Models;
 using NzbWebDAV.Config;
 using NzbWebDAV.Extensions;
+using NzbWebDAV.Services.Metrics;
 using UsenetSharp.Models;
 
 namespace NzbWebDAV.Clients.Usenet;
@@ -19,13 +20,18 @@ public class DownloadingNntpClient : WrappingNntpClient
     private readonly ConfigManager _configManager;
     private readonly PrioritizedSemaphore _streamingSemaphore;
     private readonly PrioritizedSemaphore _queueSemaphore;
+    private readonly ProviderLatencyTracker? _latencyTracker;
 
-    public DownloadingNntpClient(INntpClient usenetClient, ConfigManager configManager) : base(usenetClient)
+    public DownloadingNntpClient(
+        INntpClient usenetClient,
+        ConfigManager configManager,
+        ProviderLatencyTracker? latencyTracker = null) : base(usenetClient)
     {
         var maxDownloadConnections = configManager.GetMaxDownloadConnections();
         var maxQueueConnections = configManager.GetMaxQueueConnections();
         var streamingPriority = configManager.GetStreamingPriority();
         _configManager = configManager;
+        _latencyTracker = latencyTracker;
         _streamingSemaphore = new PrioritizedSemaphore(maxDownloadConnections, maxDownloadConnections, streamingPriority);
         _queueSemaphore = new PrioritizedSemaphore(
             maxQueueConnections,
@@ -179,16 +185,22 @@ public class DownloadingNntpClient : WrappingNntpClient
         SemaphorePriority priority,
         CancellationToken cancellationToken)
     {
-        var queueContext = cancellationToken.GetContext<QueueDownloadContext>();
-        if (queueContext is null)
-        {
-            await semaphore.WaitAsync(priority, cancellationToken).ConfigureAwait(false);
-            return;
-        }
-
+        var workload = DownloadWorkloadClassifier.Classify(cancellationToken);
         var waitTimer = Stopwatch.StartNew();
         await semaphore.WaitAsync(priority, cancellationToken).ConfigureAwait(false);
-        queueContext.RecordSemaphoreWait(waitTimer.ElapsedMilliseconds);
+        var elapsed = waitTimer.Elapsed;
+        _latencyTracker?.Record(
+            providerKey: null,
+            LatencyPhase.PermitWait,
+            workload,
+            NntpOperation.Admission,
+            elapsed);
+
+        var queueContext = cancellationToken.GetContext<QueueDownloadContext>();
+        if (queueContext is not null)
+            queueContext.RecordSemaphoreWait(elapsed.TotalMilliseconds > 0
+                ? (long)elapsed.TotalMilliseconds
+                : 0);
     }
 
     private async Task<PrioritizedSemaphore> AcquireExclusiveConnectionAsync(CancellationToken cancellationToken)

@@ -127,7 +127,7 @@ jobs:
         run: dotnet publish -c Release -o ./publish --no-restore
 
       - name: Test backend
-        run: dotnet test tests/NzbWebDAV.Tests/NzbWebDAV.Tests.csproj -c Release --no-restore --collect:"XPlat Code Coverage" --results-directory ./TestResults
+        run: dotnet test tests/NzbWebDAV.Tests/NzbWebDAV.Tests.csproj -c Release --no-restore --collect:"XPlat Code Coverage" --results-directory ./TestResults --blame-hang-timeout 2m --blame-hang-dump-type none
 
       - name: Upload backend coverage
         uses: actions/upload-artifact@v7

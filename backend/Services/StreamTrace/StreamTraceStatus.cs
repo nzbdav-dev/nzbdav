@@ -12,4 +12,30 @@ public sealed record StreamTraceStatus(
     long EventCount,
     int SessionCount,
     bool Retained,
-    long RetainedUntilUnixMs);
+    long RetainedUntilUnixMs,
+    long RetainedEventCount,
+    long OverwrittenEventCount,
+    long OldestRetainedSequence,
+    long NewestRetainedSequence,
+    long OldestRetainedAtUnixMs,
+    long NewestRetainedAtUnixMs)
+{
+    /// <summary>The ring wrapped, so the capture is a tail of the reproduction, not all of it.</summary>
+    public bool Overflowed => OverwrittenEventCount > 0;
+}
+
+internal sealed record StreamTraceSnapshot(
+    StreamTraceStatus Status,
+    int RetainedSessionCount,
+    IReadOnlyList<StreamTraceExportSessionSummary> Sessions,
+    IReadOnlyList<StreamTraceEvent> Events);
+
+internal sealed record StreamTraceExportSessionSummary(
+    Guid SessionId,
+    string? Path,
+    long FirstAt,
+    long LastAt,
+    int? EventCount,
+    int RetainedEventCount,
+    bool EventsComplete,
+    string? LastKind);

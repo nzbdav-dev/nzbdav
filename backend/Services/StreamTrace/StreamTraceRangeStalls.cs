@@ -68,8 +68,33 @@ internal sealed class StreamTraceRangeStalls
         Interlocked.Increment(ref _fetches);
     }
 
+    /// <summary>
+    /// Point-in-time copy of stall totals so export serialization cannot observe
+    /// late fetch completions that arrive after the line is written.
+    /// </summary>
+    public StreamTraceRangeStallsSnapshot Snapshot() => new(
+        ConnectionWaitMs: ConnectionWaitMs,
+        ProviderWaitMs: ProviderWaitMs,
+        BodyDrainMs: BodyDrainMs,
+        ConsumerWaitMs: ConsumerWaitMs,
+        ClientWriteMs: ClientWriteMs,
+        ConnectionsOpened: ConnectionsOpened,
+        ConnectionsReused: ConnectionsReused,
+        Fetches: Fetches);
+
     private static long? Milliseconds(long ticks) =>
         ticks <= 0 ? null : ticks / TimeSpan.TicksPerMillisecond;
 
     private static long? Count(long value) => value <= 0 ? null : value;
 }
+
+/// <summary>Immutable stall totals captured at export time.</summary>
+internal sealed record StreamTraceRangeStallsSnapshot(
+    long? ConnectionWaitMs,
+    long? ProviderWaitMs,
+    long? BodyDrainMs,
+    long? ConsumerWaitMs,
+    long? ClientWriteMs,
+    long? ConnectionsOpened,
+    long? ConnectionsReused,
+    long? Fetches);

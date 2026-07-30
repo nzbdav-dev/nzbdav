@@ -44,5 +44,12 @@ public sealed class StreamTraceStatusBroadcaster(WebsocketManager websocketManag
             capacity = status.Capacity,
             eventCount = status.EventCount,
             sessionCount = status.SessionCount,
+            retainedEventCount = status.RetainedEventCount,
+            overwrittenEventCount = status.OverwrittenEventCount,
+            oldestRetainedSequence = status.OldestRetainedSequence,
+            newestRetainedSequence = status.NewestRetainedSequence,
+            oldestRetainedAtUnixMs = status.OldestRetainedAtUnixMs,
+            newestRetainedAtUnixMs = status.NewestRetainedAtUnixMs,
+            overflowed = status.Overflowed,
         }, JsonOptions);
 }

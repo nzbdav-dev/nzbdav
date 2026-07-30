@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using NzbWebDAV.Clients.Usenet.Contexts;
 using NzbWebDAV.Clients.Usenet.Models;
 using NzbWebDAV.Exceptions;
 using NzbWebDAV.Extensions;
@@ -205,7 +206,7 @@ public abstract class NntpClient : INntpClient
         CancellationToken cancellationToken
     )
     {
-        using var childCt = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        using var childCt = ContextualCancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var token = childCt.Token;
 
         var tasks = segmentIds

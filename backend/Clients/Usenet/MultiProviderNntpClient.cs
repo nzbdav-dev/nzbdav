@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
+using NzbWebDAV.Clients.Usenet.Concurrency;
 using NzbWebDAV.Clients.Usenet.Models;
 using NzbWebDAV.Exceptions;
 using NzbWebDAV.Database.Models.Metrics;
@@ -37,6 +38,16 @@ public class MultiProviderNntpClient(
     private const int MaxConcurrentFallbackStarts = 4;
     private readonly SemaphoreSlim _batchFallbackStartGate = new(MaxConcurrentFallbackStarts);
     public int InFlightConnections => providers.Sum(p => p.InFlightConnections);
+
+    /// <summary>
+    /// Applies Streaming Priority odds to every provider's connection gate so a settings
+    /// save re-arbitrates playback against maintenance without reconnecting providers.
+    /// </summary>
+    public void UpdateConnectionPriorityOdds(SemaphorePriorityOdds odds)
+    {
+        foreach (var provider in providers)
+            provider.UpdatePriorityOdds(odds);
+    }
 
     public IReadOnlyList<ProviderCircuitRuntimeSnapshot> GetProviderCircuitSnapshots()
     {

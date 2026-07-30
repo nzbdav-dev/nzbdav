@@ -1,5 +1,48 @@
 # Changelog
 
+## [0.9.1](https://github.com/nzbdav/nzbdav/compare/v0.9.0...v0.9.1) (2026-07-28)
+
+
+### Features
+
+* **health:** add discard action and retained stream-trace UI status ([aeffee5](https://github.com/nzbdav/nzbdav/commit/aeffee59987109dd11d10f1bbd82a268da76d621)), closes [#685](https://github.com/nzbdav/nzbdav/issues/685)
+* **health:** support packs report peak CPU during playback, not just an idle snapshot ([#689](https://github.com/nzbdav/nzbdav/issues/689)) ([6b312ab](https://github.com/nzbdav/nzbdav/commit/6b312ab83d8e3d6c7fd829d0083c5506bbbe7632)), closes [#679](https://github.com/nzbdav/nzbdav/issues/679)
+* **health:** support packs show CPU, memory and per-stage playback stalls ([#678](https://github.com/nzbdav/nzbdav/issues/678)) ([0aae628](https://github.com/nzbdav/nzbdav/commit/0aae628ae365e3e3d31179225bce24caace82e7a))
+* **ui:** capture stream traces from the UI without restarting the container ([#676](https://github.com/nzbdav/nzbdav/issues/676)) ([769b1cc](https://github.com/nzbdav/nzbdav/commit/769b1cc20604610f1e3c58cb36e158d859580e23))
+* **ui:** confirm before turning off stream tracing so captured traces are not lost ([#688](https://github.com/nzbdav/nzbdav/issues/688)) ([b9fa452](https://github.com/nzbdav/nzbdav/commit/b9fa45231b44781b26621947d663d8581804b487))
+* **usenet:** size queue connections as a share of the provider pool ([#698](https://github.com/nzbdav/nzbdav/issues/698)) ([b0eff0b](https://github.com/nzbdav/nzbdav/commit/b0eff0bc6ece4a261cfebabffc472b6d6c3c2dcb))
+
+
+### Bug Fixes
+
+* **api:** support packs keep streaming warnings instead of filling with Watchtower noise ([#675](https://github.com/nzbdav/nzbdav/issues/675)) ([f3f6347](https://github.com/nzbdav/nzbdav/commit/f3f63478070744cd1bb394da663f213283947fe0))
+* **arr:** aggregate stuck-queue removals into one Warning per release ([3c9a59f](https://github.com/nzbdav/nzbdav/commit/3c9a59f0accb9c6cde79a37d71f8ce83711cebfe)), closes [#684](https://github.com/nzbdav/nzbdav/issues/684)
+* **db:** backend no longer starts against a stale schema or hangs on a stale migration lock ([#701](https://github.com/nzbdav/nzbdav/issues/701)) ([6e15ddc](https://github.com/nzbdav/nzbdav/commit/6e15ddcc09c67ef92e2d5e4162debe4850450c8a))
+* **deps:** Bump actions/setup-python in the github-actions group ([#694](https://github.com/nzbdav/nzbdav/issues/694)) ([dab9146](https://github.com/nzbdav/nzbdav/commit/dab91469441c37ba3da4459ce6a00cdb78200895))
+* **deps:** Bump the npm-minor-and-patch group ([7121949](https://github.com/nzbdav/nzbdav/commit/71219491f051c3f9f2e3501326b240f8eff16d92))
+* **deps:** Bump the npm-minor-and-patch group in /frontend with 3 updates ([563562c](https://github.com/nzbdav/nzbdav/commit/563562cbc68e91a98c0257df70706845bd1cff98))
+* **health:** attribute range stalls to the range that started the fetch ([2fb1dfb](https://github.com/nzbdav/nzbdav/commit/2fb1dfb63c44fcd55833585fd878bcd825a7e653)), closes [#683](https://github.com/nzbdav/nzbdav/issues/683)
+* **health:** keep diagnostics faithful under write storms, circuit misses, and scrubbing ([588c462](https://github.com/nzbdav/nzbdav/commit/588c4627a12cb1226d2f49346bdc2c948a0658c2))
+* **health:** keep stream traces after recording stops for support packs ([155bde3](https://github.com/nzbdav/nzbdav/commit/155bde393a88d6d6ab6f899d2f776a4c16b4d7c8)), closes [#685](https://github.com/nzbdav/nzbdav/issues/685)
+* **health:** keep the RangeEnd trace event when a read fails before the range opens ([a8b4f14](https://github.com/nzbdav/nzbdav/commit/a8b4f1466ce10fb2e2ba342c726d32aca4b71d95)), closes [#683](https://github.com/nzbdav/nzbdav/issues/683)
+* **nntp:** stop a missing article from resetting an open provider circuit breaker ([c5f686a](https://github.com/nzbdav/nzbdav/commit/c5f686a79a6da67bda4a4c5adc899361c3935b8e)), closes [#682](https://github.com/nzbdav/nzbdav/issues/682)
+* **test:** isolate Arr warning assertions from parallel Serilog noise ([954ce1f](https://github.com/nzbdav/nzbdav/commit/954ce1f637b1a3de6870855be2a36da1b21b5a02)), closes [#684](https://github.com/nzbdav/nzbdav/issues/684) [#685](https://github.com/nzbdav/nzbdav/issues/685)
+* **ui:** anchor activity chart articles runs to leading and trailing zeros ([409297b](https://github.com/nzbdav/nzbdav/commit/409297b8d797ec011325863b366300a5140b7f40))
+* **ui:** hide activity chart articles line when idle ([7d43ca4](https://github.com/nzbdav/nzbdav/commit/7d43ca4c696725d577cb2547cf02c5d2ed52d914))
+* **ui:** left-align developer stream tracing controls on Support settings ([#708](https://github.com/nzbdav/nzbdav/issues/708)) ([5947656](https://github.com/nzbdav/nzbdav/commit/59476563b8080b0581ec055cbd2b0ec3d650fff1))
+* **ui:** skip zero buckets on activity chart articles line ([1aa70ba](https://github.com/nzbdav/nzbdav/commit/1aa70ba4f44ab993dc1586a98c82d77909124a9e))
+* **ui:** Test Conn shows failure reasons and works with saved Arr/rclone credentials ([0e3c649](https://github.com/nzbdav/nzbdav/commit/0e3c649d853ffac7f315469d5151f6c3b67f7ab0))
+* **ui:** Test Conn works with saved Arr/rclone credentials and shows failure reasons ([e3751bb](https://github.com/nzbdav/nzbdav/commit/e3751bb8b8c0789be133f6bb562eb222992c932f))
+* **usenet:** prefer the configured primary over larger idle backup pools ([#697](https://github.com/nzbdav/nzbdav/issues/697)) ([6fc0d7a](https://github.com/nzbdav/nzbdav/commit/6fc0d7a4d415fdfe129e99c38378f9fef64770f7))
+* **webdav:** metadata-writing clients no longer flood logs against the read-only mount ([#687](https://github.com/nzbdav/nzbdav/issues/687)) ([af18a69](https://github.com/nzbdav/nzbdav/commit/af18a6918956b7b22b1f5de0441ff42e50786aa6))
+* **webdav:** tell WebDAV clients why a deep directory listing was refused ([#702](https://github.com/nzbdav/nzbdav/issues/702)) ([49f6ddc](https://github.com/nzbdav/nzbdav/commit/49f6ddcfd0f58cad81c12433404a7afd6f25c6cc))
+* **webdav:** throttle read-only write rejections per mount instead of per directory ([eaa9423](https://github.com/nzbdav/nzbdav/commit/eaa9423e1ea2b2ea2855749aa7ada52dcb370423)), closes [#680](https://github.com/nzbdav/nzbdav/issues/680)
+
+
+### Performance Improvements
+
+* **webdav:** lower memory use while streaming large files ([#690](https://github.com/nzbdav/nzbdav/issues/690)) ([5857d0b](https://github.com/nzbdav/nzbdav/commit/5857d0b6d22b8500a838063ee4dc9dbe3eb77ba2))
+
 ## [0.9.0](https://github.com/nzbdav/nzbdav/compare/v0.8.1...v0.9.0) (2026-07-26)
 
 

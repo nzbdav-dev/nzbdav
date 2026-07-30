@@ -14,10 +14,11 @@ public sealed class StreamTraceBuffer
 {
     public const string SourceEnv = "env";
     public const string SourceUi = "ui";
-    public const int UiMaxCapacity = 20_000;
+    public const int UiMaxCapacity = 200_000;
     public const int EnvMaxCapacity = 200_000;
-    public const int DefaultUiCapacity = 20_000;
+    public const int DefaultUiCapacity = 100_000;
     public static readonly int[] AllowedUiMinutes = [15, 30, 60];
+    public static readonly int[] AllowedUiCapacities = [20_000, 50_000, 100_000, 200_000];
 
     private static readonly TimeSpan RetentionWindow = TimeSpan.FromHours(1);
     private static readonly JsonSerializerOptions CompactJson = new()
@@ -38,6 +39,8 @@ public sealed class StreamTraceBuffer
 
     // Newest session first for summary listing.
     private readonly ConcurrentDictionary<Guid, SessionMeta> _sessions = new();
+    private readonly HashSet<Guid> _trimmedSessionIds = new();
+    private bool _sessionHistorySaturated;
 
     public StreamTraceBuffer(int capacity, int maxSessions = 200, bool enabled = true)
     {
@@ -121,6 +124,8 @@ public sealed class StreamTraceBuffer
                 Volatile.Write(ref _expiresAtUnixMs, expiresAt);
                 Volatile.Write(ref _retainedUntilUnixMs, 0);
                 _sessions.Clear();
+                _trimmedSessionIds.Clear();
+                _sessionHistorySaturated = false;
                 _nextSequence = 0;
                 Volatile.Write(ref _recording, 1);
             }
@@ -204,15 +209,38 @@ public sealed class StreamTraceBuffer
         var retainedUntil = Volatile.Read(ref _retainedUntilUnixMs);
         var recording = Volatile.Read(ref _recording) == 1;
         var enabled = recording && _buffer.Length > 0 && (expiresAt == 0 || expiresAt > Now());
+        var total = Volatile.Read(ref _nextSequence);
+        var ringLength = _buffer.Length;
+        var retainedCount = ringLength == 0 ? 0L : Math.Min(total, ringLength);
+        var oldestSequence = retainedCount == 0 ? 0L : total - retainedCount + 1;
+        var newestSequence = retainedCount == 0 ? 0L : total;
+        var oldest = retainedCount == 0
+            ? null
+            : _buffer[(int)((oldestSequence - 1) % ringLength)];
+        var newest = retainedCount == 0
+            ? null
+            : _buffer[(int)((newestSequence - 1) % ringLength)];
+#if DEBUG
+        if (oldest is not null)
+            System.Diagnostics.Debug.Assert(oldest.Sequence == oldestSequence);
+        if (newest is not null)
+            System.Diagnostics.Debug.Assert(newest.Sequence == newestSequence);
+#endif
         return new StreamTraceStatus(
             Enabled: enabled,
             Source: _source,
             ExpiresAtUnixMs: expiresAt,
             Capacity: Math.Max(_capacity, 100),
-            EventCount: Volatile.Read(ref _nextSequence),
+            EventCount: total,
             SessionCount: _sessions.Count,
             Retained: !recording && _buffer.Length > 0 && _nextSequence > 0,
-            RetainedUntilUnixMs: retainedUntil);
+            RetainedUntilUnixMs: retainedUntil,
+            RetainedEventCount: retainedCount,
+            OverwrittenEventCount: Math.Max(0, total - retainedCount),
+            OldestRetainedSequence: oldestSequence,
+            NewestRetainedSequence: newestSequence,
+            OldestRetainedAtUnixMs: oldest?.AtUnixMs ?? 0,
+            NewestRetainedAtUnixMs: newest?.AtUnixMs ?? 0);
     }
 
     private void ReleaseBufferNoLock()
@@ -222,6 +250,8 @@ public sealed class StreamTraceBuffer
         Volatile.Write(ref _expiresAtUnixMs, 0);
         Volatile.Write(ref _retainedUntilUnixMs, 0);
         _sessions.Clear();
+        _trimmedSessionIds.Clear();
+        _sessionHistorySaturated = false;
         _nextSequence = 0;
     }
 
@@ -259,6 +289,8 @@ public sealed class StreamTraceBuffer
                     LastAt = entry.AtUnixMs,
                     Path = entry.Path,
                     EventCount = 1,
+                    EventCountKnown = !_sessionHistorySaturated
+                        && !_trimmedSessionIds.Contains(entry.SessionId),
                     LastKind = entry.Kind,
                 },
                 (_, existing) =>
@@ -388,6 +420,19 @@ public sealed class StreamTraceBuffer
         });
     }
 
+    public void PrefetchWidth(Guid sessionId, int previousBatchSize, int batchSize)
+    {
+        Record(new StreamTraceEvent
+        {
+            Sequence = 0,
+            AtUnixMs = Now(),
+            SessionId = sessionId,
+            Kind = StreamTraceKind.PrefetchWidth.ToString(),
+            PreviousBatchSize = previousBatchSize,
+            BatchSize = batchSize,
+        });
+    }
+
     /// <summary>
     /// Adds time spent blocked on <paramref name="kind"/> to the range identified by
     /// <paramref name="range"/>. Ticks are accumulated rather than milliseconds so
@@ -474,53 +519,171 @@ public sealed class StreamTraceBuffer
 
     public IReadOnlyList<StreamTraceEvent> GetSessionEvents(Guid sessionId)
     {
-        if (_buffer.Length == 0) return [];
-
-        StreamTraceEvent?[] copy;
         lock (_gate)
         {
-            copy = new StreamTraceEvent?[_buffer.Length];
-            _buffer.CopyTo(copy, 0);
+            return WalkRetainedEventsNoLock()
+                .Where(e => e.SessionId == sessionId)
+                .ToList();
         }
-
-        return copy
-            .Where(e => e is not null && e.SessionId == sessionId)
-            .OrderBy(e => e!.Sequence)
-            .Select(e => e!)
-            .ToList();
     }
 
     /// <summary>
     /// Newest <paramref name="limit"/> events across all sessions, oldest-first within
-    /// the returned window. Used by the support pack exporter.
+    /// the returned window. Used by the support pack exporter and scripts.
     /// </summary>
     public IReadOnlyList<StreamTraceEvent> GetRecentEvents(int limit)
     {
-        StreamTraceEvent?[] copy;
         lock (_gate)
         {
             if (_buffer.Length == 0) return [];
-            copy = new StreamTraceEvent?[_buffer.Length];
-            _buffer.CopyTo(copy, 0);
+            var max = Math.Clamp(limit, 1, Math.Max(_buffer.Length, 1));
+            var all = WalkRetainedEventsNoLock();
+            if (all.Count <= max) return all;
+            return all.Skip(all.Count - max).ToList();
         }
-
-        return copy
-            .Where(e => e is not null)
-            .OrderByDescending(e => e!.Sequence)
-            .Take(Math.Clamp(limit, 1, UiMaxCapacity))
-            .OrderBy(e => e!.Sequence)
-            .Select(e => e!)
-            .ToList();
     }
 
     /// <summary>
-    /// Serialize recent events as newline-delimited JSON for the support pack.
+    /// Serialize recent events as newline-delimited JSON. Prefer
+    /// <see cref="CaptureSnapshot"/> + line-by-line export for large packs.
     /// </summary>
     public string FormatEventsJsonl(int limit)
     {
         var events = GetRecentEvents(limit);
         if (events.Count == 0) return "";
-        return string.Join('\n', events.Select(e => JsonSerializer.Serialize(e, CompactJson))) + "\n";
+        return string.Join('\n', events.Select(e => JsonSerializer.Serialize(e.FreezeForExport(), CompactJson))) + "\n";
+    }
+
+    /// <summary>
+    /// Atomically capture status, retained events, and per-session export summaries
+    /// for a support pack. Holds <c>_gate</c> only for reference/scalar copies.
+    /// </summary>
+    internal StreamTraceSnapshot CaptureSnapshot(int sessionLimit = 50)
+    {
+        StreamTraceStatus status;
+        List<StreamTraceEvent> events;
+        List<(Guid SessionId, string? Path, long FirstAt, long LastAt, int EventCount, bool EventCountKnown, string? LastKind)> sessionScalars;
+        bool overflowed;
+
+        lock (_gate)
+        {
+            status = GetStatusNoLock();
+            overflowed = status.Overflowed;
+            events = WalkRetainedEventsNoLock();
+            sessionScalars = _sessions.Values
+                .Select(s => (
+                    s.SessionId,
+                    s.Path,
+                    s.FirstAt,
+                    s.LastAt,
+                    s.EventCount,
+                    s.EventCountKnown,
+                    s.LastKind))
+                .ToList();
+        }
+
+        var retainedBySession = events
+            .GroupBy(e => e.SessionId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        var candidates = new Dictionary<Guid, StreamTraceExportSessionSummary>();
+        foreach (var meta in sessionScalars)
+        {
+            retainedBySession.TryGetValue(meta.SessionId, out var retainedEvents);
+            var retainedCount = retainedEvents?.Count ?? 0;
+            candidates[meta.SessionId] = BuildExportSummary(
+                meta.SessionId,
+                meta.Path,
+                meta.FirstAt,
+                meta.LastAt,
+                meta.EventCount,
+                meta.EventCountKnown,
+                meta.LastKind,
+                retainedCount,
+                overflowed);
+        }
+
+        foreach (var (sessionId, retainedEvents) in retainedBySession)
+        {
+            if (candidates.ContainsKey(sessionId)) continue;
+            var first = retainedEvents[0];
+            var last = retainedEvents[^1];
+            candidates[sessionId] = BuildExportSummary(
+                sessionId,
+                retainedEvents.Select(e => e.Path).LastOrDefault(p => !string.IsNullOrEmpty(p)) ?? first.Path,
+                first.AtUnixMs,
+                last.AtUnixMs,
+                eventCount: null,
+                eventCountKnown: false,
+                last.Kind,
+                retainedEvents.Count,
+                overflowed);
+        }
+
+        var sessions = candidates.Values
+            .OrderByDescending(s => s.LastAt)
+            .Take(Math.Clamp(sessionLimit, 1, 500))
+            .ToList();
+
+        return new StreamTraceSnapshot(
+            status,
+            RetainedSessionCount: retainedBySession.Count,
+            Sessions: sessions,
+            Events: events);
+    }
+
+    private static StreamTraceExportSessionSummary BuildExportSummary(
+        Guid sessionId,
+        string? path,
+        long firstAt,
+        long lastAt,
+        int? eventCount,
+        bool eventCountKnown,
+        string? lastKind,
+        int retainedCount,
+        bool overflowed)
+    {
+        if (eventCountKnown && eventCount is int known)
+        {
+            return new StreamTraceExportSessionSummary(
+                sessionId, path, firstAt, lastAt,
+                EventCount: known,
+                RetainedEventCount: retainedCount,
+                EventsComplete: retainedCount == known,
+                LastKind: lastKind);
+        }
+
+        if (!overflowed)
+        {
+            return new StreamTraceExportSessionSummary(
+                sessionId, path, firstAt, lastAt,
+                EventCount: retainedCount,
+                RetainedEventCount: retainedCount,
+                EventsComplete: true,
+                LastKind: lastKind);
+        }
+
+        return new StreamTraceExportSessionSummary(
+            sessionId, path, firstAt, lastAt,
+            EventCount: null,
+            RetainedEventCount: retainedCount,
+            EventsComplete: false,
+            LastKind: lastKind);
+    }
+
+    private List<StreamTraceEvent> WalkRetainedEventsNoLock()
+    {
+        if (_buffer.Length == 0) return [];
+        var status = GetStatusNoLock();
+        if (status.RetainedEventCount == 0) return [];
+        var result = new List<StreamTraceEvent>((int)status.RetainedEventCount);
+        for (var sequence = status.OldestRetainedSequence; sequence <= status.NewestRetainedSequence; sequence++)
+        {
+            var entry = _buffer[(int)((sequence - 1) % _buffer.Length)];
+            if (entry is null) continue;
+            result.Add(entry);
+        }
+        return result;
     }
 
     private void TrimSessionsIfNeeded()
@@ -531,8 +694,23 @@ public sealed class StreamTraceBuffer
             .Take(_sessions.Count - _maxSessions)
             .Select(s => s.SessionId)
             .ToList();
+        var tombstoneCap = _maxSessions * 4;
         foreach (var id in excess)
-            _sessions.TryRemove(id, out _);
+        {
+            if (_sessions.TryRemove(id, out _))
+            {
+                if (_sessionHistorySaturated) continue;
+                if (_trimmedSessionIds.Count >= tombstoneCap)
+                {
+                    _sessionHistorySaturated = true;
+                    _trimmedSessionIds.Clear();
+                }
+                else
+                {
+                    _trimmedSessionIds.Add(id);
+                }
+            }
+        }
     }
 
     private static long Now() => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
@@ -552,6 +730,7 @@ public sealed class StreamTraceBuffer
         public long LastAt { get; set; }
         public string? Path { get; set; }
         public int EventCount { get; set; }
+        public bool EventCountKnown { get; set; } = true;
         public string? LastKind { get; set; }
 
         public void OpenGeneration(long generation)

@@ -415,6 +415,113 @@ public class StreamTraceBufferTests
     }
 
     [Fact]
+    public void Status_ReportsOverflowAndRetainedWindowAfterTheRingWraps()
+    {
+        var buffer = new StreamTraceBuffer(capacity: 100, maxSessions: 50);
+        var session = Guid.NewGuid();
+        for (var i = 0; i < 150; i++)
+            buffer.Seek(session, i);
+
+        var status = buffer.GetStatus();
+        Assert.Equal(150, status.EventCount);
+        Assert.Equal(100, status.RetainedEventCount);
+        Assert.Equal(50, status.OverwrittenEventCount);
+        Assert.True(status.Overflowed);
+        Assert.Equal(51, status.OldestRetainedSequence);
+        Assert.Equal(150, status.NewestRetainedSequence);
+        Assert.True(status.OldestRetainedAtUnixMs > 0);
+        Assert.True(status.NewestRetainedAtUnixMs >= status.OldestRetainedAtUnixMs);
+    }
+
+    [Fact]
+    public void Status_DoesNotReportOverflowBelowCapacity()
+    {
+        var buffer = new StreamTraceBuffer(capacity: 100, maxSessions: 50);
+        var session = Guid.NewGuid();
+        for (var i = 0; i < 50; i++)
+            buffer.Seek(session, i);
+
+        var status = buffer.GetStatus();
+        Assert.Equal(50, status.EventCount);
+        Assert.Equal(50, status.RetainedEventCount);
+        Assert.Equal(0, status.OverwrittenEventCount);
+        Assert.False(status.Overflowed);
+    }
+
+    [Fact]
+    public void Status_ExactCapacityIsNotOverflow()
+    {
+        var buffer = new StreamTraceBuffer(capacity: 100, maxSessions: 50);
+        var session = Guid.NewGuid();
+        for (var i = 0; i < 100; i++)
+            buffer.Seek(session, i);
+
+        var status = buffer.GetStatus();
+        Assert.Equal(100, status.EventCount);
+        Assert.Equal(100, status.RetainedEventCount);
+        Assert.Equal(0, status.OverwrittenEventCount);
+        Assert.False(status.Overflowed);
+    }
+
+    [Fact]
+    public void CaptureSnapshot_IsConsistentWithStatusAndSessionCompleteness()
+    {
+        var buffer = new StreamTraceBuffer(capacity: 100, maxSessions: 50);
+        var kept = Guid.NewGuid();
+        var evicted = Guid.NewGuid();
+        for (var i = 0; i < 80; i++)
+            buffer.Seek(evicted, i);
+        for (var i = 0; i < 40; i++)
+            buffer.Seek(kept, i);
+
+        var snapshot = buffer.CaptureSnapshot();
+        Assert.Equal(snapshot.Status.RetainedEventCount, snapshot.Events.Count);
+        Assert.Equal(snapshot.Status.OldestRetainedSequence, snapshot.Events[0].Sequence);
+        Assert.Equal(snapshot.Status.NewestRetainedSequence, snapshot.Events[^1].Sequence);
+        Assert.True(snapshot.Status.Overflowed);
+
+        var keptSummary = Assert.Single(snapshot.Sessions, s => s.SessionId == kept);
+        Assert.True(keptSummary.EventsComplete);
+        Assert.Equal(40, keptSummary.RetainedEventCount);
+
+        var evictedSummary = snapshot.Sessions.FirstOrDefault(s => s.SessionId == evicted);
+        if (evictedSummary is not null)
+            Assert.False(evictedSummary.EventsComplete);
+    }
+
+    [Fact]
+    public void FreezeForExport_IgnoresLaterStallMutations()
+    {
+        var buffer = new StreamTraceBuffer(capacity: 100, maxSessions: 50);
+        var session = Guid.NewGuid();
+        var range = buffer.RangeOpen(session, "/view/a.mkv", "GET", 0, null, 1000, null, null);
+        buffer.AddStall(range, StreamStallKind.ProviderWait, TimeSpan.FromMilliseconds(50));
+        buffer.RangeEnd(session, range, ReadSession.EndReasonCode.Completed, 100);
+
+        var live = buffer.GetSessionEvents(session).Last();
+        var frozen = live.FreezeForExport();
+        Assert.Equal(50, frozen.ProviderWaitMs);
+
+        buffer.AddFetchWait(range, TimeSpan.FromMilliseconds(500));
+        Assert.Equal(50, frozen.ProviderWaitMs);
+        Assert.True(live.ProviderWaitMs > 50);
+    }
+
+    [Fact]
+    public void GetRecentEvents_CanExceedFormerUiCeilingWhenRingHoldsMore()
+    {
+        var buffer = new StreamTraceBuffer(capacity: 250, maxSessions: 50);
+        var session = Guid.NewGuid();
+        for (var i = 0; i < 250; i++)
+            buffer.Seek(session, i);
+
+        var recent = buffer.GetRecentEvents(250);
+        Assert.Equal(250, recent.Count);
+        Assert.Equal(1, recent[0].Sequence);
+        Assert.Equal(250, recent[^1].Sequence);
+    }
+
+    [Fact]
     public void IsExpired_BecomesTrueAfterZeroTtlWindow()
     {
         var buffer = new StreamTraceBuffer(100, enabled: false);

@@ -33,6 +33,8 @@ public sealed record StreamTraceEvent
     [JsonPropertyName("toProvider")] public string? ToProvider { get; init; }
     [JsonPropertyName("attempt")] public int? Attempt { get; init; }
     [JsonPropertyName("message")] public string? Message { get; init; }
+    [JsonPropertyName("previousBatchSize")] public int? PreviousBatchSize { get; init; }
+    [JsonPropertyName("batchSize")] public int? BatchSize { get; init; }
 
     [JsonPropertyName("rangeGeneration")] public long? RangeGeneration { get; init; }
 
@@ -43,16 +45,41 @@ public sealed record StreamTraceEvent
     [JsonIgnore]
     internal StreamTraceRangeStalls? RangeStalls { get; init; }
 
+    /// <summary>
+    /// Frozen stall totals for export. When set, serialized stall properties read
+    /// these values instead of the live <see cref="RangeStalls"/> reference.
+    /// </summary>
+    [JsonIgnore]
+    internal StreamTraceRangeStallsSnapshot? FrozenStalls { get; init; }
+
     // Stall attribution on RangeEnd. These overlap by design — segments are fetched
     // concurrently — so they are shares of a range's wall clock, not a partition of it.
-    [JsonPropertyName("connWaitMs")] public long? ConnectionWaitMs => RangeStalls?.ConnectionWaitMs;
-    [JsonPropertyName("providerWaitMs")] public long? ProviderWaitMs => RangeStalls?.ProviderWaitMs;
-    [JsonPropertyName("bodyDrainMs")] public long? BodyDrainMs => RangeStalls?.BodyDrainMs;
-    [JsonPropertyName("consumerWaitMs")] public long? ConsumerWaitMs => RangeStalls?.ConsumerWaitMs;
-    [JsonPropertyName("clientWriteMs")] public long? ClientWriteMs => RangeStalls?.ClientWriteMs;
-    [JsonPropertyName("connOpened")] public long? ConnectionsOpened => RangeStalls?.ConnectionsOpened;
-    [JsonPropertyName("connReused")] public long? ConnectionsReused => RangeStalls?.ConnectionsReused;
-    [JsonPropertyName("fetches")] public long? Fetches => RangeStalls?.Fetches;
+    [JsonPropertyName("connWaitMs")]
+    public long? ConnectionWaitMs => FrozenStalls?.ConnectionWaitMs ?? RangeStalls?.ConnectionWaitMs;
+    [JsonPropertyName("providerWaitMs")]
+    public long? ProviderWaitMs => FrozenStalls?.ProviderWaitMs ?? RangeStalls?.ProviderWaitMs;
+    [JsonPropertyName("bodyDrainMs")]
+    public long? BodyDrainMs => FrozenStalls?.BodyDrainMs ?? RangeStalls?.BodyDrainMs;
+    [JsonPropertyName("consumerWaitMs")]
+    public long? ConsumerWaitMs => FrozenStalls?.ConsumerWaitMs ?? RangeStalls?.ConsumerWaitMs;
+    [JsonPropertyName("clientWriteMs")]
+    public long? ClientWriteMs => FrozenStalls?.ClientWriteMs ?? RangeStalls?.ClientWriteMs;
+    [JsonPropertyName("connOpened")]
+    public long? ConnectionsOpened => FrozenStalls?.ConnectionsOpened ?? RangeStalls?.ConnectionsOpened;
+    [JsonPropertyName("connReused")]
+    public long? ConnectionsReused => FrozenStalls?.ConnectionsReused ?? RangeStalls?.ConnectionsReused;
+    [JsonPropertyName("fetches")]
+    public long? Fetches => FrozenStalls?.Fetches ?? RangeStalls?.Fetches;
+
+    /// <summary>
+    /// Returns a copy with stall totals frozen and no live <see cref="RangeStalls"/>
+    /// reference, so late completions cannot change a serialized export line.
+    /// </summary>
+    public StreamTraceEvent FreezeForExport() => this with
+    {
+        FrozenStalls = RangeStalls?.Snapshot() ?? FrozenStalls,
+        RangeStalls = null,
+    };
 
     public static string StatusName(SegmentFetch.FetchStatus status) => status.ToString();
 

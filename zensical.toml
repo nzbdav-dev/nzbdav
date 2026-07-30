@@ -22,6 +22,7 @@ nav = [
   { "Guides" = [
     { "Architecture" = "guides/architecture.md" },
     { "Compare alternatives" = "guides/compare.md" },
+    { "Migrate from Altmount" = "guides/altmount-migration.md" },
     { "Import strategies" = "guides/import-strategies.md" },
     { "Mounting WebDAV" = "guides/mounting-webdav.md" },
     { "Media servers" = "guides/media-servers.md" },

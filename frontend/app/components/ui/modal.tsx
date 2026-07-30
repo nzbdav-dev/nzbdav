@@ -10,9 +10,11 @@ export type ModalProps = {
   footer?: ReactNode;
   onClose: () => void;
   className?: string;
+  /** When true, backdrop / Escape / X cannot dismiss the dialog. */
+  preventClose?: boolean;
 };
 
-export function Modal({ open, title, children, footer, onClose, className = "" }: ModalProps) {
+export function Modal({ open, title, children, footer, onClose, className = "", preventClose = false }: ModalProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -30,7 +32,16 @@ export function Modal({ open, title, children, footer, onClose, className = "" }
     <dialog
       ref={dialogRef}
       className="modal"
+      onCancel={(event) => {
+        if (preventClose) {
+          event.preventDefault();
+        }
+      }}
       onClose={() => {
+        if (preventClose) {
+          dialogRef.current?.showModal();
+          return;
+        }
         if (open) onClose();
       }}
     >
@@ -42,6 +53,7 @@ export function Modal({ open, title, children, footer, onClose, className = "" }
             size="xsmall"
             className="btn-circle absolute top-2 right-2"
             aria-label="Close"
+            disabled={preventClose}
           >
             <Icon name="close" className="!text-[20px]" />
           </Button>
@@ -51,7 +63,7 @@ export function Modal({ open, title, children, footer, onClose, className = "" }
         {footer && <div className="modal-action">{footer}</div>}
       </div>
       <form method="dialog" className="modal-backdrop">
-        <button type="submit">close</button>
+        <button type="submit" disabled={preventClose}>close</button>
       </form>
     </dialog>
   );

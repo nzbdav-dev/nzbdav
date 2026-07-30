@@ -23,6 +23,7 @@ public class ContextualCancellationTokenSource : IDisposable
         contextualCts.SetContext(linkedToken.GetContext<DownloadPriorityContext>());
         contextualCts.SetContext(linkedToken.GetContext<StreamingTimeoutContext>());
         contextualCts.SetContext(linkedToken.GetContext<QueueDownloadContext>());
+        contextualCts.SetContext(linkedToken.GetContext<MaintenanceDownloadContext>());
         return contextualCts;
     }
 
@@ -40,6 +41,8 @@ public class ContextualCancellationTokenSource : IDisposable
         contextualCts.SetContext(linkedToken2.GetContext<StreamingTimeoutContext>());
         contextualCts.SetContext(linkedToken1.GetContext<QueueDownloadContext>());
         contextualCts.SetContext(linkedToken2.GetContext<QueueDownloadContext>());
+        contextualCts.SetContext(linkedToken1.GetContext<MaintenanceDownloadContext>());
+        contextualCts.SetContext(linkedToken2.GetContext<MaintenanceDownloadContext>());
         return contextualCts;
     }
 
@@ -53,6 +56,11 @@ public class ContextualCancellationTokenSource : IDisposable
     public void Cancel()
     {
         _cts.Cancel();
+    }
+
+    public void CancelAfter(TimeSpan delay)
+    {
+        _cts.CancelAfter(delay);
     }
 
     public Task CancelAsync()

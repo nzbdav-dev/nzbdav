@@ -44,7 +44,7 @@ Advanced reference for **process / container** wiring and **legacy Settings fall
 | `CONFIG_PATH` | `/config` | Same as above |
 | `LOG_LEVEL` | Information | Serilog minimum level |
 | `LOG_BUFFER_SIZE` | `2000` | In-memory log buffer for UI (100–50000) |
-| `STREAM_TRACE_EVENTS` | `0` (off) | Opt-in stream trace capacity, always-on with no expiry; prefer the Settings → Support toggle |
+| `STREAM_TRACE_EVENTS` | `0` (off) | Opt-in stream trace capacity, always-on with no expiry; the Settings → Support toggle can also set capacity (20k–200k) for timed captures |
 | `TRUSTED_PROXY_CIDRS` | loopback | Comma-separated IPs/CIDRs trusted for forwarded headers |
 | `DISABLE_WEBDAV_AUTH` | unset | Disables WebDAV auth (**dangerous**) |
 | `USENET_DISABLE_CRC_VALIDATION` [since 0.8.0](https://github.com/nzbdav/nzbdav/releases/tag/v0.8.0){ .nzbdav-since } | unset | `1` skips yEnc CRC checks (emergency) |

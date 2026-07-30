@@ -8,6 +8,13 @@ using Serilog;
 
 namespace NzbWebDAV.Services.Metrics;
 
+public enum EventEnqueueResult
+{
+    Accepted,
+    QueueFull,
+    ResetRejected,
+}
+
 /// <summary>
 /// Buffered, asynchronous writer for the metrics database. Producers call the
 /// non-blocking Record* methods from any thread; rows accumulate in lock-free
@@ -21,8 +28,8 @@ namespace NzbWebDAV.Services.Metrics;
 /// dropped to protect the process. Drops are counted on the public Stats so
 /// the dashboard can surface metric-system health.
 ///
-/// Overview-stats reset uses <see cref="BeginReset"/> / <see cref="EndReset"/>
-/// so an in-flight flush cannot re-insert drained rows after the wipe.
+/// Overview-stats reset uses <see cref="BeginResetAsync"/> so an in-flight
+/// flush cannot re-insert drained rows after the wipe.
 /// </summary>
 public class MetricsWriter : BackgroundService
 {
@@ -35,6 +42,8 @@ public class MetricsWriter : BackgroundService
     private readonly ConcurrentQueue<ReadSession> _sessions = new();
     private readonly ConcurrentQueue<FailoverMiss> _failoverMisses = new();
     private readonly Func<MetricsDbContext> _contextFactory;
+    private readonly object _enqueueGate = new();
+    private readonly SemaphoreSlim _flushGate = new(1, 1);
 
     private long _droppedFetches;
     private long _droppedEvents;
@@ -44,7 +53,7 @@ public class MetricsWriter : BackgroundService
     private long _lastSuccessfulFlushAtMs;
     private string? _lastFlushError;
 
-    // Bumped by BeginReset. An in-flight FlushAsync that drained before the bump
+    // Bumped by BeginResetAsync. An in-flight FlushAsync that drained before the bump
     // must abandon its batch (no write, no requeue) so wiped rows cannot return.
     private int _resetGeneration;
     private int _resetting;
@@ -73,23 +82,45 @@ public class MetricsWriter : BackgroundService
     );
 
     /// <summary>
-    /// Marks the start of an overview-stats reset. Increments the generation so
-    /// any in-flight flush abandons its drained batch, and pauses new flushes
-    /// until <see cref="EndReset"/>.
+    /// Acquires the flush gate, bumps the reset generation, and pauses enqueue of
+    /// generation-aware events until the returned lease is disposed.
     /// </summary>
-    public void BeginReset()
+    public async Task<IAsyncDisposable> BeginResetAsync(CancellationToken cancellationToken = default)
     {
-        Interlocked.Increment(ref _resetGeneration);
-        Interlocked.Exchange(ref _resetting, 1);
+        await _flushGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        lock (_enqueueGate)
+        {
+            _resetGeneration++;
+            Volatile.Write(ref _resetting, 1);
+        }
+        return new ResetLease(this);
     }
 
     /// <summary>
-    /// Ends an overview-stats reset and allows flushes to resume.
+    /// Marks the start of an overview-stats reset without awaiting the flush gate.
+    /// Prefer <see cref="BeginResetAsync"/>; retained for tests that drive flush races.
     /// </summary>
-    public void EndReset()
+    internal void BeginReset()
     {
-        Interlocked.Exchange(ref _resetting, 0);
+        lock (_enqueueGate)
+        {
+            _resetGeneration++;
+            Volatile.Write(ref _resetting, 1);
+        }
     }
+
+    /// <summary>
+    /// Ends an overview-stats reset started with <see cref="BeginReset"/>.
+    /// </summary>
+    internal void EndReset()
+    {
+        lock (_enqueueGate)
+        {
+            Volatile.Write(ref _resetting, 0);
+        }
+    }
+
+    public int CaptureResetGeneration() => Volatile.Read(ref _resetGeneration);
 
     public void RecordFetch(SegmentFetch f)
     {
@@ -111,6 +142,25 @@ public class MetricsWriter : BackgroundService
         _events.Enqueue(e);
     }
 
+    public EventEnqueueResult TryRecordEvent(MetricEvent value, int expectedGeneration)
+    {
+        lock (_enqueueGate)
+        {
+            if (Volatile.Read(ref _resetting) != 0 ||
+                Volatile.Read(ref _resetGeneration) != expectedGeneration)
+                return EventEnqueueResult.ResetRejected;
+
+            if (_events.Count >= MaxQueueLength)
+            {
+                Interlocked.Increment(ref _droppedEvents);
+                return EventEnqueueResult.QueueFull;
+            }
+
+            _events.Enqueue(value);
+            return EventEnqueueResult.Accepted;
+        }
+    }
+
     public void RecordSession(ReadSession s)
     {
         if (_sessions.Count >= MaxQueueLength)
@@ -129,6 +179,31 @@ public class MetricsWriter : BackgroundService
             return;
         }
         _failoverMisses.Enqueue(m);
+    }
+
+    public IReadOnlyList<MetricEvent> SnapshotQueuedEvents(string kind)
+    {
+        return _events.ToArray()
+            .Where(e => string.Equals(e.Kind, kind, StringComparison.Ordinal))
+            .ToList();
+    }
+
+    internal (IReadOnlyList<MetricEvent> Queued, IReadOnlyList<LatencyFlushItem> Tracker)
+        CaptureLatencyHandoff(Func<IReadOnlyList<LatencyFlushItem>> snapshotTracker)
+    {
+        lock (_enqueueGate)
+        {
+            var queued = SnapshotQueuedEvents("latency");
+            var tracker = snapshotTracker();
+            return (queued, tracker);
+        }
+    }
+
+    public async Task<IAsyncDisposable> AcquireDiagnosticSnapshotLeaseAsync(
+        CancellationToken cancellationToken = default)
+    {
+        await _flushGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        return new FlushGateLease(_flushGate);
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -176,6 +251,19 @@ public class MetricsWriter : BackgroundService
     }
 
     private async Task FlushAsync()
+    {
+        await _flushGate.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            await FlushCoreAsync().ConfigureAwait(false);
+        }
+        finally
+        {
+            _flushGate.Release();
+        }
+    }
+
+    private async Task FlushCoreAsync()
     {
         // While a reset is in progress, drain+drop so we never write or hold
         // a batch that could race the wipe. Callers discard queues explicitly too.
@@ -272,7 +360,7 @@ public class MetricsWriter : BackgroundService
     }
 
     /// <summary>
-    /// Drops queued rows belonging to one provider. Circuit events use Tag1 as
+    /// Drops queued rows belonging to one provider. Circuit and latency events use Tag1 as
     /// their provider key; unrelated/global events and sessions are preserved.
     /// Drop counters are untouched.
     /// </summary>
@@ -280,12 +368,15 @@ public class MetricsWriter : BackgroundService
     {
         FilterQueue(_fetches, f => !string.Equals(f.Provider, providerKey, StringComparison.Ordinal));
         FilterQueue(_events, e =>
-            !string.Equals(e.Kind, "circuit", StringComparison.Ordinal)
-            || !string.Equals(e.Tag1, providerKey, StringComparison.Ordinal));
+            !(IsProviderKeyedEvent(e) && string.Equals(e.Tag1, providerKey, StringComparison.Ordinal)));
         FilterQueue(_failoverMisses, m =>
             !string.Equals(m.FromProvider, providerKey, StringComparison.Ordinal)
             && !string.Equals(m.ToProvider, providerKey, StringComparison.Ordinal));
     }
+
+    private static bool IsProviderKeyedEvent(MetricEvent e) =>
+        string.Equals(e.Kind, "circuit", StringComparison.Ordinal)
+        || string.Equals(e.Kind, "latency", StringComparison.Ordinal);
 
     private static void FilterQueue<T>(ConcurrentQueue<T> queue, Func<T, bool> keep)
     {
@@ -296,6 +387,41 @@ public class MetricsWriter : BackgroundService
         {
             if (!queue.TryDequeue(out var item)) break;
             if (keep(item)) queue.Enqueue(item);
+        }
+    }
+
+    private void EndResetLease()
+    {
+        lock (_enqueueGate)
+        {
+            Volatile.Write(ref _resetting, 0);
+        }
+        _flushGate.Release();
+    }
+
+    private sealed class ResetLease(MetricsWriter writer) : IAsyncDisposable
+    {
+        private int _disposed;
+
+        public ValueTask DisposeAsync()
+        {
+            if (Interlocked.Exchange(ref _disposed, 1) != 0)
+                return ValueTask.CompletedTask;
+            writer.EndResetLease();
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class FlushGateLease(SemaphoreSlim gate) : IAsyncDisposable
+    {
+        private int _disposed;
+
+        public ValueTask DisposeAsync()
+        {
+            if (Interlocked.Exchange(ref _disposed, 1) != 0)
+                return ValueTask.CompletedTask;
+            gate.Release();
+            return ValueTask.CompletedTask;
         }
     }
 

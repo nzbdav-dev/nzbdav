@@ -1,6 +1,8 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using NzbWebDAV.Database;
+using NzbWebDAV.Database.Models.Metrics;
 using NzbWebDAV.Utils;
 using Serilog;
 
@@ -15,11 +17,16 @@ namespace NzbWebDAV.Services.Metrics;
 /// Errors are hard fetch failures only (Status NOT IN Ok/Missing). Expected
 /// provider misses (Status = Missing) are counted separately as Misses.
 /// </summary>
-public class MetricsRollupService(ProviderBytesTracker bytesTracker) : BackgroundService
+public class MetricsRollupService(
+    ProviderBytesTracker bytesTracker,
+    ProviderLatencyTracker latencyTracker,
+    MetricsWriter metricsWriter
+) : BackgroundService
 {
     private const long OneMinute = 60_000;
     private const long OneHour = 60 * OneMinute;
     private static readonly TimeSpan TickInterval = TimeSpan.FromSeconds(60);
+    private static readonly JsonSerializerOptions CompactJson = new();
 
     private long _lastMinuteRolled;
 
@@ -71,6 +78,41 @@ public class MetricsRollupService(ProviderBytesTracker bytesTracker) : Backgroun
         // so re-runs (catch-up after restart) are idempotent: any closed minute
         // contributes at most once because DrainClosed pops the bucket.
         await ApplyByteCountersAsync(db, currentMinute).ConfigureAwait(false);
+        FlushClosedLatency(currentMinute);
+    }
+
+    internal void FlushClosedLatency(long currentMinute)
+    {
+        var generation = metricsWriter.CaptureResetGeneration();
+        foreach (var item in latencyTracker.PrepareClosed(currentMinute))
+        {
+            var value = new MetricEvent
+            {
+                At = item.Key.Minute,
+                Kind = "latency",
+                Tag1 = item.Key.ProviderKey,
+                Tag2 = LatencyNames.ToWireName(item.Key.Phase),
+                RefId = $"{LatencyNames.ToWireName(item.Key.Workload)}/" +
+                        LatencyNames.ToWireName(item.Key.Operation),
+                Num = item.Snapshot.Count,
+                Note = JsonSerializer.Serialize(new LatencyHistogramPayload(
+                    Version: 1,
+                    Counts: item.Snapshot.Counts,
+                    SumMs: item.Snapshot.SumMs,
+                    MaxMs: item.Snapshot.MaxMs), CompactJson),
+            };
+
+            switch (metricsWriter.TryRecordEvent(value, generation))
+            {
+                case EventEnqueueResult.Accepted:
+                    latencyTracker.Acknowledge(item.Key);
+                    break;
+                case EventEnqueueResult.ResetRejected:
+                    break;
+                case EventEnqueueResult.QueueFull:
+                    break;
+            }
+        }
     }
 
     private async Task ApplyByteCountersAsync(MetricsDbContext db, long currentMinute)

@@ -29,6 +29,7 @@ public class MultiSegmentStream : FastReadOnlyNonSeekableStream
     private readonly string _fileName;
     private readonly Channel<Task<SegmentDownloadResult>> _streamTasks;
     private readonly int _bodyPipelineBatchSize;
+    private readonly AdaptiveBodyBatchSizer? _batchSizer;
     private readonly ContextualCancellationTokenSource _cts;
     private readonly long? _readBudget;
     private readonly long _prefetchByteCeiling;
@@ -38,10 +39,21 @@ public class MultiSegmentStream : FastReadOnlyNonSeekableStream
         new(TaskCreationOptions.RunContinuationsAsynchronously);
     private Stream? _stream;
     private int _consecutiveZeroFills;
+    private int _deliveredSegments;
     private bool _disposed;
     private readonly Task _downloadTask;
     private readonly object _disposeGate = new();
     private Task? _disposeTask;
+
+    /// <summary>
+    /// Optional per-instance test hook invoked with the segment-boundary readiness sample,
+    /// after it is taken and before the segment task is awaited. Production code never sets
+    /// this; instance scope keeps parallel stream tests from observing each other's streams.
+    /// </summary>
+    internal Action<bool>? TestOnSegmentReadiness;
+
+    /// <summary>Current adaptive BODY batch width (or the fixed pipeline size when not adaptive).</summary>
+    internal int PrefetchBatchWidth => _batchSizer?.Current ?? _bodyPipelineBatchSize;
 
     public static Stream Create(
         Memory<string> segmentIds,
@@ -142,6 +154,9 @@ public class MultiSegmentStream : FastReadOnlyNonSeekableStream
             ? (long)articleBufferSize * estimatedSegmentSize
             : 0;
         _bodyPipelineBatchSize = Math.Min(BodyPipelineBatchSize, articleBufferSize);
+        _batchSizer = usePipelinedBodyRequests
+            ? new AdaptiveBodyBatchSizer(_bodyPipelineBatchSize)
+            : null;
         _streamTasks = Channel.CreateBounded<Task<SegmentDownloadResult>>(articleBufferSize);
         _cts = ContextualCancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _downloadTask = DownloadSegments(usePipelinedBodyRequests, _cts.Token);
@@ -185,8 +200,10 @@ public class MultiSegmentStream : FastReadOnlyNonSeekableStream
 
             await WaitForPrefetchCeilingAsync(cancellationToken).ConfigureAwait(false);
 
-            var batchCount = Math.Min(
-                _bodyPipelineBatchSize, _segmentIds.Length - batchStart);
+            // Adaptive width: narrower batches → more outstanding connections at the
+            // same article-buffer memory cost when the consumer is starving.
+            var batchWidth = _batchSizer?.Current ?? _bodyPipelineBatchSize;
+            var batchCount = Math.Min(batchWidth, _segmentIds.Length - batchStart);
             var segmentIds = new SegmentId[batchCount];
             for (var index = 0; index < batchCount; index++)
             {
@@ -751,7 +768,8 @@ public class MultiSegmentStream : FastReadOnlyNonSeekableStream
             if (lease is null)
                 lease = await LeaseSegmentBytesAsync(estimate, cancellationToken).ConfigureAwait(false);
 
-            var capacity = estimate is > 0 and <= int.MaxValue ? (int)estimate : 0;
+            var capacity = await ResolveDrainCapacityHintAsync(
+                source, segmentIndex, estimate, cancellationToken).ConfigureAwait(false);
             buffer = new PooledBufferStream(capacity);
             var traceRange = MultiProviderNntpClient.CurrentStreamTraceRange;
             var drainStarted = Stopwatch.GetTimestamp();
@@ -797,6 +815,71 @@ public class MultiSegmentStream : FastReadOnlyNonSeekableStream
             if (!sourceDisposeAttempted)
                 await source.DisposeAsync().ConfigureAwait(false);
         }
+    }
+
+    /// <summary>
+    /// Uses imported ranges first, then the body's exact decoded yEnc part size, and leaves
+    /// the file average as a fallback only. This chooses a rent hint; it never controls output.
+    /// </summary>
+    private async ValueTask<int> ResolveDrainCapacityHintAsync(
+        Stream source,
+        int segmentIndex,
+        long estimate,
+        CancellationToken cancellationToken)
+    {
+        if (_segmentSizes.TryGetExactSize(segmentIndex, out var exact))
+            return ToCapacity(exact);
+
+        if (estimate <= 0 || estimate > Array.MaxLength)
+            return 0;
+
+        if (source is not YencStream yencSource)
+            return ToCapacity(estimate);
+
+        UsenetYencHeader? header;
+        try
+        {
+            header = await yencSource.GetYencHeadersAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception e) when (e is InvalidDataException or IOException)
+        {
+            // Header parse failed on a body that still may decode via ReadAsync (test fakes
+            // and some nonstandard streams). Keep the estimate; do not swallow corrupt-article
+            // or other download failures — those are not thrown from GetYencHeadersAsync here.
+            return ToCapacity(estimate);
+        }
+
+        if (header is not null
+            && header.PartSize > 0
+            && header.PartSize <= Array.MaxLength
+            && IsPlausiblePartSize(
+                header.PartSize, header.TotalParts, _segmentIds.Length, estimate))
+            return (int)header.PartSize;
+
+        return ToCapacity(estimate);
+    }
+
+    internal static int ToCapacity(long value) =>
+        value > 0 && value <= Array.MaxLength ? (int)value : 0;
+
+    /// <summary>
+    /// Rejects remote yEnc PartSize values that cannot be a full-part size for this file
+    /// average, so a malformed header cannot request an arbitrary multi-gigabyte rent.
+    /// </summary>
+    internal static bool IsPlausiblePartSize(
+        long partSize, int totalParts, int remainingParts, long estimate)
+    {
+        if (partSize <= 0 || estimate <= 0) return false;
+        if (totalParts < remainingParts) return false;
+        if (totalParts <= 1) return partSize <= estimate;
+        // EstimatedSegmentSize is floor(fileSize / totalParts), so add one before deriving
+        // the strict upper bound to cover the discarded integer-division remainder.
+        var upperBound = Math.Ceiling((estimate + 1d) * totalParts / (totalParts - 1));
+        return partSize <= upperBound;
     }
 
     private async ValueTask<ArticleByteLease> LeaseSegmentBytesAsync(
@@ -855,14 +938,30 @@ public class MultiSegmentStream : FastReadOnlyNonSeekableStream
                 // pipeline is not running far enough ahead, not that the provider is slow.
                 var traceRange = MultiProviderNntpClient.CurrentStreamTraceRange;
                 var waitStarted = Stopwatch.GetTimestamp();
-                if (!await _streamTasks.Reader.WaitToReadAsync(cancellationToken)) return 0;
-                if (!_streamTasks.Reader.TryRead(out var streamTask)) return 0;
-                var result = await streamTask;
+                var wasQueued = _streamTasks.Reader.TryRead(out var streamTask);
+                if (!wasQueued)
+                {
+                    if (!await _streamTasks.Reader.WaitToReadAsync(cancellationToken)) return 0;
+                    if (!_streamTasks.Reader.TryRead(out streamTask)) return 0;
+                }
+
+                // Ready means prefetch stayed ahead; use IsCompleted (not Successfully) so
+                // faulted tasks still count as present when the consumer arrived.
+                var nextSegment = streamTask
+                    ?? throw new InvalidOperationException("Segment channel returned a null task.");
+                var readyWhenNeeded = wasQueued && nextSegment.IsCompleted;
+                // Test hook: fires after readiness is sampled and before the segment task is awaited,
+                // so lockstep tests can keep the gate closed until starvation is observed.
+                TestOnSegmentReadiness?.Invoke(readyWhenNeeded);
+                var result = await nextSegment.ConfigureAwait(false);
                 StreamTrace.TryStall(
                     traceRange,
                     StreamStallKind.ConsumerWait,
                     Stopwatch.GetElapsedTime(waitStarted));
                 ReleaseInFlightPrefetchBytes(result.PlannedBytes);
+                // Ignore the first delivered segment (startup warm-up).
+                if (_deliveredSegments++ > 0)
+                    ObserveBatchReadiness(readyWhenNeeded);
                 _stream = AcceptSegment(result);
             }
 
@@ -874,6 +973,21 @@ public class MultiSegmentStream : FastReadOnlyNonSeekableStream
             await _stream.DisposeAsync();
             _stream = null;
         }
+    }
+
+    private void ObserveBatchReadiness(bool readyWhenNeeded)
+    {
+        if (_batchSizer is null) return;
+        var change = _batchSizer.Observe(readyWhenNeeded);
+        if (change is null) return;
+
+        Log.Debug(
+            "Prefetch batch size for {FileName} changed from {PreviousBatchSize} to {BatchSize}. " +
+            "ReadyWhenNeeded={ReadyWhenNeeded}",
+            _fileName, change.Value.Previous, change.Value.Current, change.Value.ReadyWhenNeeded);
+
+        if (MultiProviderNntpClient.CurrentReadSessionId is { } sessionId)
+            StreamTrace.TryPrefetchWidth(sessionId, change.Value.Previous, change.Value.Current);
     }
 
     private Stream AcceptSegment(SegmentDownloadResult result)

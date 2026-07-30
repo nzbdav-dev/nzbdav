@@ -9,6 +9,7 @@ using NzbWebDAV.Clients.Usenet.Models;
 using NzbWebDAV.Exceptions;
 using NzbWebDAV.Extensions;
 using NzbWebDAV.Models;
+using NzbWebDAV.Services.Metrics;
 using NzbWebDAV.Services.StreamTrace;
 using Serilog;
 using UsenetSharp.Models;
@@ -20,8 +21,11 @@ namespace NzbWebDAV.Clients.Usenet;
 ///   * The connection pool enforces a maximum number of allowed connections
 ///   * When a connection is available, the NNTP command executes immediately
 ///   * When a connection is not available, the NNTP command waits until a connection becomes available.
-///   * When multiple commands are awaiting a connection,
-///     then BODY/ARTICLE commands have higher priority than STAT/HEAD/DATE commands.
+///   * When multiple commands are awaiting a connection, admission follows the
+///     download-priority context on the caller's token: playback work (WebDAV reads and
+///     playback verification) waits in the High lane, while queue and background
+///     maintenance work waits in the Low lane. The pool's Streaming Priority odds decide
+///     how the two lanes share connections while both are occupied.
 /// </summary>
 /// <param name="connectionPool"></param>
 /// <param name="type"></param>
@@ -39,7 +43,8 @@ public class MultiConnectionNntpClient(
     int priority = 0,
     int? pipeliningDepth = null,
     string storageGroup = "",
-    string? metricsKey = null
+    string? metricsKey = null,
+    ProviderLatencyTracker? latencyTracker = null
 ) : NntpClient
 {
     public ProviderType ProviderType { get; } = type;
@@ -100,6 +105,12 @@ public class MultiConnectionNntpClient(
     public int InFlightConnections => ActiveConnections + PendingSelections;
     public ConnectionPoolChurn GetConnectionChurn() => connectionPool.GetChurn();
 
+    /// <summary>
+    /// Applies new Streaming Priority odds to this provider's connection gate without
+    /// rebuilding the pool.
+    /// </summary>
+    public void UpdatePriorityOdds(SemaphorePriorityOdds odds) => connectionPool.UpdatePriorityOdds(odds);
+
     private int _pendingSelections;
     public int PendingSelections => Volatile.Read(ref _pendingSelections);
     public void ReservePending() => Interlocked.Increment(ref _pendingSelections);
@@ -129,7 +140,7 @@ public class MultiConnectionNntpClient(
     {
         return RunWithConnection(
             "STAT",
-            SemaphorePriority.Low,
+            GetDownloadPriority(ct),
             (connection, _, commandCt) => connection.StatAsync(segmentId, commandCt),
             onConnectionReadyAgain: null,
             ct
@@ -140,7 +151,7 @@ public class MultiConnectionNntpClient(
     {
         return RunWithConnection(
             "HEAD",
-            SemaphorePriority.Low,
+            GetDownloadPriority(ct),
             (connection, _, commandCt) => connection.HeadAsync(segmentId, commandCt),
             onConnectionReadyAgain: null,
             ct
@@ -211,6 +222,8 @@ public class MultiConnectionNntpClient(
         // instead of holding a playback stream open for UsenetSharp's ~40s read timeout.
         // It applies to issuing the batch, which is the part that waits on the provider;
         // the response streams are drained by the caller afterwards.
+        var workload = DownloadWorkloadClassifier.Classify(ct);
+        var operation = NntpOperation.Body;
         var streamingTimeout = ct.GetContext<StreamingTimeoutContext>();
         var retryCount = streamingTimeout?.MaxRetries ?? 1;
         while (true)
@@ -220,7 +233,8 @@ public class MultiConnectionNntpClient(
             CancellationTokenSource? attemptCts = null;
             try
             {
-                connectionLock = await AcquireConnectionLockAsync(GetDownloadPriority(ct), ct)
+                connectionLock = await AcquireConnectionLockAsync(
+                        GetDownloadPriority(ct), workload, operation, ct)
                     .ConfigureAwait(false);
 
                 var batchCt = ct;
@@ -231,12 +245,17 @@ public class MultiConnectionNntpClient(
                     batchCt = attemptCts.Token;
                 }
 
+                var issuedAt = Stopwatch.GetTimestamp();
                 var batch = await connectionLock.Connection.DecodedBodiesAsync(
                     segmentIds, deferredCallback.Invoke, batchCt).ConfigureAwait(false);
 
+                var wrapped = new Task<UsenetDecodedBodyResponse>[batch.Responses.Count];
+                for (var i = 0; i < batch.Responses.Count; i++)
+                    wrapped[i] = RecordSuccessfulResponseAsync(batch.Responses[i], issuedAt, workload, operation);
+
                 var callbackInvoked = 0;
                 deferredCallback.Activate(OnConnectionReadyAgain);
-                return batch;
+                return new UsenetDecodedBodyBatch { Responses = wrapped };
 
                 void OnConnectionReadyAgain(ArticleBodyResult result)
                 {
@@ -381,6 +400,8 @@ public class MultiConnectionNntpClient(
         int retryCount = 1
     ) where T : UsenetResponse
     {
+        var workload = DownloadWorkloadClassifier.Classify(ct);
+        var operation = LatencyNames.FromCommandName(name);
         var streamingTimeout = ct.GetContext<StreamingTimeoutContext>();
         if (streamingTimeout != null)
             retryCount = streamingTimeout.MaxRetries;
@@ -390,7 +411,8 @@ public class MultiConnectionNntpClient(
             ConnectionLock<INntpClient>? connectionLock = null;
             try
             {
-                connectionLock = await AcquireConnectionLockAsync(priority, ct).ConfigureAwait(false);
+                connectionLock = await AcquireConnectionLockAsync(priority, workload, operation, ct)
+                    .ConfigureAwait(false);
             }
             catch (Exception e) when (e.IsCancellationException(ct))
             {
@@ -428,8 +450,18 @@ public class MultiConnectionNntpClient(
                     commandCt = attemptCts.Token;
                 }
 
+                var responseStarted = Stopwatch.GetTimestamp();
                 result = await command(connectionLock.Connection, deferredCallback.Invoke, commandCt)
                     .ConfigureAwait(false);
+                if (result?.Success ?? false)
+                {
+                    latencyTracker?.Record(
+                        MetricsKey,
+                        LatencyPhase.Response,
+                        workload,
+                        operation,
+                        Stopwatch.GetElapsedTime(responseStarted));
+                }
             }
             catch (Exception e) when (
                 streamingTimeout != null
@@ -592,23 +624,33 @@ public class MultiConnectionNntpClient(
 
     public override IAsyncEnumerable<PipelinedBodyResult> DecodedBodiesPipelinedAsync(
         IReadOnlyList<string> segmentIds, int depth, CancellationToken cancellationToken)
-        => RunPipelinedAsync(c => c.DecodedBodiesPipelinedAsync(segmentIds, depth, cancellationToken), cancellationToken);
+        => RunPipelinedAsync(
+            c => c.DecodedBodiesPipelinedAsync(segmentIds, depth, cancellationToken),
+            NntpOperation.PipelinedBody,
+            cancellationToken);
 
     public override IAsyncEnumerable<PipelinedArticleResult> DecodedArticlesPipelinedAsync(
         IReadOnlyList<string> segmentIds, int depth, CancellationToken cancellationToken)
-        => RunPipelinedAsync(c => c.DecodedArticlesPipelinedAsync(segmentIds, depth, cancellationToken), cancellationToken);
+        => RunPipelinedAsync(
+            c => c.DecodedArticlesPipelinedAsync(segmentIds, depth, cancellationToken),
+            NntpOperation.PipelinedArticle,
+            cancellationToken);
 
     /// <summary>
-    /// STAT pipeline lease: low priority, no circuit-breaker updates (matching single
-    /// StatAsync). Still replaces the connection on hard failure because UsenetSharp
-    /// poisons it mid-batch.
+    /// STAT pipeline lease: inherits download priority from the caller's token (High for
+    /// playback verification, Low for hosted health), no circuit-breaker updates (matching
+    /// single StatAsync). Still replaces the connection on hard failure because UsenetSharp
+    /// poisons it mid-batch. Acquisition goes through the shared helper so the pool wait
+    /// is instrumented and arbitrated like every other command.
     /// </summary>
     private async IAsyncEnumerable<PipelinedStatResult> RunPipelinedStatAsync(
         Func<INntpClient, IAsyncEnumerable<PipelinedStatResult>> batchFactory,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        var connectionLock = await connectionPool
-            .GetConnectionLockAsync(SemaphorePriority.Low, cancellationToken)
+        var workload = DownloadWorkloadClassifier.Classify(cancellationToken);
+        var operation = NntpOperation.PipelinedStat;
+        var connectionLock = await AcquireConnectionLockAsync(
+                GetDownloadPriority(cancellationToken), workload, operation, cancellationToken)
             .ConfigureAwait(false);
         var completed = false;
         try
@@ -620,6 +662,7 @@ public class MultiConnectionNntpClient(
                 PipelinedStatResult current;
                 try
                 {
+                    var moveStarted = Stopwatch.GetTimestamp();
                     if (!await enumerator.MoveNextAsync().ConfigureAwait(false))
                     {
                         completed = true;
@@ -627,6 +670,12 @@ public class MultiConnectionNntpClient(
                     }
 
                     current = enumerator.Current;
+                    latencyTracker?.Record(
+                        MetricsKey,
+                        LatencyPhase.Response,
+                        workload,
+                        operation,
+                        Stopwatch.GetElapsedTime(moveStarted));
                 }
                 catch (Exception e) when (!e.IsCancellationException())
                 {
@@ -648,10 +697,13 @@ public class MultiConnectionNntpClient(
 
     private async IAsyncEnumerable<T> RunPipelinedAsync<T>(
         Func<INntpClient, IAsyncEnumerable<T>> batchFactory,
+        NntpOperation operation,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
+        var workload = DownloadWorkloadClassifier.Classify(cancellationToken);
         var priority = GetDownloadPriority(cancellationToken);
-        var connectionLock = await AcquireConnectionLockAsync(priority, cancellationToken)
+        var connectionLock = await AcquireConnectionLockAsync(
+                priority, workload, operation, cancellationToken)
             .ConfigureAwait(false);
         var completed = false;
         try
@@ -663,6 +715,7 @@ public class MultiConnectionNntpClient(
                 T current;
                 try
                 {
+                    var moveStarted = Stopwatch.GetTimestamp();
                     if (!await enumerator.MoveNextAsync().ConfigureAwait(false))
                     {
                         completed = true;
@@ -670,6 +723,12 @@ public class MultiConnectionNntpClient(
                     }
 
                     current = enumerator.Current;
+                    latencyTracker?.Record(
+                        MetricsKey,
+                        LatencyPhase.Response,
+                        workload,
+                        operation,
+                        Stopwatch.GetElapsedTime(moveStarted));
                 }
                 catch (Exception e) when (!e.IsCancellationException())
                 {
@@ -695,24 +754,43 @@ public class MultiConnectionNntpClient(
     }
 
     /// <summary>
-    /// Borrows a pooled connection, attributing the wait to the current read session so a
-    /// range that spends its time queued behind the pool (or behind handshake pacing after
-    /// a burst of replacements) is distinguishable from one waiting on the provider.
+    /// Borrows a pooled connection, attributing the wait to latency histograms and (when
+    /// active) the current stream-trace range so pool saturation is distinguishable from
+    /// provider response time.
     /// </summary>
     private async Task<ConnectionLock<INntpClient>> AcquireConnectionLockAsync(
         SemaphorePriority priority,
+        DownloadWorkload workload,
+        NntpOperation operation,
         CancellationToken ct)
     {
         var traceRange = MultiProviderNntpClient.CurrentStreamTraceRange;
-        if (traceRange is null)
-            return await connectionPool.GetConnectionLockAsync(priority, ct).ConfigureAwait(false);
-
         var started = Stopwatch.GetTimestamp();
         var connectionLock = await connectionPool.GetConnectionLockAsync(priority, ct)
             .ConfigureAwait(false);
-        StreamTrace.TryConnectionAcquired(
-            traceRange, Stopwatch.GetElapsedTime(started), connectionLock.WasReused);
+        var elapsed = Stopwatch.GetElapsedTime(started);
+        latencyTracker?.Record(MetricsKey, LatencyPhase.PoolWait, workload, operation, elapsed);
+        StreamTrace.TryConnectionAcquired(traceRange, elapsed, connectionLock.WasReused);
         return connectionLock;
+    }
+
+    private async Task<UsenetDecodedBodyResponse> RecordSuccessfulResponseAsync(
+        Task<UsenetDecodedBodyResponse> responseTask,
+        long issuedAt,
+        DownloadWorkload workload,
+        NntpOperation operation)
+    {
+        var response = await responseTask.ConfigureAwait(false);
+        if (response.Success)
+        {
+            latencyTracker?.Record(
+                MetricsKey,
+                LatencyPhase.Response,
+                workload,
+                operation,
+                Stopwatch.GetElapsedTime(issuedAt));
+        }
+        return response;
     }
 
     private static void LogException(Action? action)

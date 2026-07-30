@@ -1,0 +1,148 @@
+syntax = "proto3";
+
+package metadata;
+
+option go_package = "./";
+
+enum Encryption {
+  NONE = 0; // No encryption
+  RCLONE = 1;      // Rclone encryption
+  HEADERS = 2;        // Headers encryption
+  AES = 3;         // Generic AES-CBC encryption (for RAR, 7z, etc.)
+}
+
+// FileStatus represents the health status of a file
+enum FileStatus {
+  FILE_STATUS_UNSPECIFIED = 0;
+  FILE_STATUS_HEALTHY = 1;     // All segments available and file is complete
+  FILE_STATUS_CORRUPTED = 3;   // Segments missing or corrupted
+}
+
+// SegmentData contains Usenet segment information with byte offsets
+message SegmentData {
+  int64 segment_size = 1;       // Size of the segment in bytes
+  int64 start_offset = 3;       // Start byte offset in the data stream
+  int64 end_offset = 4;         // End byte offset in the data stream
+  string id = 5;                // Usenet message ID
+}
+
+// Par2FileReference stores information about PAR2 repair files
+message Par2FileReference {
+  string filename = 1;          // PAR2 filename (e.g., "movie.par2", "movie.vol01+02.par2")
+  int64 file_size = 2;          // Size of the PAR2 file in bytes
+  repeated SegmentData segment_data = 3;  // Usenet segments containing PAR2 data
+  repeated SegmentRef segment_refs = 4;
+  repeated SegmentRun segment_runs = 5;   // compact run encoding; preferred over segment_refs when present
+}
+
+// NestedSegmentSource represents one inner RAR volume's contribution to a nested file.
+// Used when a file is inside an inner RAR that is itself inside an outer RAR.
+message NestedSegmentSource {
+  repeated SegmentData segments = 1;    // Outer RAR segments covering this inner volume
+  bytes aes_key = 2;                     // Outer AES key (empty if unencrypted)
+  bytes aes_iv = 3;                      // Outer AES IV
+  int64 inner_offset = 4;               // Offset within decrypted inner volume where file data starts
+  int64 inner_length = 5;               // Bytes of target file in this source
+  int64 inner_volume_size = 6;          // Total decrypted size of inner volume (for AES cipher)
+
+  // When > 0 the `segments`, `aes_key`, `aes_iv`, `inner_volume_size`
+  // fields above are intentionally left empty on disk and inherit from
+  // FileMetadata.shared_outer_sources[shared_outer_source_index - 1].
+  // Only `inner_offset` and `inner_length` are stored per-extent. 0
+  // (proto default) means "no sharing" — identical to the legacy on-disk
+  // layout, so old .meta files keep working without migration.
+  int32 shared_outer_source_index = 7;
+  repeated SegmentRef segment_refs = 8;
+}
+
+// ClipBoundary is one clip in a byte-concatenated multi-clip BD main feature.
+// byte_len is the clip's size in the virtual file (a whole number of 192-byte
+// BDAV source packets). delta_90k is the signed 90 kHz offset added to PTS/DTS
+// (and delta_90k to the 90 kHz-equivalent of PCR base) for packets inside this
+// clip's byte range, lifting the clip onto the unified continuous timeline.
+message ClipBoundary {
+  int64 byte_len  = 1;
+  int64 delta_90k = 2;
+}
+
+// FileMetadata represents a single virtual file in the filesystem
+// The filename comes from the actual metadata filename on disk
+message FileMetadata {
+  int64 file_size = 1;          // Size of the virtual file in bytes
+  string source_nzb_path = 2;   // Path to source NZB file
+  FileStatus status = 3;        // Health status of the file
+  int64 created_at = 4;         // Unix timestamp when metadata was created
+  int64 modified_at = 5;        // Unix timestamp when last modified
+  string password = 6;          // Password for rclone encrypted files
+  string salt = 7;              // Salt for rclone encrypted files
+  Encryption encryption = 8;    // Encryption type used for the file
+  repeated SegmentData segment_data = 9;  // Segment information (lazy-loaded)
+  bytes aes_key = 10;           // AES encryption key (for AES-encrypted archives)
+  bytes aes_iv = 11;            // AES initialization vector (for AES-encrypted archives)
+  int64 release_date = 12;      // Unix timestamp of the original Usenet post release date
+  repeated Par2FileReference par2_files = 13;  // Associated PAR2 repair files
+  string nzbdav_id = 14; // ID to maintain compatibility with NzbDAV
+  repeated NestedSegmentSource nested_sources = 15; // Nested RAR sources (when file is inside inner RAR within outer RAR)
+
+  // Per-clip timeline table for Blu-ray main-feature virtual files that
+  // byte-concatenate multiple M2TS clips (each with its own independent
+  // PTS/DTS/PCR base). At read time a TS-aware filter adds each clip's
+  // delta_90k to the timestamps inside that clip's byte range, producing a
+  // single continuous timeline so ffprobe/players report the correct
+  // duration and seek accurately. Empty for every other file type, which
+  // disables the filter entirely (zero overhead, total safety).
+  repeated ClipBoundary clip_boundaries = 17;
+
+  // Outer sources shared by groups of NestedSegmentSource entries.
+  // Used for multi-extent encrypted volumes — e.g. a Blu-ray main feature
+  // with hundreds of extents that all read from the same encrypted RAR.
+  // Each entry holds the full Segments + AesKey + AesIv + InnerVolumeSize
+  // once; the corresponding NestedSegmentSource entries reference it by
+  // 1-based index via shared_outer_source_index, storing only
+  // inner_offset + inner_length per-extent. Cuts the on-disk .meta size
+  // from O(extents * segments) to O(extents + segments) for these files.
+  repeated NestedSegmentSource shared_outer_sources = 16;
+  string store_ref = 18;               // id/path of the shared NzbStore
+  repeated SegmentRef segment_refs = 19; // v3 replacement for segment_data
+  repeated SegmentRun segment_runs = 20; // compact run encoding; preferred over segment_refs when present
+}
+
+// --- v3 shared-store types ---
+
+// NzbStore is the complete original NZB for a release, stored zstd-compressed at
+// the (renamed) source_nzb_path. Single source of truth for streaming + NZB regen.
+message NzbStore {
+  repeated NzbFileEntry files = 1; // original <file>s, in NZB order
+}
+
+message NzbFileEntry {
+  string subject = 1;
+  string poster = 2;
+  int64 date = 3;                  // unix ts
+  repeated string groups = 4;
+  repeated NzbSeg segments = 5;    // ordered by `number`
+}
+
+message NzbSeg {
+  string id = 1;     // message-id (no angle brackets)
+  int32 number = 2;
+  int64 bytes = 3;
+}
+
+// SegmentRef points into the flat segment index of the release's NzbStore.
+message SegmentRef {
+  int64 store_index = 1;   // flat index: files-in-order then segments-by-number
+  int64 start_offset = 2;  // usable byte range within that segment
+  int64 end_offset = 3;
+  int64 decoded_bytes = 4; // actual decoded segment size; 0 means use NzbSeg.bytes
+}
+
+// SegmentRun compactly encodes a consecutive range of full-segment refs:
+// start_offset=0, end_offset=decoded_bytes-1, store_index increasing by 1.
+// Used in place of repeated SegmentRef when a file's segments map 1:1 onto a
+// contiguous run of the NzbStore (the common non-archive case).
+message SegmentRun {
+  int64 base_store_index = 1; // flat store index of the first segment in the run
+  int64 count = 2;            // number of consecutive segments
+  int64 decoded_bytes = 3;    // decoded size shared by every segment in the run; 0 = use NzbSeg.bytes
+}

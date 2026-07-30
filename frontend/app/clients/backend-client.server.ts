@@ -306,12 +306,17 @@ class BackendClient {
         return toStreamTracingStatus(data);
     }
 
-    public async setStreamTracing(enabled: boolean, minutes: number = 30): Promise<StreamTracingStatus> {
+    public async setStreamTracing(
+        enabled: boolean,
+        minutes: number = 30,
+        capacity: number = 100_000,
+    ): Promise<StreamTracingStatus> {
         const data = await call("/api/set-stream-tracing", "Failed to update stream tracing", {
             method: "POST",
             body: form(
                 ["enabled", enabled ? "true" : "false"],
                 ["minutes", String(minutes)],
+                ["capacity", String(capacity)],
             ),
         });
         return toStreamTracingStatus(data);

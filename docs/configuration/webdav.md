@@ -21,7 +21,7 @@ WebDAV authentication and streaming/connection behavior for playback mounts.
 | Max Download Connections | `usenet.max-download-connections` | `0` (auto = pool) | Streaming budget |
 | Apply limit per stream | `usenet.max-download-connections-per-stream` | off | Per-stream budget |
 | Per-stream performance | `usenet.max-download-connections-per-stream-preset` | `high` | low/medium/high/max |
-| Streaming Priority (vs Queue) | `usenet.streaming-priority` | `80` | % bandwidth to streaming |
+| Streaming Priority (vs Queue) [since 0.9.0](https://github.com/nzbdav/nzbdav/releases/tag/v0.9.0){ .nzbdav-since } | `usenet.streaming-priority` | `80` | High vs Low admission odds at each saturated provider connection pool (playback High, queue/health Low). Spare capacity is never held idle for High |
 | Streaming Segment Timeout | `usenet.streaming-segment-timeout-seconds` | `8` | 2–40s |
 | Streaming Read Timeout [since 0.9.0](https://github.com/nzbdav/nzbdav/releases/tag/v0.9.0){ .nzbdav-since } | `usenet.streaming-read-timeout-seconds` | `30` | 5–120s initial backend wait to open a GET/range (semaphore + pool + first segment). Cleared once body bytes flow; mid-stream stalls use the per-segment timeout. Unstarted responses return **503** with `Retry-After` — rclone/FUSE may still show client-side errors |
 | Streaming Segment Retries | `usenet.streaming-segment-retries` | `3` | 0–5 |
@@ -38,12 +38,18 @@ WebDAV authentication and streaming/connection behavior for playback mounts.
 
     Raise **Max Download Connections** until throughput plateaus without pegging CPU. Baseline with a host speed test, then time a `/view` download from inside the container against the backend.
 
+## Article Buffer Size and adaptive prefetch [since 0.9.0](https://github.com/nzbdav/nzbdav/releases/tag/v0.9.0){ .nzbdav-since }
+
+`usenet.article-buffer-size` bounds how many decoded articles a stream may keep ahead of the consumer — and therefore per-stream memory — not how many provider connections playback may use.
+
+When **Pipelined article downloads** is on, WebDAV BODY requests start in batches of up to four articles on one connection. If playback starves waiting for the next segment, NzbDAV automatically narrows that batch width (`4 → 2 → 1`) so more connections can work in parallel at the same buffer depth. When the consumer stays ahead, batch width recovers gradually. Connection and host-wide byte budgets still apply.
+
 ## Capturing a buffering support pack
 
 Playback stalls are only diagnosable if the evidence is still in the log buffer when you collect the pack:
 
 1. Set `LOG_LEVEL=INFO`. At `DEBUG`, routine background activity can fill the whole buffer within hours and evict the streaming events. `logs/warnings.log` in the pack keeps the last 500 warnings and errors regardless, so check it first.
-2. Enable **Developer stream tracing** on **Settings → Support** for 15–60 minutes (or set `STREAM_TRACE_EVENTS=20000` and restart).
+2. Enable **Developer stream tracing** on **Settings → Support** for 15–60 minutes and pick a capacity that covers the whole reproduction (default 100,000 events; or set `STREAM_TRACE_EVENTS=100000` and restart). After downloading the pack, check `manifest.json → streamTraces.overflowed` — if true, increase capacity and reproduce again.
 3. Reproduce the stall — play the file from Explore so the read goes straight to `/view`, skipping rclone and your media server.
 4. Download the pack from **Settings → Support** immediately afterwards, while tracing is still on. The buffer is in-memory and is cleared on restart.
 

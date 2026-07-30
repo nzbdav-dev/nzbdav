@@ -9,4 +9,5 @@ public enum StreamTraceKind
     Failover = 4,
     RangeEnd = 5,
     Retry = 6,
+    PrefetchWidth = 7,
 }

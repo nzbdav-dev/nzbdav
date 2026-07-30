@@ -9,9 +9,24 @@ not retained by NzbDAV.
 - Recent backend logs from the in-memory log buffer
 - Redacted active Settings and runtime/build information
 - Aggregate provider throughput, outage, failover, and consumption metrics
+- Historical latency phase histograms (`metrics/recent.json` → `latency24Hours`)
 
 Backend logs are memory-only and are cleared when NzbDAV restarts. Frontend and
 container logs are not included.
+
+## Latency phases [since 0.9.0](https://github.com/nzbdav/nzbdav/releases/tag/v0.9.0){ .nzbdav-since }
+
+`latency24Hours` projects one-minute histograms into five-minute buckets for:
+
+| Phase | Meaning |
+|-------|---------|
+| `response` | Successful NNTP response availability after a provider connection is acquired. Excludes body drain. |
+| `pool-wait` | Wait to acquire a connection from the named provider pool. |
+| `permit-wait` | Top-level workload connection-budget wait; no provider is selected yet. |
+
+Percentiles are **bucket upper bounds**, not exact sample percentiles. Only
+successful responses are counted — misses, errors, and cancellations stay in
+existing status metrics. Body-drain time is never folded into `response`.
 
 ## Privacy
 

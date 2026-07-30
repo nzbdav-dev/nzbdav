@@ -24,6 +24,7 @@ public sealed class SupportPackService(
     ConfigManager configManager,
     MetricsWriter metricsWriter,
     ProviderBytesTracker bytesTracker,
+    ProviderLatencyTracker latencyTracker,
     UsenetStreamingClient usenetStreamingClient,
     ArticleMissNegativeCache articleMissCache,
     InFlightArticleBudget inFlightArticleBudget,
@@ -34,6 +35,10 @@ public sealed class SupportPackService(
     private const long HourMs = 60 * MinuteMs;
     private const long DayMs = 24 * HourMs;
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
+    private static readonly JsonSerializerOptions CompactJsonOptions = new()
+    {
+        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+    };
 
     internal async Task WriteAsync(Stream output, CancellationToken cancellationToken)
     {
@@ -90,21 +95,43 @@ public sealed class SupportPackService(
             sectionStatus["metrics"] = "unavailable";
         }
 
-        var traceStatus = streamTraceBuffer.GetStatus();
-        if (traceStatus.Enabled || traceStatus.EventCount > 0)
+        var traceSnapshot = streamTraceBuffer.CaptureSnapshot(50);
+        if (traceSnapshot.Status.Enabled || traceSnapshot.Status.EventCount > 0)
         {
             await WriteJsonAsync(
                 archive,
                 "stream-traces/sessions.json",
-                streamTraceBuffer.ListSessions(50),
+                traceSnapshot.Sessions.Select(s => new
+                {
+                    sessionId = s.SessionId,
+                    path = s.Path,
+                    firstAt = s.FirstAt,
+                    lastAt = s.LastAt,
+                    eventCount = s.EventCount,
+                    retainedEventCount = s.RetainedEventCount,
+                    eventsComplete = s.EventsComplete,
+                    lastKind = s.LastKind,
+                }),
                 redactor,
                 cancellationToken).ConfigureAwait(false);
-            await WriteTextAsync(
+            await WriteTraceEventsAsync(
                 archive,
                 "stream-traces/events.jsonl",
-                redactor.RedactText(streamTraceBuffer.FormatEventsJsonl(StreamTraceBuffer.UiMaxCapacity)),
+                traceSnapshot.Events,
+                redactor,
                 cancellationToken).ConfigureAwait(false);
-            sectionStatus["streamTraces"] = "included";
+            if (traceSnapshot.Status.Overflowed)
+            {
+                await WriteTextAsync(
+                    archive,
+                    "stream-traces/OVERFLOW.txt",
+                    BuildOverflowNote(traceSnapshot.Status),
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            sectionStatus["streamTraces"] = traceSnapshot.Status.Overflowed
+                ? "included-truncated"
+                : "included";
         }
         else
         {
@@ -114,7 +141,13 @@ public sealed class SupportPackService(
         await WriteJsonAsync(
             archive,
             "manifest.json",
-            await BuildManifestAsync(generatedAt, logSnapshot, warningSnapshot, sectionStatus, redactor,
+            await BuildManifestAsync(
+                    generatedAt,
+                    logSnapshot,
+                    warningSnapshot,
+                    sectionStatus,
+                    redactor,
+                    traceSnapshot,
                     cancellationToken)
                 .ConfigureAwait(false),
             redactor,
@@ -151,6 +184,10 @@ public sealed class SupportPackService(
         stream-traces/ is included while developer stream tracing is enabled or while
         a stopped capture is retained for one hour (Settings → Support, or
         STREAM_TRACE_EVENTS). Tracing is opt-in, memory-only, and resets on restart.
+        Check manifest.json → streamTraces for capacity, retained/overwritten counts,
+        and overflowed. When the ring wraps, stream-traces/OVERFLOW.txt explains how
+        much of the reproduction was discarded; sessions.json reports eventsComplete
+        per session because session summaries can outlive their retained events.
         RangeEnd events carry stall attribution for the range that just finished:
         connWaitMs (waiting for an NNTP connection),
         providerWaitMs (waiting for provider response headers), bodyDrainMs (reading
@@ -173,6 +210,15 @@ public sealed class SupportPackService(
         counters are process-wide and cumulative, so they also include queue imports and
         health sweeps. On a scan-heavy install the two legitimately differ by orders of
         magnitude.
+
+        metrics/recent.json → latency24Hours projects one-minute response, pool-wait,
+        and permit-wait histograms into five-minute buckets. Percentiles are bucket
+        upper bounds (not exact sample percentiles). Only successful NNTP responses are
+        counted; body-drain time is excluded from response. Compare:
+        - high response with low pool-wait/permit-wait → provider/server latency
+        - high provider pool-wait → that provider's connections are saturated/churning
+        - high streaming/queue permit-wait → that workload's connection cap is saturated
+        - high trace consumerWaitMs with low values in all three → prefetch/consumer pacing
 
         The archive deliberately excludes database files, backups, blobs/NZBs,
         environment files, session/API key files, crash dumps, and segment-cache
@@ -265,6 +311,13 @@ public sealed class SupportPackService(
                 capacity = streamTracing.Capacity,
                 eventCount = streamTracing.EventCount,
                 sessionCount = streamTracing.SessionCount,
+                retainedEventCount = streamTracing.RetainedEventCount,
+                overwrittenEventCount = streamTracing.OverwrittenEventCount,
+                oldestRetainedSequence = streamTracing.OldestRetainedSequence,
+                newestRetainedSequence = streamTracing.NewestRetainedSequence,
+                oldestRetainedAtUnixMs = streamTracing.OldestRetainedAtUnixMs,
+                newestRetainedAtUnixMs = streamTracing.NewestRetainedAtUnixMs,
+                overflowed = streamTracing.Overflowed,
             },
             environment = new Dictionary<string, string?>(StringComparer.Ordinal)
             {
@@ -491,8 +544,48 @@ public sealed class SupportPackService(
                 provider => string.IsNullOrWhiteSpace(provider.Nickname) ? null : provider.Nickname,
                 StringComparer.Ordinal);
 
-        await using var db = new MetricsDbContext();
-        var minuteRows = await db.ThroughputMinutes
+        try
+        {
+            await metricsWriter.FlushNowAsync().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Log.Debug(ex, "Support pack best-effort metrics flush failed; continuing with queued/tracker data");
+        }
+
+        List<MetricEvent> persistedLatency;
+        IReadOnlyList<MetricEvent> queuedLatency;
+        IReadOnlyList<LatencyFlushItem> trackerLatency;
+        await using (var diagnosticsLease =
+                     await metricsWriter.AcquireDiagnosticSnapshotLeaseAsync(cancellationToken).ConfigureAwait(false))
+        {
+            (queuedLatency, trackerLatency) =
+                metricsWriter.CaptureLatencyHandoff(latencyTracker.SnapshotUnpersisted);
+
+            await using var db = new MetricsDbContext();
+            persistedLatency = await db.MetricEvents
+                .Where(row => row.Kind == "latency" && row.At >= since24Hours)
+                .AsNoTracking()
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        var malformedRows = 0;
+        var normalized = new List<LatencySupportPackProjection.NormalizedLatencyRow>();
+        normalized.AddRange(LatencySupportPackProjection.FromMetricEvents(
+            persistedLatency, LatencySupportPackProjection.SourcePersisted, out var persistedMalformed));
+        malformedRows += persistedMalformed;
+        normalized.AddRange(LatencySupportPackProjection.FromMetricEvents(
+            queuedLatency, LatencySupportPackProjection.SourceQueued, out var queuedMalformed));
+        malformedRows += queuedMalformed;
+        normalized.AddRange(LatencySupportPackProjection.FromFlushItems(trackerLatency));
+        var latency24Hours = LatencySupportPackProjection.BuildLatency24Hours(
+            LatencySupportPackProjection.Deduplicate(normalized),
+            nicknames,
+            malformedRows);
+
+        await using var metricsDb = new MetricsDbContext();
+        var minuteRows = await metricsDb.ThroughputMinutes
             .Where(row => row.Minute >= since24Hours)
             .Select(row => new
             {
@@ -504,7 +597,7 @@ public sealed class SupportPackService(
                 row.BytesServed,
             })
             .ToListAsync(cancellationToken).ConfigureAwait(false);
-        var providerHours = await db.ProviderHourly
+        var providerHours = await metricsDb.ProviderHourly
             .Where(row => row.Hour >= since7Days)
             .Select(row => new
             {
@@ -518,11 +611,11 @@ public sealed class SupportPackService(
                 row.FailoverSaves,
             })
             .ToListAsync(cancellationToken).ConfigureAwait(false);
-        var circuitTransitions = await db.MetricEvents
+        var circuitTransitions = await metricsDb.MetricEvents
             .Where(row => row.Kind == "circuit" && row.At >= since7Days)
             .Select(row => new { row.At, row.Tag1, row.Tag2, row.Num })
             .ToListAsync(cancellationToken).ConfigureAwait(false);
-        var failover = await db.FailoverHourly
+        var failover = await metricsDb.FailoverHourly
             .Where(row => row.Hour >= since7Days)
             .GroupBy(row => row.Reason)
             .Select(group => new { reason = group.Key.ToString(), count = group.Sum(row => row.Count) })
@@ -624,12 +717,15 @@ public sealed class SupportPackService(
                 skips = articleMissCache.Skips,
                 entries = articleMissCache.Entries,
             },
+            latency24Hours,
             metricsHealth = new
             {
                 queued = stats.QueuedFetches + stats.QueuedEvents + stats.QueuedSessions + stats.QueuedFailoverMisses,
                 dropped = stats.DroppedFetches + stats.DroppedEvents + stats.DroppedSessions + stats.DroppedFailoverMisses,
                 stats.LastSuccessfulFlushAtMs,
                 stats.LastFlushError,
+                latencyPendingBuckets = latencyTracker.PendingBuckets,
+                latencyDroppedObservations = latencyTracker.DroppedObservations,
             },
         };
     }
@@ -640,12 +736,13 @@ public sealed class SupportPackService(
         LogSnapshot warnings,
         IReadOnlyDictionary<string, string> sectionStatus,
         SupportPackRedactor redactor,
+        StreamTraceSnapshot traceSnapshot,
         CancellationToken cancellationToken)
     {
         var (mainMigration, metricsMigration) = await ReadMigrationsAsync(cancellationToken).ConfigureAwait(false);
         return new
         {
-            schemaVersion = 2,
+            schemaVersion = 3,
             generatedAtUtc = generatedAt,
             appVersion = ConfigManager.AppVersion,
             commit = Environment.GetEnvironmentVariable("NZBDAV_COMMIT_SHA"),
@@ -658,9 +755,70 @@ public sealed class SupportPackService(
                 warnings.NewestSequence,
                 capacity = warningLogBuffer.Sink.Capacity,
             },
+            streamTraces = new
+            {
+                capacity = traceSnapshot.Status.Capacity,
+                eventCount = traceSnapshot.Status.EventCount,
+                retainedEventCount = traceSnapshot.Status.RetainedEventCount,
+                overwrittenEventCount = traceSnapshot.Status.OverwrittenEventCount,
+                overflowed = traceSnapshot.Status.Overflowed,
+                oldestRetainedSequence = traceSnapshot.Status.OldestRetainedSequence,
+                newestRetainedSequence = traceSnapshot.Status.NewestRetainedSequence,
+                oldestRetainedAtUnixMs = traceSnapshot.Status.OldestRetainedAtUnixMs,
+                newestRetainedAtUnixMs = traceSnapshot.Status.NewestRetainedAtUnixMs,
+                sessionCount = traceSnapshot.Status.SessionCount,
+                retainedSessionCount = traceSnapshot.RetainedSessionCount,
+            },
             sections = sectionStatus,
             redaction = new { secrets = redactor.SecretsRedacted, ipAddresses = redactor.AddressesPseudonymized },
         };
+    }
+
+    private static string BuildOverflowNote(StreamTraceStatus status)
+    {
+        var total = status.EventCount;
+        var retained = status.RetainedEventCount;
+        var overwritten = status.OverwrittenEventCount;
+        var pct = total > 0 ? 100.0 * overwritten / total : 0;
+        var oldest = status.OldestRetainedAtUnixMs > 0
+            ? DateTimeOffset.FromUnixTimeMilliseconds(status.OldestRetainedAtUnixMs).UtcDateTime
+                .ToString("yyyy-MM-ddTHH:mm:ssZ")
+            : "unknown";
+        var newest = status.NewestRetainedAtUnixMs > 0
+            ? DateTimeOffset.FromUnixTimeMilliseconds(status.NewestRetainedAtUnixMs).UtcDateTime
+                .ToString("yyyy-MM-ddTHH:mm:ssZ")
+            : "unknown";
+
+        return
+            $"""
+            Stream trace capture is INCOMPLETE.
+
+            {total:n0} events were recorded but the ring buffer holds {status.Capacity:n0}, so {overwritten:n0} ({pct:0.0}%) were
+            overwritten. Retained window: {oldest} to {newest}.
+
+            Sessions listed in sessions.json can outlive their events, so a session with no events
+            in events.jsonl was evicted, not idle. Re-run the reproduction with a larger capacity
+            (Settings -> Support, or STREAM_TRACE_EVENTS) or a shorter test.
+            """;
+    }
+
+    private static async Task WriteTraceEventsAsync(
+        ZipArchive archive,
+        string name,
+        IReadOnlyList<StreamTraceEvent> events,
+        SupportPackRedactor redactor,
+        CancellationToken cancellationToken)
+    {
+        var entry = archive.CreateEntry(name, CompressionLevel.Fastest);
+        await using var stream = entry.Open();
+        await using var writer = new StreamWriter(stream, Encoding.UTF8);
+        foreach (var evt in events)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var frozen = evt.FreezeForExport();
+            var line = JsonSerializer.Serialize(frozen, CompactJsonOptions);
+            await writer.WriteLineAsync(redactor.RedactText(line)).ConfigureAwait(false);
+        }
     }
 
     private static async Task<(string? Main, string? Metrics)> ReadMigrationsAsync(CancellationToken cancellationToken)

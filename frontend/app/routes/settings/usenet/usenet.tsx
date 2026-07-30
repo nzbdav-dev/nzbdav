@@ -68,6 +68,7 @@ type BenchmarkIntensity = "quick" | "thorough";
 type UsenetSettingsProps = {
     config: Record<string, string>
     setNewConfig: Dispatch<SetStateAction<Record<string, string>>>
+    persistConfigPatch: (patch: Record<string, string>) => Promise<void>
 };
 
 enum ProviderType {
@@ -292,7 +293,7 @@ function SortableItem({ id, disabled, children }: { id: string; disabled: boolea
     return <>{children({ setNodeRef, setActivatorNodeRef, attributes, listeners, style, isDragging })}</>;
 }
 
-export function UsenetSettings({ config, setNewConfig }: UsenetSettingsProps) {
+export function UsenetSettings({ config, setNewConfig, persistConfigPatch }: UsenetSettingsProps) {
     // state
     const [showModal, setShowModal] = useState(false);
     const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -388,7 +389,7 @@ export function UsenetSettings({ config, setNewConfig }: UsenetSettingsProps) {
         setEditingIndex(null);
     }, []);
 
-    const handleSaveProvider = useCallback((provider: ConnectionDetails) => {
+    const handleSaveProvider = useCallback(async (provider: ConnectionDetails) => {
         const providers = [...providerConfig.Providers];
         if (editingIndex !== null) {
             providers[editingIndex] = provider;
@@ -399,9 +400,14 @@ export function UsenetSettings({ config, setNewConfig }: UsenetSettingsProps) {
                 Priority: providers.length,
             });
         }
-        setNewConfig({ ...config, "usenet.providers": serializeProviderConfig({ ...providerConfig, Providers: providers }) });
+        const patch: Record<string, string> = {
+            "usenet.providers": serializeProviderConfig({ ...providerConfig, Providers: providers }),
+            // Include current draft so a speed-test "Apply" pipelining change persists with the provider.
+            "usenet.pipelining.enabled": config["usenet.pipelining.enabled"] ?? "false",
+        };
+        await persistConfigPatch(patch);
         handleCloseModal();
-    }, [config, providerConfig, editingIndex, setNewConfig, handleCloseModal]);
+    }, [config, providerConfig, editingIndex, persistConfigPatch, handleCloseModal]);
 
     const handleApplyPipelining = useCallback((enabled: boolean) => {
         setNewConfig(prev => ({
@@ -936,7 +942,7 @@ type ProviderModalProps = {
     provider: ConnectionDetails | null;
     existingStorageGroups: string[];
     onClose: () => void;
-    onSave: (provider: ConnectionDetails) => void;
+    onSave: (provider: ConnectionDetails) => void | Promise<void>;
     onApplyPipelining: (enabled: boolean) => void;
     defaultPipeliningDepth: string;
 };
@@ -972,6 +978,8 @@ function ProviderModal({ show, provider, existingStorageGroups, onClose, onSave,
     const [benchmarkResult, setBenchmarkResult] = useState<BenchmarkResult | null>(null);
     const [benchmarkError, setBenchmarkError] = useState<string | null>(null);
     const [pipeliningOnly, setPipeliningOnly] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [saveError, setSaveError] = useState<string | null>(null);
     const benchmarkAbortRef = useRef<AbortController | null>(null);
     const passIsMasked = isMaskedSecret(pass);
     // Stable across parent re-parses of the same provider so Apply recommendation
@@ -1010,6 +1018,8 @@ function ProviderModal({ show, provider, existingStorageGroups, onClose, onSave,
             setBenchmarkResult(null);
             setBenchmarkError(null);
             setPipeliningOnly(false);
+            setIsSaving(false);
+            setSaveError(null);
         }
         // Intentionally keyed on providerIdentity, not provider object identity —
         // parent config updates re-parse providers and would otherwise reset the form.
@@ -1197,7 +1207,7 @@ function ProviderModal({ show, provider, existingStorageGroups, onClose, onSave,
         setBenchmarkProgress(null);
     }, []);
 
-    const handleSave = useCallback(() => {
+    const handleSave = useCallback(async () => {
         const byteLimit = valueAndUnitToBytes(limitValue, limitUnit);
         const initialUsedBytes = valueAndUnitToBytes(initialUsedValue, initialUsedUnit);
 
@@ -1213,25 +1223,33 @@ function ProviderModal({ show, provider, existingStorageGroups, onClose, onSave,
 
         const trimmedNickname = nickname.trim();
         const trimmedStorageGroup = storageGroup.trim();
-        onSave({
-            ProviderId: provider?.ProviderId,
-            Type: type,
-            Host: host,
-            Port: parseInt(port, 10),
-            UseSsl: useSsl,
-            SkipTlsVerification: useSsl && skipTlsVerification,
-            User: user,
-            Pass: pass,
-            MaxConnections: parseInt(maxConnections, 10),
-            PipeliningDepth: pipeliningDepth.trim() === "" ? null : parseInt(pipeliningDepth, 10),
-            Priority: provider?.Priority ?? 0,
-            Nickname: trimmedNickname === "" ? undefined : trimmedNickname,
-            StorageGroup: trimmedStorageGroup,
-            PreviousType: type === ProviderType.Disabled ? provider?.PreviousType : undefined,
-            ByteLimit: byteLimit,
-            BytesUsedOffset: offsetToPersist,
-            BytesUsedResetAt: resetAtToPersist,
-        });
+        setIsSaving(true);
+        setSaveError(null);
+        try {
+            await onSave({
+                ProviderId: provider?.ProviderId,
+                Type: type,
+                Host: host,
+                Port: parseInt(port, 10),
+                UseSsl: useSsl,
+                SkipTlsVerification: useSsl && skipTlsVerification,
+                User: user,
+                Pass: pass,
+                MaxConnections: parseInt(maxConnections, 10),
+                PipeliningDepth: pipeliningDepth.trim() === "" ? null : parseInt(pipeliningDepth, 10),
+                Priority: provider?.Priority ?? 0,
+                Nickname: trimmedNickname === "" ? undefined : trimmedNickname,
+                StorageGroup: trimmedStorageGroup,
+                PreviousType: type === ProviderType.Disabled ? provider?.PreviousType : undefined,
+                ByteLimit: byteLimit,
+                BytesUsedOffset: offsetToPersist,
+                BytesUsedResetAt: resetAtToPersist,
+            });
+        } catch {
+            setSaveError("Could not save provider settings. Check the server logs and try again.");
+        } finally {
+            setIsSaving(false);
+        }
     }, [type, host, port, useSsl, skipTlsVerification, user, pass, maxConnections, pipeliningDepth, nickname, storageGroup, provider, isEditing, limitValue, limitUnit, initialUsedValue, initialUsedUnit, onSave]);
 
     const isPipeliningDepthValid = pipeliningDepth.trim() === ""
@@ -1264,17 +1282,18 @@ function ProviderModal({ show, provider, existingStorageGroups, onClose, onSave,
             open={show}
             title={provider ? "Edit Provider" : "Add Provider"}
             onClose={onClose}
+            preventClose={isSaving}
             className="!max-w-4xl"
             footer={
                 <>
-                    <Button variant="outline" onClick={onClose}>
+                    <Button variant="outline" onClick={onClose} disabled={isSaving}>
                         Cancel
                     </Button>
                     {canSave && type !== ProviderType.Disabled && (
                         <Button
                             variant="outline"
                             onClick={handleTestConnection}
-                            disabled={!isFormValid || isTestingConnection}
+                            disabled={!isFormValid || isTestingConnection || isSaving}
                         >
                             {isTestingConnection ? "Testing..." : "Test Connection"}
                         </Button>
@@ -1283,19 +1302,24 @@ function ProviderModal({ show, provider, existingStorageGroups, onClose, onSave,
                         <Button
                             variant="primary"
                             onClick={handleTestConnection}
-                            disabled={!isFormValid || isTestingConnection}
+                            disabled={!isFormValid || isTestingConnection || isSaving}
                         >
                             {isTestingConnection ? "Testing..." : "Test Connection"}
                         </Button>
                     ) : (
-                        <Button variant="primary" onClick={handleSave} disabled={!canSave}>
-                            Save Provider
+                        <Button variant="primary" onClick={handleSave} disabled={!canSave || isSaving}>
+                            {isSaving ? "Saving..." : "Save Provider"}
                         </Button>
                     )}
                 </>
             }
         >
             <div className="flex flex-col gap-5">
+                {saveError && (
+                    <Alert variant="danger" className="text-sm">
+                        {saveError}
+                    </Alert>
+                )}
                 <ProviderModalSection title="Connection">
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_7.5rem]">
                         <div className="flex flex-col gap-1.5">

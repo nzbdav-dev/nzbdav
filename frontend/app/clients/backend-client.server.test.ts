@@ -259,20 +259,34 @@ describe("BackendClient", () => {
       enabled: true,
       source: "ui",
       expiresAtUnixMs: 123,
-      capacity: 20000,
+      capacity: 100000,
       eventCount: 4,
       sessionCount: 1,
+      retainedEventCount: 4,
+      overwrittenEventCount: 0,
+      oldestRetainedSequence: 1,
+      newestRetainedSequence: 4,
+      oldestRetainedAtUnixMs: 100,
+      newestRetainedAtUnixMs: 120,
+      overflowed: false,
     }));
 
     await expect(backendClient.getStreamTracingStatus()).resolves.toEqual({
       enabled: true,
       source: "ui",
       expiresAtUnixMs: 123,
-      capacity: 20000,
+      capacity: 100000,
       eventCount: 4,
       sessionCount: 1,
       retained: false,
       retainedUntilUnixMs: 0,
+      retainedEventCount: 4,
+      overwrittenEventCount: 0,
+      oldestRetainedSequence: 1,
+      newestRetainedSequence: 4,
+      oldestRetainedAtUnixMs: 100,
+      newestRetainedAtUnixMs: 120,
+      overflowed: false,
     });
   });
 
@@ -281,11 +295,14 @@ describe("BackendClient", () => {
       enabled: false,
       source: "ui",
       expiresAtUnixMs: 0,
-      capacity: 20000,
+      capacity: 100000,
       eventCount: 0,
       sessionCount: 0,
       retained: false,
       retainedUntilUnixMs: 0,
+      retainedEventCount: 0,
+      overwrittenEventCount: 0,
+      overflowed: false,
     }));
 
     await expect(backendClient.discardStreamTraces()).resolves.toMatchObject({
@@ -303,11 +320,14 @@ describe("BackendClient", () => {
       enabled: false,
       source: "ui",
       expiresAtUnixMs: 0,
-      capacity: 20000,
+      capacity: 100000,
       eventCount: 12,
       sessionCount: 2,
       retained: true,
       retainedUntilUnixMs: 999,
+      retainedEventCount: 12,
+      overwrittenEventCount: 0,
+      overflowed: false,
     }));
 
     await expect(backendClient.setStreamTracing(false)).resolves.toMatchObject({
@@ -316,5 +336,33 @@ describe("BackendClient", () => {
       retainedUntilUnixMs: 999,
       eventCount: 12,
     });
+  });
+
+  it("posts capacity when enabling stream tracing", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({
+      enabled: true,
+      source: "ui",
+      expiresAtUnixMs: 123,
+      capacity: 200000,
+      eventCount: 0,
+      sessionCount: 0,
+      retained: false,
+      retainedUntilUnixMs: 0,
+      retainedEventCount: 0,
+      overwrittenEventCount: 0,
+      overflowed: false,
+    }));
+
+    await expect(backendClient.setStreamTracing(true, 30, 200_000)).resolves.toMatchObject({
+      enabled: true,
+      capacity: 200000,
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://backend/api/set-stream-tracing",
+      expect.objectContaining({ method: "POST" }),
+    );
+    const body = fetchMock.mock.calls[0]?.[1]?.body as FormData;
+    expect(body.get("capacity")).toBe("200000");
+    expect(body.get("minutes")).toBe("30");
   });
 });

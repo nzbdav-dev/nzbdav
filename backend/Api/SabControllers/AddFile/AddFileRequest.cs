@@ -8,6 +8,20 @@ namespace NzbWebDAV.Api.SabControllers.AddFile;
 
 public class AddFileRequest()
 {
+    /// <summary>
+    /// Optional caller-assigned SAB job id. Ordinary uploads leave this null;
+    /// durable in-process workflows can persist the id before crossing the queue
+    /// mutation boundary and safely recover after a crash.
+    /// </summary>
+    public Guid? NzoId { get; init; }
+
+    /// <summary>
+    /// Whether an existing queue item with the same category and filename may be
+    /// replaced. SAB uploads retain the historical replacement behavior; durable
+    /// migration submissions disable it so recovery never evicts an ambiguous job.
+    /// </summary>
+    public bool ReplaceExistingQueueItem { get; init; } = true;
+
     public string FileName { get; init; } = null!;
     public string? ContentType { get; init; }
     public Stream NzbFileStream { get; init; } = null!;

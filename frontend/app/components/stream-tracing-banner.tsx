@@ -60,6 +60,13 @@ export function StreamTracingBanner() {
 
     const remaining = formatRemaining(status.expiresAtUnixMs, now);
     const counts = `${status.eventCount.toLocaleString()} events across ${status.sessionCount.toLocaleString()} sessions`;
+    const fillRatio = status.capacity > 0 ? status.retainedEventCount / status.capacity : 0;
+    let fillNote = "";
+    if (status.overflowed) {
+        fillNote = " · buffer full, oldest events discarded";
+    } else if (fillRatio >= 0.8) {
+        fillNote = " · trace buffer nearly full";
+    }
 
     return (
         <Alert variant="warning" className="mb-4 items-center justify-between gap-3 text-sm">
@@ -67,7 +74,8 @@ export function StreamTracingBanner() {
                 <Icon name="bug_report" className="mt-0.5 shrink-0 !text-[20px]" />
                 <span>
                     Developer stream tracing is on ({remaining}
-                    {status.source === "ui" ? "" : ", from STREAM_TRACE_EVENTS"}). {counts}.
+                    {status.source === "ui" ? "" : ", from STREAM_TRACE_EVENTS"}). {counts}
+                    {fillNote}.
                     Tracing uses RAM only and resets on restart.
                 </span>
             </div>

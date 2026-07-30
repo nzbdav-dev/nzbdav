@@ -1,4 +1,5 @@
-﻿using NzbWebDAV.Clients.Usenet.Connections;
+﻿using NzbWebDAV.Clients.Usenet.Concurrency;
+using NzbWebDAV.Clients.Usenet.Connections;
 using NzbWebDAV.Clients.Usenet.Models;
 using NzbWebDAV.Config;
 using NzbWebDAV.Database.Models.Metrics;
@@ -22,24 +23,39 @@ public class UsenetStreamingClient : WrappingNntpClient
         ProviderBytesTracker bytesTracker,
         StreamTraceBuffer streamTrace,
         ActiveReadRegistry activeReadRegistry,
-        ArticleMissNegativeCache? articleMissCache = null)
+        ArticleMissNegativeCache? articleMissCache = null,
+        ProviderLatencyTracker? latencyTracker = null)
         : base(CreateDownloadingNntpClient(
             configManager, websocketManager, usageTracker, metricsWriter, bytesTracker,
-            streamTrace, activeReadRegistry, articleMissCache))
+            streamTrace, activeReadRegistry, articleMissCache, latencyTracker))
     {
         // when config changes, create a new MultiProviderClient to use instead.
         configManager.OnConfigChanged += (_, configEventArgs) =>
         {
+            var providersChanged = configEventArgs.ChangedConfig.ContainsKey(ConfigKeys.UsenetProviders);
+            var streamingPriorityChanged =
+                configEventArgs.ChangedConfig.ContainsKey(ConfigKeys.UsenetStreamingPriority);
+
             // if unrelated config changed, do nothing
-            if (!configEventArgs.ChangedConfig.ContainsKey(ConfigKeys.UsenetProviders)) return;
+            if (!providersChanged && !streamingPriorityChanged) return;
 
             try
             {
-                // update the connection-pool according to the new config
-                var newUsenetClient = CreateDownloadingNntpClient(
-                    configManager, websocketManager, usageTracker, metricsWriter, bytesTracker,
-                    streamTrace, activeReadRegistry, articleMissCache);
-                ReplaceUnderlyingClient(newUsenetClient);
+                if (providersChanged)
+                {
+                    // update the connection-pool according to the new config. New pools are
+                    // built with the current odds, so a save that changes both needs no
+                    // separate update (and must not touch the retired client).
+                    var newUsenetClient = CreateDownloadingNntpClient(
+                        configManager, websocketManager, usageTracker, metricsWriter, bytesTracker,
+                        streamTrace, activeReadRegistry, articleMissCache, latencyTracker);
+                    ReplaceUnderlyingClient(newUsenetClient);
+                    return;
+                }
+
+                // Streaming Priority alone only re-arms the provider gates; rebuilding pools
+                // would drop healthy TLS connections mid-playback.
+                UpdateProviderPriorityOdds(configManager.GetStreamingPriority());
             }
             catch (Exception e)
             {
@@ -59,13 +75,14 @@ public class UsenetStreamingClient : WrappingNntpClient
         ProviderBytesTracker bytesTracker,
         StreamTraceBuffer streamTrace,
         ActiveReadRegistry activeReadRegistry,
-        ArticleMissNegativeCache? articleMissCache
+        ArticleMissNegativeCache? articleMissCache,
+        ProviderLatencyTracker? latencyTracker
     )
     {
         var multiProviderClient = CreateMultiProviderClient(
             configManager, websocketManager, usageTracker, metricsWriter, bytesTracker,
-            streamTrace, activeReadRegistry, articleMissCache);
-        var downloadingClient = new DownloadingNntpClient(multiProviderClient, configManager);
+            streamTrace, activeReadRegistry, articleMissCache, latencyTracker);
+        var downloadingClient = new DownloadingNntpClient(multiProviderClient, configManager, latencyTracker);
         INntpClient inner = downloadingClient;
         if (configManager.IsSegmentCacheEnabled())
         {
@@ -91,6 +108,12 @@ public class UsenetStreamingClient : WrappingNntpClient
         return new HeaderCachingNntpClient(inner);
     }
 
+    internal void UpdateProviderPriorityOdds(SemaphorePriorityOdds odds)
+    {
+        if (WrappingNntpClient.Unwrap(InnerClient) is MultiProviderNntpClient multi)
+            multi.UpdateConnectionPriorityOdds(odds);
+    }
+
     public IReadOnlyList<ProviderCircuitRuntimeSnapshot> GetProviderCircuitSnapshots()
     {
         return WrappingNntpClient.Unwrap(InnerClient) is MultiProviderNntpClient multi
@@ -114,7 +137,8 @@ public class UsenetStreamingClient : WrappingNntpClient
         ProviderBytesTracker bytesTracker,
         StreamTraceBuffer streamTrace,
         ActiveReadRegistry activeReadRegistry,
-        ArticleMissNegativeCache? articleMissCache
+        ArticleMissNegativeCache? articleMissCache,
+        ProviderLatencyTracker? latencyTracker
     )
     {
         var providerConfig = configManager.GetUsenetProviderConfig();
@@ -127,12 +151,15 @@ public class UsenetStreamingClient : WrappingNntpClient
 
         var connectionPoolStats = new ConnectionPoolStats(providerConfig, websocketManager);
         var idleTimeoutSeconds = configManager.GetIdleConnectionTimeoutSeconds();
+        var streamingPriority = configManager.GetStreamingPriority();
         var providerClients = providerConfig.Providers
             .Select((provider, index) => CreateProviderClient(
                 provider,
                 connectionPoolStats.GetOnConnectionPoolChanged(index),
                 idleTimeoutSeconds,
-                metricsWriter
+                metricsWriter,
+                streamingPriority,
+                latencyTracker
             ))
             .ToList();
         return new MultiProviderNntpClient(
@@ -149,7 +176,9 @@ public class UsenetStreamingClient : WrappingNntpClient
         UsenetProviderConfig.ConnectionDetails connectionDetails,
         EventHandler<ConnectionPoolStats.ConnectionPoolChangedEventArgs> onConnectionPoolChanged,
         int idleTimeoutSeconds,
-        MetricsWriter metricsWriter
+        MetricsWriter metricsWriter,
+        SemaphorePriorityOdds? streamingPriority = null,
+        ProviderLatencyTracker? latencyTracker = null
     )
     {
         var maxConnections = connectionDetails.MaxConnections;
@@ -188,7 +217,8 @@ public class UsenetStreamingClient : WrappingNntpClient
             maxConnections: maxConnections,
             connectionFactory: ct => CreateNewConnection(connectionDetails, ct),
             onConnectionPoolChanged,
-            idleTimeoutSeconds
+            idleTimeoutSeconds,
+            streamingPriority
         );
         // Ensure a metrics key even if startup backfill was skipped somehow.
         if (connectionDetails.ProviderId == Guid.Empty)
@@ -218,7 +248,8 @@ public class UsenetStreamingClient : WrappingNntpClient
             connectionDetails.Priority,
             connectionDetails.PipeliningDepth,
             connectionDetails.StorageGroup,
-            metricsKey
+            metricsKey,
+            latencyTracker
         );
     }
 
@@ -227,15 +258,16 @@ public class UsenetStreamingClient : WrappingNntpClient
         int maxConnections,
         Func<CancellationToken, ValueTask<INntpClient>> connectionFactory,
         EventHandler<ConnectionPoolStats.ConnectionPoolChangedEventArgs> onConnectionPoolChanged,
-        int idleTimeoutSeconds
+        int idleTimeoutSeconds,
+        SemaphorePriorityOdds? streamingPriority = null
     )
     {
         var idleTimeout = TimeSpan.FromSeconds(idleTimeoutSeconds);
         Log.Information(
-            "Creating NNTP connection pool max={Max} idleTimeout={IdleTimeoutSeconds}s",
-            maxConnections, idleTimeoutSeconds);
+            "Creating NNTP connection pool max={Max} idleTimeout={IdleTimeoutSeconds}s streamingPriority={StreamingPriority}",
+            maxConnections, idleTimeoutSeconds, streamingPriority?.HighPriorityOdds);
         var connectionPool = new ConnectionPool<INntpClient>(
-            maxConnections, connectionFactory, idleTimeout);
+            maxConnections, connectionFactory, idleTimeout, streamingPriority);
         connectionPool.OnConnectionPoolChanged += onConnectionPoolChanged;
         var args = new ConnectionPoolStats.ConnectionPoolChangedEventArgs(0, 0, maxConnections);
         onConnectionPoolChanged(connectionPool, args);

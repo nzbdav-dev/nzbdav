@@ -3,6 +3,7 @@ using Microsoft.Extensions.Hosting;
 using NzbWebDAV.Clients.RadarrSonarr;
 using NzbWebDAV.Clients.RadarrSonarr.BaseModels;
 using NzbWebDAV.Clients.Usenet;
+using NzbWebDAV.Clients.Usenet.Contexts;
 using NzbWebDAV.Config;
 using NzbWebDAV.Database;
 using NzbWebDAV.Database.Models;
@@ -177,6 +178,9 @@ public class HealthCheckService : BackgroundService
         // Skip the STAT-only recheck and repair immediately: STAT can pass while BODY returns 430
         // (see nzbdav-dev#209), and structurally corrupt archives can have every article present.
         var isUrgentRepair = davItem.NextHealthCheck == DateTimeOffset.UnixEpoch;
+
+        // Attribution for latency histograms — does not change pool admission priority.
+        using var maintenanceScope = ct.SetContext(MaintenanceDownloadContext.Instance);
 
         try
         {

@@ -10,6 +10,7 @@ export type ConfirmModalProps = {
     title: string,
     message: ReactNode,
     checkboxMessage?: string,
+    requireCheckbox?: boolean,
     errorMessage?: string,
     cancelText?: string,
     confirmText?: string,
@@ -19,16 +20,17 @@ export type ConfirmModalProps = {
 
 export function ConfirmModal(props: ConfirmModalProps) {
     const [isCheckboxChecked, setIsCheckboxChecked] = useState(false);
+    const { onCancel: cancel, onConfirm: confirm } = props;
 
     const onConfirm = useCallback((isChecked?: boolean) => {
-        props.onConfirm(isChecked);
+        confirm(isChecked);
         setIsCheckboxChecked(false);
-    }, [props.onConfirm, setIsCheckboxChecked]);
+    }, [confirm]);
 
     const onCancel = useCallback(() => {
-        props.onCancel();
+        cancel();
         setIsCheckboxChecked(false);
-    }, [props.onCancel, setIsCheckboxChecked]);
+    }, [cancel]);
 
     return (
         <Modal
@@ -39,7 +41,11 @@ export function ConfirmModal(props: ConfirmModalProps) {
                 <Button variant="outline" onClick={onCancel}>
                     {props.cancelText || "Close"}
                 </Button>
-                <Button variant="danger" onClick={() => onConfirm(isCheckboxChecked)}>
+                <Button
+                    variant="danger"
+                    disabled={props.requireCheckbox === true && !isCheckboxChecked}
+                    onClick={() => onConfirm(isCheckboxChecked)}
+                >
                     {props.confirmText || "Confirm Removal"}
                 </Button>
             </>}

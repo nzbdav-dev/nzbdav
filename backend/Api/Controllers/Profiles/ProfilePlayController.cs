@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NzbWebDAV.Api.Controllers.GetWebdavItem;
 using NzbWebDAV.Api.SabControllers.AddFile;
+using NzbWebDAV.Clients.Usenet.Concurrency;
 using NzbWebDAV.Config;
 using NzbWebDAV.Database;
 using NzbWebDAV.Database.Models;
@@ -775,7 +776,12 @@ public class ProfilePlayController(
 
             pvTimer.Restart();
             using var verifyStream = new MemoryStream(nzbBytes, writable: false);
-            var outcome = await fastVerifier.VerifyAsync(verifyStream, verifyMode, verifySampleCount, ct).ConfigureAwait(false);
+            // Playback selection is user-initiated: its probes compete as High at the
+            // provider connection gate, unlike background verification.
+            var outcome = await fastVerifier
+                .VerifyAsync(verifyStream, verifyMode, verifySampleCount, ct,
+                    priority: SemaphorePriority.High)
+                .ConfigureAwait(false);
             Log.Debug("play-timing preverify {Indexer} fetch={Fetch}ms verify={Verify}ms verdict={Verdict}",
                 candidate.IndexerName, msFetch, pvTimer.ElapsedMilliseconds, outcome.Verdict);
             return new PreVerifyResult(candidate, nzbBytes, outcome.Verdict, outcome.ResponderHost,

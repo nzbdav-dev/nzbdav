@@ -1,4 +1,6 @@
 using NzbWebDAV.Clients.Usenet;
+using NzbWebDAV.Clients.Usenet.Concurrency;
+using NzbWebDAV.Clients.Usenet.Contexts;
 using NzbWebDAV.Extensions;
 using NzbWebDAV.Models.Nzb;
 using Serilog;
@@ -17,8 +19,15 @@ public class PlaybackFastVerifier
         _usenetClient = usenetClient;
     }
 
+    /// <summary>
+    /// Probes segment availability for a candidate NZB. <paramref name="priority"/> decides how
+    /// these probes compete for provider connections: user-initiated playback selection passes
+    /// High, while background verification (Watchtower, keep-fresh) stays Low so it yields to
+    /// playback at a saturated provider.
+    /// </summary>
     public async Task<VerifyOutcome> VerifyAsync(
-        Stream nzbStream, string mode, int sampleCount, CancellationToken ct, TimeSpan? segmentTimeout = null)
+        Stream nzbStream, string mode, int sampleCount, CancellationToken ct, TimeSpan? segmentTimeout = null,
+        SemaphorePriority priority = SemaphorePriority.Low)
     {
         if (mode == "none") return new VerifyOutcome(Verdict.Available, null);
 
@@ -40,7 +49,7 @@ public class PlaybackFastVerifier
         MultiProviderNntpClient.AttributionContext.Value = attribution;
 
         var timeout = segmentTimeout ?? DefaultSegmentTimeout;
-        var tasks = samples.Select(s => CheckSegmentAsync(s, mode, timeout, ct)).ToList();
+        var tasks = samples.Select(s => CheckSegmentAsync(s, mode, timeout, priority, ct)).ToList();
         Verdict[] results;
         try
         {
@@ -58,9 +67,17 @@ public class PlaybackFastVerifier
         return new VerifyOutcome(Verdict.Available, attribution.Host);
     }
 
-    private async Task<Verdict> CheckSegmentAsync(string messageId, string mode, TimeSpan timeout, CancellationToken ct)
+    private async Task<Verdict> CheckSegmentAsync(
+        string messageId, string mode, TimeSpan timeout, SemaphorePriority priority, CancellationToken ct)
     {
-        var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        // The priority context lives on this candidate's own child token: registering it on
+        // the parent token shared by concurrent candidates would let one candidate's disposal
+        // strip priority from its siblings.
+        var timeoutCts = ContextualCancellationTokenSource.CreateLinkedTokenSource(ct);
+        var priorityScope = timeoutCts.Token.SetContext(new DownloadPriorityContext
+        {
+            Priority = priority,
+        });
         timeoutCts.CancelAfter(timeout);
         var work = CheckSegmentCoreAsync(messageId, mode, timeoutCts.Token);
         try
@@ -90,11 +107,16 @@ public class PlaybackFastVerifier
         }
         finally
         {
+            // A timeout returns while `work` may still hold the token, so priority and the
+            // token source are released only once the probe itself finishes.
             _ = work.ContinueWith(static (t, s) =>
             {
                 _ = t.Exception;
-                ((CancellationTokenSource)s!).Dispose();
-            }, timeoutCts, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+                var (scope, source) = ((CancellationTokenContext, ContextualCancellationTokenSource))s!;
+                scope.Dispose();
+                source.Dispose();
+            }, (priorityScope, timeoutCts), CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
         }
     }
 

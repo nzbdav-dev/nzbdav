@@ -22,6 +22,9 @@ public static class StreamTrace
     public static void TryRetry(Guid sessionId, string segmentId, int attempt, string? message = null)
         => _buffer?.Retry(sessionId, segmentId, attempt, message);
 
+    public static void TryPrefetchWidth(Guid sessionId, int previousBatchSize, int batchSize)
+        => _buffer?.PrefetchWidth(sessionId, previousBatchSize, batchSize);
+
     public static void TryStall(StreamTraceRangeContext? range, StreamStallKind kind, TimeSpan elapsed)
         => _buffer?.AddStall(range, kind, elapsed);
 

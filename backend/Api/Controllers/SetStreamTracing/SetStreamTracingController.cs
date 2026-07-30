@@ -19,7 +19,7 @@ public sealed class SetStreamTracingController(
             var before = buffer.GetStatus();
             status = buffer.EnableFor(
                 TimeSpan.FromMinutes(request.Minutes),
-                StreamTraceBuffer.DefaultUiCapacity,
+                request.Capacity,
                 StreamTraceBuffer.SourceUi);
             // Recorded so a support pack shows when tracing started and for how
             // long — the env-var path logs an equivalent line at startup.

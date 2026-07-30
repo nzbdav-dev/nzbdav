@@ -249,9 +249,11 @@ public sealed class SupportPackContentsTests : IDisposable
             buffer);
 
         using var enabledManifest = JsonDocument.Parse(enabled["manifest.json"]);
+        Assert.Equal(3, enabledManifest.RootElement.GetProperty("schemaVersion").GetInt32());
         Assert.Equal(
             "included",
             enabledManifest.RootElement.GetProperty("sections").GetProperty("streamTraces").GetString());
+        Assert.False(enabledManifest.RootElement.GetProperty("streamTraces").GetProperty("overflowed").GetBoolean());
 
         Assert.Contains("/view/movie.mkv", enabled["stream-traces/sessions.json"]);
         Assert.Contains("RangeOpen", enabled["stream-traces/events.jsonl"]);
@@ -265,6 +267,41 @@ public sealed class SupportPackContentsTests : IDisposable
         Assert.Equal("ui", tracing.GetProperty("source").GetString());
         Assert.True(tracing.GetProperty("expiresAtUnixMs").GetInt64() > 0);
         Assert.True(tracing.GetProperty("eventCount").GetInt64() >= 4);
+        Assert.False(tracing.GetProperty("overflowed").GetBoolean());
+    }
+
+    [Fact]
+    public async Task Pack_FlagsTruncatedStreamTraceCaptures()
+    {
+        var buffer = new StreamTraceBuffer(100, enabled: false);
+        buffer.EnableFor(TimeSpan.FromMinutes(15), 100, StreamTraceBuffer.SourceUi);
+        var session = Guid.NewGuid();
+        for (var i = 0; i < 150; i++)
+            buffer.Seek(session, i);
+
+        var pack = await ReadPackEntriesAsync(
+            new LogBufferSink(10),
+            new WarningLogBuffer(new LogBufferSink(50)),
+            buffer);
+
+        Assert.True(pack.ContainsKey("stream-traces/OVERFLOW.txt"));
+        Assert.Contains("INCOMPLETE", pack["stream-traces/OVERFLOW.txt"]);
+
+        using var manifest = JsonDocument.Parse(pack["manifest.json"]);
+        Assert.Equal(3, manifest.RootElement.GetProperty("schemaVersion").GetInt32());
+        Assert.Equal(
+            "included-truncated",
+            manifest.RootElement.GetProperty("sections").GetProperty("streamTraces").GetString());
+        var streamTraces = manifest.RootElement.GetProperty("streamTraces");
+        Assert.True(streamTraces.GetProperty("overflowed").GetBoolean());
+        Assert.Equal(150, streamTraces.GetProperty("eventCount").GetInt64());
+        Assert.Equal(100, streamTraces.GetProperty("retainedEventCount").GetInt64());
+        Assert.Equal(50, streamTraces.GetProperty("overwrittenEventCount").GetInt64());
+
+        using var sessions = JsonDocument.Parse(pack["stream-traces/sessions.json"]);
+        Assert.True(sessions.RootElement.GetArrayLength() >= 1);
+        Assert.Contains("retainedEventCount", pack["stream-traces/sessions.json"]);
+        Assert.Contains("eventsComplete", pack["stream-traces/sessions.json"]);
     }
 
     [Fact]
@@ -343,6 +380,7 @@ public sealed class SupportPackContentsTests : IDisposable
             configManager,
             new MetricsWriter(),
             new ProviderBytesTracker(),
+            new ProviderLatencyTracker(),
             usenet,
             new ArticleMissNegativeCache(configManager),
             new InFlightArticleBudget(64 * 1024 * 1024),

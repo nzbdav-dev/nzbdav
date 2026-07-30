@@ -44,11 +44,15 @@ public class AddFileController(
 
     public async Task<AddFileResponse> AddFileAsync(AddFileRequest request)
     {
-        var id = Guid.NewGuid();
+        var id = request.NzoId ?? Guid.NewGuid();
         var category = StringUtil.EmptyToNull(request.Category)
                        ?? configManager.GetManualUploadCategory();
 
-        await ReplaceExistingQueueItemIfNeededAsync(request.FileName, category, request.CancellationToken)
+        await HandleExistingQueueItemAsync(
+                request.FileName,
+                category,
+                request.ReplaceExistingQueueItem,
+                request.CancellationToken)
             .ConfigureAwait(false);
         if (AfterDuplicatePreCheckHook is not null)
             await AfterDuplicatePreCheckHook().ConfigureAwait(false);
@@ -129,7 +133,8 @@ public class AddFileController(
             {
                 await dbClient.Ctx.SaveChangesAsync(request.CancellationToken).ConfigureAwait(false);
             }
-            catch (DbUpdateException ex) when (IsCategoryFileNameUniqueViolation(ex))
+            catch (DbUpdateException ex) when (
+                request.ReplaceExistingQueueItem && IsCategoryFileNameUniqueViolation(ex))
             {
                 // TOCTOU: another insert landed after our pre-check. Remove via a fresh
                 // context so this request context's pending Added entities are not flushed
@@ -138,6 +143,12 @@ public class AddFileController(
                         request.FileName, category, request.CancellationToken)
                     .ConfigureAwait(false);
                 await dbClient.Ctx.SaveChangesAsync(request.CancellationToken).ConfigureAwait(false);
+            }
+            catch (DbUpdateException ex) when (IsCategoryFileNameUniqueViolation(ex))
+            {
+                throw new BadHttpRequestException(
+                    $"A queue item named '{request.FileName}' already exists in category '{category}'.",
+                    ex);
             }
 
             _ = DavDatabaseContext.RcloneVfsForget(["/nzbs"]);
@@ -164,9 +175,10 @@ public class AddFileController(
         };
     }
 
-    private async Task ReplaceExistingQueueItemIfNeededAsync(
+    private async Task HandleExistingQueueItemAsync(
         string fileName,
         string category,
+        bool replaceExisting,
         CancellationToken ct)
     {
         var existingId = await dbClient.Ctx.QueueItems.AsNoTracking()
@@ -175,6 +187,10 @@ public class AddFileController(
             .FirstOrDefaultAsync(ct)
             .ConfigureAwait(false);
         if (existingId is null) return;
+
+        if (!replaceExisting)
+            throw new BadHttpRequestException(
+                $"A queue item named '{fileName}' already exists in category '{category}'.");
 
         var wasInProgress = queueManager.FindInProgressQueueItem(existingId.Value) is not null;
         Log.Warning(

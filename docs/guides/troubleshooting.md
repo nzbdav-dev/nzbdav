@@ -13,6 +13,19 @@
 - Overview **Active Reads**: unexpected traffic → rclone VFS or media-server scans.
 - Try disabling segment cache or adjusting Max Download Connections — [WebDAV](../configuration/webdav.md).
 
+## Playback slowed but nothing failed
+
+When streams buffer without hard errors, read support-pack latency phases first
+(`metrics/recent.json` → `latency24Hours`):
+
+- High `response` with low `pool-wait` / `permit-wait` → provider/server latency.
+- High provider `pool-wait` → that provider's connections are saturated or churning.
+- High streaming/queue `permit-wait` → that workload's configured connection cap is saturated.
+- High stream-trace `consumerWaitMs` with low values in all three phases → prefetch
+  geometry or consumer pacing — compare with `bodyDrainMs` on RangeEnd events.
+
+Generate a pack from **Settings → Support** — [Technical support pack](../configuration/support.md).
+
 ## *Arr won't import
 
 - Paths must match exactly between NzbDAV completed path and *Arr containers.

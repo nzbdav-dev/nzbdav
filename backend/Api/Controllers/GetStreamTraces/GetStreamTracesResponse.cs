@@ -12,6 +12,13 @@ public class GetStreamTracesResponse : BaseApiResponse
     [JsonPropertyName("capacity")] public required int Capacity { get; init; }
     [JsonPropertyName("eventCount")] public required long EventCount { get; init; }
     [JsonPropertyName("sessionCount")] public required int SessionCount { get; init; }
+    [JsonPropertyName("retainedEventCount")] public required long RetainedEventCount { get; init; }
+    [JsonPropertyName("overwrittenEventCount")] public required long OverwrittenEventCount { get; init; }
+    [JsonPropertyName("oldestRetainedSequence")] public required long OldestRetainedSequence { get; init; }
+    [JsonPropertyName("newestRetainedSequence")] public required long NewestRetainedSequence { get; init; }
+    [JsonPropertyName("oldestRetainedAtUnixMs")] public required long OldestRetainedAtUnixMs { get; init; }
+    [JsonPropertyName("newestRetainedAtUnixMs")] public required long NewestRetainedAtUnixMs { get; init; }
+    [JsonPropertyName("overflowed")] public required bool Overflowed { get; init; }
     [JsonPropertyName("sessions")] public required IReadOnlyList<StreamTraceSessionDto> Sessions { get; init; }
 }
 
