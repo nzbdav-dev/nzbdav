@@ -1,4 +1,4 @@
-﻿using UsenetSharp.Concurrency;
+using UsenetSharp.Concurrency;
 
 namespace NzbWebDAV.Clients.Usenet.Concurrency;
 
@@ -187,7 +187,8 @@ public class PrioritizedSemaphore : IDisposable
             _lowPriorityWaiters.Clear();
         }
 
+        // Provider shutdown is expected cancellation, not a provider failure.
         foreach (var tcs in waitersToCancel)
-            tcs.TrySetException(new ObjectDisposedException(nameof(AsyncSemaphore)));
+            tcs.TrySetCanceled();
     }
 }

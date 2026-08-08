@@ -75,55 +75,120 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
         CancellationToken cancellationToken = default
     )
     {
-        // Make caller cancellation also cancel the wait on the gate.
-        using var linked = CancellationTokenSource.CreateLinkedTokenSource(
-            cancellationToken, _sweepCts.Token);
-
-        await _gate.WaitAsync(priority, linked.Token).ConfigureAwait(false);
-
-        // Pool might have been disposed after wait returned:
+        // Pool/provider shutdown is cancellation, not a provider failure.
         if (Volatile.Read(ref _disposed) == 1)
-        {
-            _gate.Release();
-            ThrowDisposed();
-        }
+            throw new OperationCanceledException(
+                "Connection pool has been disposed.",
+                cancellationToken);
 
-        // Try to reuse an existing idle connection.
-        while (_idleConnections.TryPop(out var item))
-        {
-            if (!item.IsExpired(IdleTimeout))
-            {
-                TriggerConnectionPoolChangedEvent();
-                return BuildLock(item.Connection);
-            }
+        CancellationTokenSource? linked = null;
 
-            // Stale – destroy and continue looking.
-            DisposeConnection(item.Connection);
-            Interlocked.Decrement(ref _live);
-            TriggerConnectionPoolChangedEvent();
-        }
-
-        // Need a fresh connection.
-        T conn;
         try
         {
-            conn = await _factory(linked.Token).ConfigureAwait(false);
-        }
-        catch
-        {
-            _gate.Release(); // free the permit on failure
-            throw;
-        }
+            try
+            {
+                linked = CancellationTokenSource.CreateLinkedTokenSource(
+                    cancellationToken,
+                    _sweepCts.Token);
+            }
+            catch (ObjectDisposedException) when (Volatile.Read(ref _disposed) == 1)
+            {
+                throw new OperationCanceledException(
+                    "Connection pool was disposed while acquiring a connection.",
+                    cancellationToken);
+            }
 
-        Interlocked.Increment(ref _live);
-        TriggerConnectionPoolChangedEvent();
-        return BuildLock(conn);
+            try
+            {
+                await _gate.WaitAsync(priority, linked.Token).ConfigureAwait(false);
+            }
+            catch (ObjectDisposedException) when (Volatile.Read(ref _disposed) == 1)
+            {
+                throw new OperationCanceledException(
+                    "Connection pool was disposed while waiting for a connection.",
+                    cancellationToken);
+            }
+
+            if (Volatile.Read(ref _disposed) == 1)
+            {
+                try
+                {
+                    _gate.Release();
+                }
+                catch (ObjectDisposedException)
+                {
+                    // Normal concurrent shutdown.
+                }
+
+                throw new OperationCanceledException(
+                    "Connection pool was disposed while acquiring a connection.",
+                    cancellationToken);
+            }
+
+            while (_idleConnections.TryPop(out var item))
+            {
+                if (!item.IsExpired(IdleTimeout))
+                {
+                    TriggerConnectionPoolChangedEvent();
+                    return BuildLock(item.Connection);
+                }
+
+                DisposeConnection(item.Connection);
+                Interlocked.Decrement(ref _live);
+                TriggerConnectionPoolChangedEvent();
+            }
+
+            T conn;
+
+            try
+            {
+                conn = await _factory(linked.Token).ConfigureAwait(false);
+            }
+            catch
+            {
+                try
+                {
+                    _gate.Release();
+                }
+                catch (ObjectDisposedException) when (Volatile.Read(ref _disposed) == 1)
+                {
+                    // Normal concurrent shutdown.
+                }
+
+                throw;
+            }
+
+            // Pool could have been disposed while the socket was connecting.
+            if (Volatile.Read(ref _disposed) == 1)
+            {
+                DisposeConnection(conn);
+
+                try
+                {
+                    _gate.Release();
+                }
+                catch (ObjectDisposedException)
+                {
+                    // Gate already gone.
+                }
+
+                throw new OperationCanceledException(
+                    "Connection pool was disposed while creating a connection.",
+                    cancellationToken);
+            }
+
+            Interlocked.Increment(ref _live);
+            TriggerConnectionPoolChangedEvent();
+
+            return BuildLock(conn);
+        }
+        finally
+        {
+            linked?.Dispose();
+        }
 
         ConnectionLock<T> BuildLock(T c)
             => new(c, Return, Destroy);
-
-        static void ThrowDisposed()
-            => throw new ObjectDisposedException(nameof(ConnectionPool<T>));
     }
 
     /* ========================== core helpers ====================================== */
@@ -257,6 +322,8 @@ public sealed class ConnectionPool<T> : IDisposable, IAsyncDisposable
 
     public void Dispose()
     {
-        _ = DisposeAsync().AsTask(); // fire-and-forget synchronous path
+        // Complete pool teardown before returning.  Fire-and-forget disposal
+        // allowed callers to race with _sweepCts and _gate destruction.
+        DisposeAsync().AsTask().GetAwaiter().GetResult();
     }
 }

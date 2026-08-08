@@ -1,4 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.CodeAnalysis;
 using NzbWebDAV.Clients.Usenet.Concurrency;
 using NzbWebDAV.Clients.Usenet.Connections;
 using NzbWebDAV.Clients.Usenet.Models;
@@ -32,6 +32,7 @@ public class MultiConnectionNntpClient(
 {
     public ProviderType ProviderType { get; } = type;
     public bool IsTripped => circuitBreaker.IsTripped;
+    public bool TryEnterCircuit() => circuitBreaker.TryEnter();
     public int LiveConnections => connectionPool.LiveConnections;
     public int IdleConnections => connectionPool.IdleConnections;
     public int ActiveConnections => connectionPool.ActiveConnections;
@@ -146,10 +147,11 @@ public class MultiConnectionNntpClient(
         Func<INntpClient, Action<ArticleBodyResult>, Task<T>> command,
         Action<ArticleBodyResult>? onConnectionReadyAgain,
         CancellationToken ct,
-        int retryCount = 1
+        int retryCount = 1,
+        int timeoutRetryCount = 2
     ) where T : UsenetResponse
     {
-        while (retryCount >= 0)
+        while (retryCount >= 0 || timeoutRetryCount >= 0)
         {
             ConnectionLock<INntpClient>? connectionLock = null;
             try
@@ -196,20 +198,69 @@ public class MultiConnectionNntpClient(
                 LogException(() => onConnectionReadyAgain?.Invoke(ArticleBodyResult.NotRetrieved));
                 throw;
             }
+            catch (Exception e) when (e.TryGetCausingException(out TimeoutException _))
+            {
+                // Never return a timed-out NNTP connection to the pool.
+                circuitBreaker.RecordTimeout();
+                LogException(() => connectionLock?.Replace());
+                LogException(() => connectionLock?.Dispose());
+
+                if (timeoutRetryCount > 0 && !circuitBreaker.IsTripped)
+                {
+                    Log.Warning(
+                        e,
+                        "[NNTP_TIMEOUT] provider={Provider} command={Command} " +
+                        "action=fresh-connection-retry retriesRemaining={RetriesRemaining}",
+                        providerName,
+                        name,
+                        timeoutRetryCount);
+
+                    timeoutRetryCount--;
+                    continue;
+                }
+
+                Log.Warning(
+                    e,
+                    "[NNTP_TIMEOUT] provider={Provider} command={Command} " +
+                    "action=provider-fallback",
+                    providerName,
+                    name);
+
+                LogException(
+                    () => onConnectionReadyAgain?.Invoke(
+                        ArticleBodyResult.NotRetrieved));
+
+                throw;
+            }
             catch (Exception e)
             {
                 circuitBreaker.RecordFailure();
                 LogException(() => connectionLock?.Replace());
                 LogException(() => connectionLock?.Dispose());
-                if (retryCount > 0)
+
+                if (retryCount > 0 && !circuitBreaker.IsTripped)
                 {
-                    Log.Debug(e, "Error executing nntp {Command} command for provider {Provider}. Retrying with a new connection.", name, providerName);
+                    Log.Debug(
+                        e,
+                        "Error executing nntp {Command} command for provider " +
+                        "{Provider}. Retrying with a new connection.",
+                        name,
+                        providerName);
+
                     retryCount--;
                     continue;
                 }
 
-                Log.Warning(e, "Error executing nntp {Command} command for provider {Provider}.", name, providerName);
-                LogException(() => onConnectionReadyAgain?.Invoke(ArticleBodyResult.NotRetrieved));
+                Log.Warning(
+                    e,
+                    "Error executing nntp {Command} command for provider {Provider}.",
+                    name,
+                    providerName);
+
+                LogException(
+                    () => onConnectionReadyAgain?.Invoke(
+                        ArticleBodyResult.NotRetrieved));
+
                 throw;
             }
 
