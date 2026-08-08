@@ -1,4 +1,4 @@
-﻿using System.Runtime.ExceptionServices;
+using System.Runtime.ExceptionServices;
 using NzbWebDAV.Clients.Usenet.Models;
 using NzbWebDAV.Extensions;
 using NzbWebDAV.Models;
@@ -136,6 +136,15 @@ public class MultiProviderNntpClient(List<MultiConnectionNntpClient> providers) 
             {
                 var msg = lastException.SourceException.Message;
                 Log.Debug($"Encountered error during NNTP Operation: `{msg}`. Trying another provider.");
+            }
+
+            // Circuit breaker may be cooling down or already have a
+            // half-open recovery probe in progress on another stream.
+            if (!provider.TryEnterCircuit())
+            {
+                Log.Debug(
+                    "[PROVIDER_SKIP] action=circuit-open-or-probe-in-progress");
+                continue;
             }
 
             try
