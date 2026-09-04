@@ -17,6 +17,11 @@ namespace NzbWebDAV.Database.Migrations
                 nullable: false,
                 defaultValue: "");
 
+            BuildFullPath(migrationBuilder);
+        }
+
+        public static void BuildFullPath(MigrationBuilder migrationBuilder)
+        {
             // Populate the Path column for every existing DavItem
             // * The root DavItem is given path `/`
             // * Every other DavItem is given path `{PARENT_PATH}/{NAME}`
