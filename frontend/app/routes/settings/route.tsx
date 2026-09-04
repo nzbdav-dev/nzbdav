@@ -12,6 +12,7 @@ import { isRcloneSettingsUpdated, RcloneSettings } from "./rclone/rclone";
 import { useCallback, useState } from "react";
 import { useBlocker } from "react-router";
 import { ConfirmModal } from "~/components/confirm-modal/confirm-modal";
+import { withUrlBase } from "~/utils/url-base";
 
 const defaultConfig = {
     "general.base-url": "",
@@ -125,7 +126,7 @@ function Body(props: BodyProps) {
     const onSave = useCallback(async () => {
         setIsSaving(true);
         setIsSaved(false);
-        const response = await fetch("/settings/update", {
+        const response = await fetch(withUrlBase("/settings/update"), {
             method: "POST",
             body: (() => {
                 const form = new FormData();

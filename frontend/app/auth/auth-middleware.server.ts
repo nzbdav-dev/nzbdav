@@ -10,6 +10,20 @@ const PUBLIC_PATHS = [
   "/onboarding.data",
 ];
 
+// URL_BASE is read at runtime — the Express server mounts middleware under this prefix,
+// so within this middleware `req.path` is already stripped. But `res.redirect("/login")`
+// emits an absolute path back to the browser, which the browser interprets relative to
+// the origin, not the URL_BASE mount. So we have to put the prefix back on outgoing
+// Location values manually. Mirror of the normalizer in `server.ts`.
+function normalizeUrlBase(raw: string | undefined): string {
+  if (!raw) return "";
+  const trimmed = raw.trim();
+  if (trimmed === "" || trimmed === "/") return "";
+  const withLeading = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+  return withLeading.replace(/\/+$/, "");
+}
+const URL_BASE = normalizeUrlBase(process.env.URL_BASE);
+
 export async function authMiddleware(
   req: express.Request,
   res: express.Response,
@@ -23,5 +37,5 @@ export async function authMiddleware(
   if (await isAuthenticated(req)) return next();
 
   // Redirect everything else to the login page
-  res.redirect(302, "/login");
+  res.redirect(302, `${URL_BASE}/login`);
 }

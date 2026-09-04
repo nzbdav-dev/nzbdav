@@ -2,6 +2,7 @@ import { Alert, Button, Form } from "react-bootstrap";
 import styles from "./strm-to-symlinks.module.css";
 import { useCallback, useEffect, useState } from "react";
 import { receiveMessage } from "~/utils/websocket-util";
+import { getWebsocketUrl, withUrlBase } from "~/utils/url-base";
 
 const cleanupTaskTopic = { 'st2sy': 'state' };
 
@@ -29,7 +30,7 @@ export function ConvertStrmToSymlinks({ savedConfig }: ConvertStrmToSymlinksProp
         let ws: WebSocket;
         let disposed = false;
         function connect() {
-            ws = new WebSocket(window.location.origin.replace(/^http/, 'ws'));
+            ws = new WebSocket(getWebsocketUrl());
             ws.onmessage = receiveMessage((_, message) => setProgress(message));
             ws.onopen = () => { setConnected(true); ws.send(JSON.stringify(cleanupTaskTopic)); }
             ws.onclose = () => { !disposed && setTimeout(() => connect(), 1000); setProgress(null) };
@@ -42,7 +43,7 @@ export function ConvertStrmToSymlinks({ savedConfig }: ConvertStrmToSymlinksProp
     // events
     const onRun = useCallback(async () => {
         setIsFetching(true);
-        await fetch("/api/convert-strm-to-symlinks");
+        await fetch(withUrlBase("/api/convert-strm-to-symlinks"));
         setIsFetching(false);
     }, [setIsFetching]);
 

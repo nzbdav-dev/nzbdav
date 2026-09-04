@@ -5,6 +5,7 @@ import { useState } from "react";
 import { backendClient } from "~/clients/backend-client.server";
 import { Form, redirect, useNavigation } from "react-router";
 import { isAuthenticated, setSessionUser } from "~/auth/authentication.server";
+import { withUrlBase } from "~/utils/url-base";
 
 type OnboardingPageData = {
     error: string
@@ -50,7 +51,7 @@ export default function Index({ loaderData, actionData }: Route.ComponentProps) 
     return (
         <>
             <Form className={styles["container"]} method="POST">
-                <img className={styles["logo"]} src="/logo.svg"></img>
+                <img className={styles["logo"]} src={withUrlBase("/logo.svg")}></img>
                 <div className={styles["title"]}>Nzb DAV</div>
                 {pageData.error &&
                     <Alert className={styles["alert"]} variant="danger">

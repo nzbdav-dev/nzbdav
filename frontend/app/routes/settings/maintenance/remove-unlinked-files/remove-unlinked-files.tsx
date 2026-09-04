@@ -2,6 +2,7 @@ import { Alert, Button, Form } from "react-bootstrap";
 import styles from "./remove-unlinked-files.module.css"
 import { useCallback, useEffect, useState } from "react";
 import { receiveMessage } from "~/utils/websocket-util";
+import { getWebsocketUrl, withUrlBase } from "~/utils/url-base";
 
 const cleanupTaskTopic = { 'ctp': 'state' };
 
@@ -30,7 +31,7 @@ export function RemoveUnlinkedFiles({ savedConfig }: RemoveUnlinkedFilesProps) {
         let ws: WebSocket;
         let disposed = false;
         function connect() {
-            ws = new WebSocket(window.location.origin.replace(/^http/, 'ws'));
+            ws = new WebSocket(getWebsocketUrl());
             ws.onmessage = receiveMessage((_, message) => setProgress(message));
             ws.onopen = () => { setConnected(true); ws.send(JSON.stringify(cleanupTaskTopic)); }
             ws.onclose = () => { !disposed && setTimeout(() => connect(), 1000); setProgress(null) };
@@ -43,13 +44,13 @@ export function RemoveUnlinkedFiles({ savedConfig }: RemoveUnlinkedFilesProps) {
     // events
     const onRun = useCallback(async () => {
         setIsFetching(true);
-        await fetch("/api/remove-unlinked-files");
+        await fetch(withUrlBase("/api/remove-unlinked-files"));
         setIsFetching(false);
     }, [setIsFetching]);
 
     const onDryRun = useCallback(async (event: any) => {
         setIsFetching(true);
-        await fetch("/api/remove-unlinked-files/dry-run");
+        await fetch(withUrlBase("/api/remove-unlinked-files/dry-run"));
         setIsFetching(false);
     }, [setIsFetching]);
 
@@ -105,7 +106,7 @@ export function RemoveUnlinkedFiles({ savedConfig }: RemoveUnlinkedFilesProps) {
                         <div className={styles["task-progress"]}>
                             {progress}
                             {isDone && <>
-                                &nbsp;<a href="/api/remove-unlinked-files/audit">Audit.</a>
+                                &nbsp;<a href={withUrlBase("/api/remove-unlinked-files/audit")}>Audit.</a>
                             </>}
                         </div>
                     </div>

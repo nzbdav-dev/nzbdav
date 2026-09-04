@@ -6,6 +6,7 @@ import { HealthStats } from "./components/health-stats/health-stats";
 import { useCallback, useEffect, useState } from "react";
 import { receiveMessage } from "~/utils/websocket-util";
 import { Alert } from "react-bootstrap";
+import { getWebsocketUrl, withUrlBase } from "~/utils/url-base";
 
 const topicNames = {
     healthItemStatus: 'hs',
@@ -46,7 +47,7 @@ export default function Health({ loaderData }: Route.ComponentProps) {
     useEffect(() => {
         if (queueItems.length >= 15) return;
         const refetchData = async () => {
-            var response = await fetch('/api/get-health-check-queue?pageSize=30');
+            var response = await fetch(withUrlBase('/api/get-health-check-queue?pageSize=30'));
             if (response.ok) {
                 const healthCheckQueue = await response.json();
                 setQueueItems(healthCheckQueue.items);
@@ -122,7 +123,7 @@ export default function Health({ loaderData }: Route.ComponentProps) {
         let ws: WebSocket;
         let disposed = false;
         function connect() {
-            ws = new WebSocket(window.location.origin.replace(/^http/, 'ws'));
+            ws = new WebSocket(getWebsocketUrl());
             ws.onmessage = receiveMessage(onWebsocketMessage);
             ws.onopen = () => { ws.send(JSON.stringify(topicSubscriptions)); }
             ws.onclose = () => { !disposed && setTimeout(() => connect(), 1000); };

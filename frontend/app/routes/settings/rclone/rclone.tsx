@@ -1,6 +1,7 @@
 import { Button, Form, InputGroup, Spinner } from "react-bootstrap";
 import styles from "./rclone.module.css"
 import { type Dispatch, type SetStateAction, useState, useCallback, useEffect } from "react";
+import { withUrlBase } from "~/utils/url-base";
 
 type RcloneSettingsProps = {
     config: Record<string, string>
@@ -28,7 +29,7 @@ export function RcloneSettings({ config, setNewConfig }: RcloneSettingsProps) {
             formData.append('user', config["rclone.user"] ?? '');
             formData.append('pass', config["rclone.pass"] ?? '');
 
-            const response = await fetch('/api/test-rclone-connection', {
+            const response = await fetch(withUrlBase('/api/test-rclone-connection'), {
                 method: 'POST',
                 body: formData
             });

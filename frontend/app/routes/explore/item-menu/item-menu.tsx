@@ -2,6 +2,7 @@ import { useCallback, useState, type ReactNode } from "react"
 import type { ExploreFile } from "../route"
 import { DropdownOptions } from "~/routes/explore/dropdown-options/dropdown-options"
 import { classNames } from "~/utils/styling"
+import { withUrlBase } from "~/utils/url-base"
 
 export type ItemMenuProps = {
     className?: string
@@ -12,7 +13,7 @@ export type ItemMenuProps = {
 
 export function ItemMenu({ className, openClassName, exploreFile, previewPath }: ItemMenuProps): ReactNode {
     const [isOpen, setIsOpen] = useState(false);
-    const exportNzbUrl = `/api/download-nzb?nzbBlobId=${exploreFile.nzbBlobId}`;
+    const exportNzbUrl = withUrlBase(`/api/download-nzb?nzbBlobId=${exploreFile.nzbBlobId}`);
     const downloadUrl = `${previewPath}&download=true`;
 
     const onClick = useCallback((e: React.MouseEvent) => {
