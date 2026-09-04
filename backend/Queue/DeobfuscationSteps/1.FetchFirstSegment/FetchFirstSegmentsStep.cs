@@ -37,8 +37,10 @@ public static class FetchFirstSegmentsStep
         try
         {
             // get the first article stream
-            var firstSegment = nzbFile.Segments[0].MessageId;
-            var article = await usenetClient.DecodedArticleAsync(firstSegment, cancellationToken).ConfigureAwait(false);
+            var firstSegment = nzbFile.GetSegmentIds()[0];
+            var article = await usenetClient
+                .DecodedArticleWithFallbackAsync(firstSegment, cancellationToken)
+                .ConfigureAwait(false);
             await using var bodyStream = article.Stream!;
 
             // read up to the first 16KB from the stream

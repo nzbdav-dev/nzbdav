@@ -28,16 +28,18 @@ public class UnbufferedMultiSegmentStream : FastReadOnlyNonSeekableStream
             if (_stream == null)
             {
                 if (_currentIndex >= _segmentIds.Length) return 0;
-                var body = await _usenetClient.DecodedBodyAsync(_segmentIds.Span[_currentIndex++], cancellationToken);
+                var body = await _usenetClient
+                    .DecodedBodyWithFallbackAsync(_segmentIds.Span[_currentIndex++], cancellationToken)
+                    .ConfigureAwait(false);
                 _stream = body.Stream;
             }
 
             // read from the stream
-            var read = await _stream.ReadAsync(buffer, cancellationToken);
+            var read = await _stream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
             if (read > 0) return read;
 
             // if the stream ended, continue to the next stream.
-            await _stream.DisposeAsync();
+            await _stream.DisposeAsync().ConfigureAwait(false);
             _stream = null;
         }
 

@@ -107,8 +107,10 @@ public class NzbDocument
             if (reader is { NodeType: XmlNodeType.Element, Name: "segment" })
             {
                 var bytesAttr = reader.GetAttribute("bytes");
+                var numberAttr = reader.GetAttribute("number");
                 var segment = new NzbSegment
                 {
+                    Number = int.TryParse(numberAttr, out var number) ? number : 0,
                     Bytes = long.TryParse(bytesAttr, out var bytes) ? bytes : 0,
                     MessageId = await reader.ReadElementContentAsStringAsync().ConfigureAwait(false)
                 };

@@ -53,8 +53,7 @@ public class MultiSegmentStream : FastReadOnlyNonSeekableStream
                 var segmentId = _segmentIds.Span[i];
 
                 await _streamTasks.Writer.WaitToWriteAsync(cancellationToken);
-                var connection = await _usenetClient.AcquireExclusiveConnectionAsync(segmentId, cancellationToken);
-                var streamTask = DownloadSegment(segmentId, connection, cancellationToken);
+                var streamTask = DownloadSegment(segmentId, cancellationToken);
                 if (_streamTasks.Writer.TryWrite(streamTask)) continue;
 
                 // if we never get a chance to write the stream to the writer
@@ -74,12 +73,15 @@ public class MultiSegmentStream : FastReadOnlyNonSeekableStream
     private async Task<Stream> DownloadSegment
     (
         string segmentId,
-        UsenetExclusiveConnection exclusiveConnection,
         CancellationToken cancellationToken
     )
     {
         var bodyResponse = await _usenetClient
-            .DecodedBodyAsync(segmentId, exclusiveConnection, cancellationToken)
+            .DecodedBodyWithFallbackAsync(
+                segmentId,
+                cancellationToken,
+                (candidateSegmentId, ct) => _usenetClient.AcquireExclusiveConnectionAsync(candidateSegmentId, ct)
+            )
             .ConfigureAwait(false);
         return bodyResponse.Stream;
     }
