@@ -20,6 +20,7 @@ interface QueueRule {
 interface ArrConfig {
     RadarrInstances: ConnectionDetails[];
     SonarrInstances: ConnectionDetails[];
+    LidarrInstances: ConnectionDetails[];
     QueueRules: QueueRule[];
 }
 
@@ -149,6 +150,34 @@ export function ArrsSettings({ config, setNewConfig }: ArrsSettingsProps) {
         });
     }, [arrConfig, updateConfig]);
 
+    const addLidarrInstance = useCallback(() => {
+        updateConfig({
+            ...arrConfig,
+            LidarrInstances: [
+                ...arrConfig.LidarrInstances,
+                { Host: "", ApiKey: "" }
+            ]
+        });
+    }, [arrConfig, updateConfig]);
+
+    const removeLidarrInstance = useCallback((index: number) => {
+        updateConfig({
+            ...arrConfig,
+            LidarrInstances: arrConfig.LidarrInstances
+                .filter((_: any, i: number) => i !== index)
+        });
+    }, [arrConfig, updateConfig]);
+
+    const updateLidarrInstance = useCallback((index: number, field: keyof ConnectionDetails, value: string) => {
+        updateConfig({
+            ...arrConfig,
+            LidarrInstances: arrConfig.LidarrInstances
+                .map((instance: any, i: number) =>
+                    i === index ? { ...instance, [field]: value } : instance
+                )
+        });
+    }, [arrConfig, updateConfig]);
+
     const updateQueueAction = useCallback((searchTerm: string, action: number) => {
         // update the queue rule if it already exists
         var newQueueRules = (arrConfig.QueueRules || [])
@@ -220,10 +249,33 @@ export function ArrsSettings({ config, setNewConfig }: ArrsSettingsProps) {
             <hr />
             <div className={styles.section}>
                 <div className={styles.sectionHeader}>
+                    <div>Lidarr Instances</div>
+                    <Button variant="primary" size="sm" onClick={addLidarrInstance}>
+                        Add
+                    </Button>
+                </div>
+                {arrConfig.LidarrInstances.length === 0 ? (
+                    <p className={styles.alertMessage}>No Lidarr instances configured. Click on the "Add" button to get started.</p>
+                ) : (
+                    arrConfig.LidarrInstances.map((instance: any, index: number) =>
+                        <InstanceForm
+                            key={index}
+                            instance={instance}
+                            index={index}
+                            type="lidarr"
+                            onUpdate={updateLidarrInstance}
+                            onRemove={removeLidarrInstance}
+                        />
+                    )
+                )}
+            </div>
+            <hr />
+            <div className={styles.section}>
+                <div className={styles.sectionHeader}>
                     <div>Automatic Queue Management</div>
                 </div>
                 <p className={styles.alertMessage}>
-                    Configure what to do for items stuck in Radarr / Sonarr queues.
+                    Configure what to do for items stuck in Radarr / Sonarr / Lidarr queues.
                     Different actions can be configured for different status messages.
                     Only `usenet` queue items will be acted upon.
                 </p>
@@ -252,7 +304,7 @@ export function ArrsSettings({ config, setNewConfig }: ArrsSettingsProps) {
 interface InstanceFormProps {
     instance: ConnectionDetails;
     index: number;
-    type: 'radarr' | 'sonarr';
+    type: 'radarr' | 'sonarr' | 'lidarr';
     onUpdate: (index: number, field: keyof ConnectionDetails, value: string) => void;
     onRemove: (index: number) => void;
 }
@@ -308,7 +360,7 @@ function InstanceForm({ instance, index, type, onUpdate, onRemove }: InstanceFor
                     <InputGroup className={styles.input}>
                         <Form.Control
                             type="text"
-                            placeholder={type === "radarr" ? "http://localhost:7878" : "http://localhost:8989"}
+                            placeholder={type === "radarr" ? "http://localhost:7878" : type === "sonarr" ? "http://localhost:8989" : "http://localhost:8686"}
                             value={instance.Host}
                             onChange={e => onUpdate(index, 'Host', e.target.value)} />
                         {instance.Host.trim() && instance.ApiKey.trim() && (
@@ -364,6 +416,13 @@ export function isArrsSettingsValid(newConfig: Record<string, string>) {
 
         // Validate all Sonarr instances
         for (const instance of arrConfig.SonarrInstances || []) {
+            if (!isValidHost(instance.Host) || !isValidApiKey(instance.ApiKey)) {
+                return false;
+            }
+        }
+
+        // Validate all Lidarr instances
+        for (const instance of arrConfig.LidarrInstances || []) {
             if (!isValidHost(instance.Host) || !isValidApiKey(instance.ApiKey)) {
                 return false;
             }

@@ -8,6 +8,7 @@ import { WebSocketServer } from "ws";
 const BUILD_PATH = "../build/server/index.js";
 const DEVELOPMENT = process.env.NODE_ENV === "development";
 const PORT = Number.parseInt(process.env.PORT || "3000");
+const HOST = process.env.LISTEN_ADDRESS || "0.0.0.0";
 
 // Initialize the express app
 const app = express();
@@ -90,6 +91,6 @@ const server = http.createServer(app);
 setWebsocketServer(new WebSocketServer({ server }));
 
 // Begin listening for connections
-server.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
+server.listen(PORT, HOST, () => {
+  console.log(`Server is running on http://${HOST}:${PORT}`);
 });

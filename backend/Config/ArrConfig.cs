@@ -6,16 +6,19 @@ public class ArrConfig
 {
     public List<ConnectionDetails> RadarrInstances { get; set; } = [];
     public List<ConnectionDetails> SonarrInstances { get; set; } = [];
+    public List<ConnectionDetails> LidarrInstances { get; set; } = [];
     public List<QueueRule> QueueRules { get; set; } = [];
 
     // ReSharper disable once InvokeAsExtensionMethod
     public IEnumerable<ArrClient> GetArrClients() => Enumerable.Concat(
         RadarrInstances.Select(ArrClient (x) => new RadarrClient(x.Host, x.ApiKey)),
         SonarrInstances.Select(ArrClient (x) => new SonarrClient(x.Host, x.ApiKey))
+    ).Concat(
+        LidarrInstances.Select(ArrClient (x) => new LidarrClient(x.Host, x.ApiKey))
     );
 
     public int GetInstanceCount() =>
-        RadarrInstances.Count + SonarrInstances.Count;
+        RadarrInstances.Count + SonarrInstances.Count + LidarrInstances.Count;
 
     public class ConnectionDetails
     {

@@ -48,10 +48,14 @@ COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 # Set env variables
-EXPOSE 3000
+# Port 3000: frontend  Port 8080: backend (WebDAV / API)
+EXPOSE 3000 8080
 ARG NZBDAV_VERSION
 ENV NZBDAV_VERSION=${NZBDAV_VERSION}
 ENV NODE_ENV=production
 ENV LOG_LEVEL=warning
+# LISTEN_ADDRESS controls the network interface both the frontend and backend bind to.
+# Default is 0.0.0.0 (all interfaces). Set to a specific IP to restrict binding.
+ENV LISTEN_ADDRESS=0.0.0.0
 
 CMD ["/entrypoint.sh"]
