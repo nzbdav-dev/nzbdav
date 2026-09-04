@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using NzbWebDAV.Clients.Usenet;
 using NzbWebDAV.Exceptions;
+using NzbWebDAV.Extensions;
+using Serilog;
 
 namespace NzbWebDAV.Api.Controllers.TestUsenetConnection;
 
@@ -15,13 +17,25 @@ public class TestUsenetConnectionController() : BaseApiController
             await UsenetStreamingClient.CreateNewConnection(request.ToConnectionDetails(), HttpContext.RequestAborted).ConfigureAwait(false);
             return new TestUsenetConnectionResponse { Status = true, Connected = true };
         }
-        catch (CouldNotConnectToUsenetException)
+        catch (CouldNotConnectToUsenetException e)
         {
+            var inner = e.InnerException?.Message ?? e.Message;
+            Log.Warning("Test connection failed for {Host}:{Port} (ssl={UseSsl}, user={User}): connect error: {Error}",
+                request.Host, request.Port, request.UseSsl, request.User, inner);
             return new TestUsenetConnectionResponse { Status = true, Connected = false };
         }
-        catch (CouldNotLoginToUsenetException)
+        catch (CouldNotLoginToUsenetException e)
         {
+            var inner = e.InnerException?.Message ?? e.Message;
+            Log.Warning("Test connection failed for {Host}:{Port} (ssl={UseSsl}, user={User}): login error: {Error}",
+                request.Host, request.Port, request.UseSsl, request.User, inner);
             return new TestUsenetConnectionResponse { Status = true, Connected = false };
+        }
+        catch (Exception e) when (!e.IsCancellationException())
+        {
+            Log.Warning(e, "Test connection failed for {Host}:{Port} (ssl={UseSsl}, user={User}): unexpected error",
+                request.Host, request.Port, request.UseSsl, request.User);
+            throw;
         }
     }
 
