@@ -8,8 +8,9 @@ using UsenetSharp.Models;
 namespace NzbWebDAV.Clients.Usenet;
 
 /// <summary>
-/// This client is only responsible for limiting download operations (BODY/ARTICLE)
-/// to the configured number of maximum download connections.
+/// This client is responsible for limiting NNTP operations (STAT/HEAD/BODY/ARTICLE)
+/// to the configured number of maximum download connections, with priority-based
+/// scheduling that favors streaming over queue operations.
 /// </summary>
 /// <param name="usenetClient"></param>
 public class DownloadingNntpClient : WrappingNntpClient
@@ -38,6 +39,39 @@ public class DownloadingNntpClient : WrappingNntpClient
         {
             var streamingPriority = _configManager.GetStreamingPriority();
             _semaphore.UpdatePriorityOdds(streamingPriority);
+        }
+    }
+
+    /// <summary>
+    /// Gate STAT/HEAD through the PrioritizedSemaphore so that queue operations
+    /// (which perform many STATs for InterpolationSearch, PAR2 parsing, etc.)
+    /// cannot monopolize all ConnectionPool connections and starve streaming.
+    /// Without this, 55 concurrent queue items doing STAT operations bypass the
+    /// semaphore and consume all connections, making streaming-priority ineffective.
+    /// </summary>
+    public override async Task<UsenetStatResponse> StatAsync(SegmentId segmentId, CancellationToken cancellationToken)
+    {
+        await AcquireExclusiveConnectionAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return await base.StatAsync(segmentId, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _semaphore.Release();
+        }
+    }
+
+    public override async Task<UsenetHeadResponse> HeadAsync(SegmentId segmentId, CancellationToken cancellationToken)
+    {
+        await AcquireExclusiveConnectionAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return await base.HeadAsync(segmentId, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _semaphore.Release();
         }
     }
 
