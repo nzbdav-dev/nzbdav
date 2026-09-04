@@ -19,6 +19,21 @@ public class WrappingNntpClient(INntpClient usenetClient) : NntpClient
         SegmentId segmentId, CancellationToken cancellationToken) =>
         _usenetClient.StatAsync(segmentId, cancellationToken);
 
+    public override Task<IReadOnlyList<UsenetStatResponse>> StatPipelinedAsync(
+        IReadOnlyList<string> segmentIds, CancellationToken cancellationToken) =>
+        _usenetClient.StatPipelinedAsync(segmentIds, cancellationToken);
+
+    // Forward to the inner client rather than inheriting NntpClient's base (one-at-a-time)
+    // implementation. Without this, a wrapper such as ArticleCachingNntpClient -- which sits on top
+    // of UsenetStreamingClient during queue processing -- resolves CheckAllSegmentsAsync to the
+    // linear base and never reaches UsenetStreamingClient's pipelined override, so the on-add health
+    // check silently skips pipelining (only the background HealthCheckService, which holds the
+    // UsenetStreamingClient directly, would pipeline).
+    public override Task CheckAllSegmentsAsync(
+        IEnumerable<string> segmentIds, int concurrency, IProgress<int>? progress,
+        CancellationToken cancellationToken) =>
+        _usenetClient.CheckAllSegmentsAsync(segmentIds, concurrency, progress, cancellationToken);
+
     public override Task<UsenetHeadResponse> HeadAsync(
         SegmentId segmentId, CancellationToken cancellationToken) =>
         _usenetClient.HeadAsync(segmentId, cancellationToken);

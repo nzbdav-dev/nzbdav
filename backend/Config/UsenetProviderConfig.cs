@@ -20,5 +20,10 @@ public class UsenetProviderConfig
         public required string User { get; set; }
         public required string Pass { get; set; }
         public required int MaxConnections { get; set; }
+
+        // Whether STAT existence checks may be pipelined for this provider. Not "required" so
+        // that provider configs saved before this feature existed deserialize to false (i.e.
+        // linear STAT) and only opt in once the user has tested + enabled pipelining.
+        public bool StatPipeliningEnabled { get; set; } = false;
     }
 }

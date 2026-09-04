@@ -17,6 +17,12 @@ public interface INntpClient : IDisposable
     Task<UsenetStatResponse> StatAsync(
         SegmentId segmentId, CancellationToken cancellationToken);
 
+    // STAT a batch of segments, returning one result per segment in the same order.
+    // Implementations may pipeline the commands (one round-trip for the whole batch) where
+    // the provider supports it, and otherwise fall back to checking them one at a time.
+    Task<IReadOnlyList<UsenetStatResponse>> StatPipelinedAsync(
+        IReadOnlyList<string> segmentIds, CancellationToken cancellationToken);
+
     Task<UsenetHeadResponse> HeadAsync(
         SegmentId segmentId, CancellationToken cancellationToken);
 

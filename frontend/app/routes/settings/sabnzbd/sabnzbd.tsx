@@ -215,6 +215,40 @@ export function SabnzbdSettings({ config, setNewConfig, appVersion }: SabnzbdSet
                 <Form.Check
                     className={styles.input}
                     type="checkbox"
+                    id="nntp-pipelining-enabled-checkbox"
+                    aria-describedby="nntp-pipelining-help"
+                    label={`Use NNTP pipelining for article health checks`}
+                    checked={config["usenet.nntp-pipelining.enabled"] === "true"}
+                    onChange={e => setNewConfig({ ...config, "usenet.nntp-pipelining.enabled": "" + e.target.checked })} />
+                <Form.Text id="nntp-pipelining-help" muted>
+                    Sends STAT existence checks in batches instead of one at a time, speeding up the
+                    on-add and background article health checks. Only applies to providers with
+                    pipelining enabled on the Usenet tab; turn this off to disable it everywhere.
+                </Form.Text>
+                <Form.Label htmlFor="nntp-pipelining-depth-input" style={{ marginTop: '15px' }}>
+                    Pipelining Depth
+                </Form.Label>
+                <Form.Control
+                    className={styles.input}
+                    type="text"
+                    id="nntp-pipelining-depth-input"
+                    aria-describedby="nntp-pipelining-depth-help"
+                    placeholder="50"
+                    value={config["usenet.nntp-pipelining.depth"]}
+                    disabled={config["usenet.nntp-pipelining.enabled"] !== "true"}
+                    isInvalid={!isValidPipeliningDepth(config["usenet.nntp-pipelining.depth"])}
+                    onChange={e => setNewConfig({ ...config, "usenet.nntp-pipelining.depth": e.target.value })} />
+                <Form.Text id="nntp-pipelining-depth-help" muted>
+                    The maximum number of concurrent STAT commands sent.
+                    Higher values reduce round-trips further but may stress some servers, with little
+                    extra benefit past ~100. Must be between 1 and 150.
+                </Form.Text>
+            </Form.Group>
+            <hr />
+            <Form.Group>
+                <Form.Check
+                    className={styles.input}
+                    type="checkbox"
                     id="ignore-history-limit-checkbox"
                     aria-describedby="ignore-history-limit-help"
                     label={`Always send full History to Radarr/Sonarr`}
@@ -327,11 +361,19 @@ export function isSabnzbdSettingsUpdated(config: Record<string, string>, newConf
         || config["api.user-agent"] !== newConfig["api.user-agent"]
         || config["api.nzb-backup-enabled"] !== newConfig["api.nzb-backup-enabled"]
         || config["api.nzb-backup-location"] !== newConfig["api.nzb-backup-location"]
+        || config["usenet.nntp-pipelining.enabled"] !== newConfig["usenet.nntp-pipelining.enabled"]
+        || config["usenet.nntp-pipelining.depth"] !== newConfig["usenet.nntp-pipelining.depth"]
 }
 
 export function isSabnzbdSettingsValid(newConfig: Record<string, string>) {
     return isValidCategories(newConfig["api.categories"])
-        && isValidNzbBackupLocation(newConfig);
+        && isValidNzbBackupLocation(newConfig)
+        && isValidPipeliningDepth(newConfig["usenet.nntp-pipelining.depth"]);
+}
+
+function isValidPipeliningDepth(depth: string): boolean {
+    const value = Number(depth);
+    return Number.isInteger(value) && value >= 1 && value <= 150;
 }
 
 export function generateNewApiKey(): string {

@@ -105,6 +105,23 @@ public abstract class NntpClient : INntpClient
         return new NzbFileStream(segmentIds, fileSize, this, articleBufferSize);
     }
 
+    /// <summary>
+    /// Default linear implementation: STAT each segment one at a time on this client.
+    /// Layers that can do better (a raw connection that pipelines, or a pool/provider that
+    /// borrows a single connection for the batch) override this.
+    /// </summary>
+    public virtual async Task<IReadOnlyList<UsenetStatResponse>> StatPipelinedAsync
+    (
+        IReadOnlyList<string> segmentIds,
+        CancellationToken cancellationToken
+    )
+    {
+        var results = new UsenetStatResponse[segmentIds.Count];
+        for (var i = 0; i < segmentIds.Count; i++)
+            results[i] = await StatAsync(segmentIds[i], cancellationToken).ConfigureAwait(false);
+        return results;
+    }
+
     public virtual async Task CheckAllSegmentsAsync
     (
         IEnumerable<string> segmentIds,

@@ -27,7 +27,8 @@ public class MultiConnectionNntpClient(
     ConnectionPool<INntpClient> connectionPool,
     ProviderType type,
     ProviderCircuitBreaker circuitBreaker,
-    string providerName
+    string providerName,
+    bool statPipeliningEnabled = false
 ) : NntpClient
 {
     public ProviderType ProviderType { get; } = type;
@@ -57,6 +58,95 @@ public class MultiConnectionNntpClient(
             onConnectionReadyAgain: null,
             ct
         );
+    }
+
+    public override async Task<IReadOnlyList<UsenetStatResponse>> StatPipelinedAsync
+    (
+        IReadOnlyList<string> segmentIds,
+        CancellationToken ct
+    )
+    {
+        if (segmentIds.Count == 0) return [];
+
+        var retryCount = 1;
+        while (true)
+        {
+            ConnectionLock<INntpClient>? connectionLock = null;
+            try
+            {
+                connectionLock = await connectionPool
+                    .GetConnectionLockAsync(SemaphorePriority.Low, ct).ConfigureAwait(false);
+            }
+            catch (Exception e) when (e.IsCancellationException())
+            {
+                LogException(() => connectionLock?.Dispose());
+                throw;
+            }
+            catch (Exception e)
+            {
+                circuitBreaker.RecordFailure();
+                LogException(() => connectionLock?.Replace());
+                LogException(() => connectionLock?.Dispose());
+                if (retryCount-- > 0)
+                {
+                    Log.Debug(e, "Error getting connection-lock for provider {Provider}. Retrying with a new connection.", providerName);
+                    continue;
+                }
+
+                Log.Warning(e, "Error getting connection-lock for provider {Provider}.", providerName);
+                throw;
+            }
+
+            try
+            {
+                IReadOnlyList<UsenetStatResponse> results;
+                if (statPipeliningEnabled)
+                {
+                    // One round-trip for the whole batch on this single borrowed connection.
+                    results = await connectionLock.Connection
+                        .StatPipelinedAsync(segmentIds, ct).ConfigureAwait(false);
+                }
+                else
+                {
+                    // Provider hasn't opted into pipelining: check the batch linearly, but still
+                    // on this one connection so the batch keeps its place in the pool.
+                    var linear = new UsenetStatResponse[segmentIds.Count];
+                    for (var i = 0; i < segmentIds.Count; i++)
+                        linear[i] = await connectionLock.Connection
+                            .StatAsync(segmentIds[i], ct).ConfigureAwait(false);
+                    results = linear;
+                }
+
+                circuitBreaker.RecordSuccess();
+                LogException(() => connectionLock?.Dispose());
+                return results;
+            }
+            catch (Exception e) when (e.IsCancellationException())
+            {
+                // A cancelled batch (e.g. CheckAllSegmentsAsync failing fast on a missing article)
+                // may have written commands with responses still unread, leaving the stream desynced
+                // and the connection poisoned. Discard it rather than return it to the pool.
+                LogException(() => connectionLock?.Replace());
+                LogException(() => connectionLock?.Dispose());
+                throw;
+            }
+            catch (Exception e)
+            {
+                circuitBreaker.RecordFailure();
+                // A failed pipelined batch leaves the connection's stream in an indeterminate
+                // state, so discard it (Replace) rather than returning it to the pool.
+                LogException(() => connectionLock?.Replace());
+                LogException(() => connectionLock?.Dispose());
+                if (retryCount-- > 0)
+                {
+                    Log.Debug(e, "Error executing pipelined STAT batch for provider {Provider}. Retrying with a new connection.", providerName);
+                    continue;
+                }
+
+                Log.Warning(e, "Error executing pipelined STAT batch for provider {Provider}.", providerName);
+                throw;
+            }
+        }
     }
 
     public override Task<UsenetHeadResponse> HeadAsync(SegmentId segmentId, CancellationToken ct)

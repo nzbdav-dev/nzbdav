@@ -25,6 +25,7 @@ type ConnectionDetails = {
     User: string;
     Pass: string;
     MaxConnections: number;
+    StatPipeliningEnabled?: boolean;
 };
 
 type ConnectionCounts = {
@@ -275,6 +276,7 @@ export function UsenetSettings({ config, setNewConfig }: UsenetSettingsProps) {
             <ProviderModal
                 show={showModal}
                 provider={editingIndex !== null ? providerConfig.Providers[editingIndex] : null}
+                pipeliningMasterEnabled={config["usenet.nntp-pipelining.enabled"] === "true"}
                 onClose={handleCloseModal}
                 onSave={handleSaveProvider}
             />
@@ -285,11 +287,12 @@ export function UsenetSettings({ config, setNewConfig }: UsenetSettingsProps) {
 type ProviderModalProps = {
     show: boolean;
     provider: ConnectionDetails | null;
+    pipeliningMasterEnabled: boolean;
     onClose: () => void;
     onSave: (provider: ConnectionDetails) => void;
 };
 
-function ProviderModal({ show, provider, onClose, onSave }: ProviderModalProps) {
+function ProviderModal({ show, provider, pipeliningMasterEnabled, onClose, onSave }: ProviderModalProps) {
     const [host, setHost] = useState(provider?.Host || "");
     const [port, setPort] = useState(provider?.Port?.toString() || "");
     const [useSsl, setUseSsl] = useState(provider?.UseSsl ?? true);
@@ -297,9 +300,20 @@ function ProviderModal({ show, provider, onClose, onSave }: ProviderModalProps) 
     const [pass, setPass] = useState(provider?.Pass || "");
     const [maxConnections, setMaxConnections] = useState(provider?.MaxConnections?.toString() || "");
     const [type, setType] = useState<ProviderType>(provider?.Type ?? ProviderType.Pooled);
+    const [statPipeliningEnabled, setStatPipeliningEnabled] = useState(provider?.StatPipeliningEnabled ?? false);
     const [isTestingConnection, setIsTestingConnection] = useState(false);
     const [connectionTested, setConnectionTested] = useState(false);
     const [testError, setTestError] = useState<string | null>(null);
+    const [isTestingPipelining, setIsTestingPipelining] = useState(false);
+    const [pipeliningTestResult, setPipeliningTestResult] = useState<"supported" | "unsupported" | null>(null);
+
+    // Editing any connection-identity field invalidates both the connection test and the pipelining
+    // test/opt-in, since both were validated against the previous host/credentials.
+    const invalidateConnectionTests = () => {
+        setConnectionTested(false);
+        setStatPipeliningEnabled(false);
+        setPipeliningTestResult(null);
+    };
 
     // Reset form when modal opens or provider changes
     useEffect(() => {
@@ -311,8 +325,11 @@ function ProviderModal({ show, provider, onClose, onSave }: ProviderModalProps) 
             setPass(provider?.Pass || "");
             setMaxConnections(provider?.MaxConnections?.toString() || "");
             setType(provider?.Type ?? ProviderType.Pooled);
+            setStatPipeliningEnabled(provider?.StatPipeliningEnabled ?? false);
             setConnectionTested(false);
             setTestError(null);
+            setIsTestingPipelining(false);
+            setPipeliningTestResult(null);
         }
     }, [show, provider]);
 
@@ -365,6 +382,45 @@ function ProviderModal({ show, provider, onClose, onSave }: ProviderModalProps) 
         }
     }, [host, port, useSsl, user, pass]);
 
+    const handleTestPipelining = useCallback(async () => {
+        setIsTestingPipelining(true);
+        setPipeliningTestResult(null);
+
+        try {
+            const formData = new FormData();
+            formData.append('host', host);
+            formData.append('port', port);
+            formData.append('use-ssl', useSsl.toString());
+            formData.append('user', user);
+            formData.append('pass', pass);
+
+            const response = await fetch('/api/test-usenet-pipelining', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.supported) {
+                    // Auto-enable on a successful probe; the user can still untick it manually.
+                    setStatPipeliningEnabled(true);
+                    setPipeliningTestResult("supported");
+                } else {
+                    setStatPipeliningEnabled(false);
+                    setPipeliningTestResult("unsupported");
+                }
+            } else {
+                setStatPipeliningEnabled(false);
+                setPipeliningTestResult("unsupported");
+            }
+        } catch {
+            setStatPipeliningEnabled(false);
+            setPipeliningTestResult("unsupported");
+        } finally {
+            setIsTestingPipelining(false);
+        }
+    }, [host, port, useSsl, user, pass]);
+
     const handleSave = useCallback(() => {
         onSave({
             Type: type,
@@ -374,8 +430,9 @@ function ProviderModal({ show, provider, onClose, onSave }: ProviderModalProps) 
             User: user,
             Pass: pass,
             MaxConnections: parseInt(maxConnections, 10),
+            StatPipeliningEnabled: statPipeliningEnabled,
         });
-    }, [type, host, port, useSsl, user, pass, maxConnections, onSave]);
+    }, [type, host, port, useSsl, user, pass, maxConnections, statPipeliningEnabled, onSave]);
 
     const handleOverlayClick = useCallback((e: React.MouseEvent) => {
         if (e.target === e.currentTarget) {
@@ -419,7 +476,7 @@ function ProviderModal({ show, provider, onClose, onSave }: ProviderModalProps) 
                                 value={host}
                                 onChange={(e) => {
                                     setHost(e.target.value);
-                                    setConnectionTested(false);
+                                    invalidateConnectionTests();
                                 }}
                             />
                         </div>
@@ -436,7 +493,7 @@ function ProviderModal({ show, provider, onClose, onSave }: ProviderModalProps) 
                                 value={port}
                                 onChange={(e) => {
                                     setPort(e.target.value);
-                                    setConnectionTested(false);
+                                    invalidateConnectionTests();
                                 }}
                             />
                         </div>
@@ -453,7 +510,7 @@ function ProviderModal({ show, provider, onClose, onSave }: ProviderModalProps) 
                                 value={user}
                                 onChange={(e) => {
                                     setUser(e.target.value);
-                                    setConnectionTested(false);
+                                    invalidateConnectionTests();
                                 }}
                             />
                         </div>
@@ -470,7 +527,7 @@ function ProviderModal({ show, provider, onClose, onSave }: ProviderModalProps) 
                                 value={pass}
                                 onChange={(e) => {
                                     setPass(e.target.value);
-                                    setConnectionTested(false);
+                                    invalidateConnectionTests();
                                 }}
                             />
                         </div>
@@ -514,12 +571,52 @@ function ProviderModal({ show, provider, onClose, onSave }: ProviderModalProps) 
                                     checked={useSsl}
                                     onChange={(e) => {
                                         setUseSsl(e.target.checked);
-                                        setConnectionTested(false);
+                                        invalidateConnectionTests();
                                     }}
                                 />
                                 <label htmlFor="provider-ssl" className={styles["form-checkbox-label"]}>
                                     Use SSL
                                 </label>
+                            </div>
+                        </div>
+
+                        <div className={`${styles["form-group"]} ${styles["full-width"]}`}>
+                            <div className={styles["form-checkbox-wrapper"]}>
+                                <input
+                                    type="checkbox"
+                                    id="provider-pipelining"
+                                    className={styles["form-checkbox"]}
+                                    checked={statPipeliningEnabled}
+                                    disabled={!pipeliningMasterEnabled}
+                                    onChange={(e) => {
+                                        setStatPipeliningEnabled(e.target.checked);
+                                        setPipeliningTestResult(null);
+                                    }}
+                                />
+                                <label htmlFor="provider-pipelining" className={styles["form-checkbox-label"]}>
+                                    Enable STAT pipelining for this provider
+                                </label>
+                            </div>
+                            <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={handleTestPipelining}
+                                    disabled={!pipeliningMasterEnabled || !isFormValid || isTestingPipelining}
+                                >
+                                    {isTestingPipelining ? "Testing..." : "Test pipelining support"}
+                                </Button>
+                                {pipeliningTestResult === "supported" && (
+                                    <span style={{ color: 'var(--bs-success, #28a745)' }}>✓ Supported</span>
+                                )}
+                                {pipeliningTestResult === "unsupported" && (
+                                    <span style={{ color: 'var(--bs-danger, #dc3545)' }}>✗ Not supported</span>
+                                )}
+                            </div>
+                            <div style={{ marginTop: '8px', opacity: 0.7, fontSize: '0.85em' }}>
+                                {pipeliningMasterEnabled
+                                    ? "Pipelining sends many STAT checks at once for much faster health checks. Test that this provider handles it correctly before enabling."
+                                    : "To tick “Enable STAT pipelining for this provider”, first turn on the NNTP pipelining master switch on the SABnzbd tab. It’s disabled globally right now."}
                             </div>
                         </div>
                     </div>

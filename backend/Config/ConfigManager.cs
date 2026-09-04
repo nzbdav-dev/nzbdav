@@ -171,6 +171,31 @@ public class ConfigManager
             .ToHashSet();
     }
 
+    /// <summary>
+    /// Master switch for NNTP STAT pipelining. When disabled, STAT health checks always run
+    /// one-command-per-round-trip regardless of any provider's individual pipelining setting.
+    /// </summary>
+    public bool GetNntpPipeliningEnabled()
+    {
+        var defaultValue = true;
+        var configValue = StringUtil.EmptyToNull(GetConfigValue("usenet.nntp-pipelining.enabled"));
+        return (configValue != null ? bool.Parse(configValue) : defaultValue);
+    }
+
+    /// <summary>
+    /// The maximum number of STAT commands sent back-to-back before reading their responses.
+    /// A value of 1 (or less) effectively disables pipelining. Bounded to a conservative range:
+    /// the benefit flattens out well before 150 and higher depths only add provider risk for
+    /// fractions of a second.
+    /// </summary>
+    public int GetNntpPipeliningDepth()
+    {
+        var defaultValue = 50;
+        var configValue = StringUtil.EmptyToNull(GetConfigValue("usenet.nntp-pipelining.depth"));
+        var depth = configValue != null ? int.Parse(configValue) : defaultValue;
+        return Math.Clamp(depth, 1, 150);
+    }
+
     public bool IsPreviewPar2FilesEnabled()
     {
         var defaultValue = false;

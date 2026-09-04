@@ -24,6 +24,76 @@ public class MultiProviderNntpClient(List<MultiConnectionNntpClient> providers) 
         return RunFromPoolWithBackup(x => x.StatAsync(segmentId, cancellationToken), cancellationToken);
     }
 
+    public override async Task<IReadOnlyList<UsenetStatResponse>> StatPipelinedAsync
+    (
+        IReadOnlyList<string> segmentIds,
+        CancellationToken cancellationToken
+    )
+    {
+        if (segmentIds.Count == 0) return [];
+
+        // Same semantics as running each STAT through RunFromPoolWithBackup individually: a segment
+        // is only "missing" if it is missing on every provider. We send the batch to the first
+        // provider, then re-query just the still-missing segments on each subsequent provider.
+        var results = new UsenetStatResponse?[segmentIds.Count];
+        var pending = new List<int>(segmentIds.Count);
+        for (var i = 0; i < segmentIds.Count; i++) pending.Add(i);
+
+        ExceptionDispatchInfo? lastException = null;
+        var orderedProviders = GetOrderedProviders();
+        foreach (var provider in orderedProviders)
+        {
+            if (pending.Count == 0) break;
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (lastException is not null)
+            {
+                var msg = lastException.SourceException.Message;
+                Log.Debug($"Encountered error during pipelined STAT batch: `{msg}`. Trying another provider.");
+            }
+
+            var subBatch = pending.Select(i => segmentIds[i]).ToList();
+            IReadOnlyList<UsenetStatResponse> subResults;
+            try
+            {
+                subResults = await provider.StatPipelinedAsync(subBatch, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception e) when (!e.IsCancellationException())
+            {
+                // The whole sub-batch is unresolved on this provider; leave those segments pending
+                // so the next provider gets a chance at them.
+                lastException = ExceptionDispatchInfo.Capture(e);
+                continue;
+            }
+
+            var stillPending = new List<int>();
+            for (var k = 0; k < pending.Count; k++)
+            {
+                var idx = pending[k];
+                var result = subResults[k];
+                results[idx] = result;
+                // Only keep re-querying segments this provider says are missing.
+                if (result.ResponseType == UsenetResponseType.NoArticleWithThatMessageId)
+                    stillPending.Add(idx);
+            }
+
+            pending = stillPending;
+        }
+
+        // Any segment that never received a result only failed because providers threw -- surface
+        // that as an error rather than silently reporting the article as missing.
+        for (var i = 0; i < results.Length; i++)
+        {
+            if (results[i] is null)
+            {
+                if (lastException is not null) lastException.Throw();
+                throw new Exception("There are no usenet providers configured.");
+            }
+        }
+
+        return results!;
+    }
+
     public override Task<UsenetHeadResponse> HeadAsync(SegmentId segmentId, CancellationToken cancellationToken)
     {
         return RunFromPoolWithBackup(x => x.HeadAsync(segmentId, cancellationToken), cancellationToken);

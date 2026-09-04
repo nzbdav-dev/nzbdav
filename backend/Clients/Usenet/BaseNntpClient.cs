@@ -60,6 +60,18 @@ public class BaseNntpClient : NntpClient
         return _client.StatAsync(segmentId, cancellationToken);
     }
 
+    public override Task<IReadOnlyList<UsenetStatResponse>> StatPipelinedAsync
+    (
+        IReadOnlyList<string> segmentIds,
+        CancellationToken cancellationToken
+    )
+    {
+        var ids = new SegmentId[segmentIds.Count];
+        for (var i = 0; i < segmentIds.Count; i++)
+            ids[i] = segmentIds[i];
+        return _client.StatPipelinedAsync(ids, cancellationToken);
+    }
+
     public override async Task<UsenetHeadResponse> HeadAsync(SegmentId segmentId, CancellationToken cancellationToken)
     {
         var headResponse = await _client.HeadAsync(segmentId, cancellationToken);
