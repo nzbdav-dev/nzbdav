@@ -37,7 +37,7 @@
     "@types/express-serve-static-core": "^5.1.1",
     "@types/mime-types": "^3.0.1",
     "@types/morgan": "^1.9.9",
-    "@types/node": "^25",
+    "@types/node": "^26",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@types/ws": "^8.18.1",
